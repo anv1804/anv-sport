@@ -143,12 +143,12 @@ export default function EntitiesClient({ initialEntities, initialClubs }: Entiti
   const isAllSelected = currentPaginatedData.length > 0 && currentPaginatedData.every(item => selectedIds.includes(item.id));
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[calc(100vh-12rem)] min-h-[600px]">
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-auto md:h-[calc(100vh-12rem)] min-h-0 md:min-h-[600px]">
       
       {/* TOOLBAR */}
-      <div className="p-4 border-b border-slate-100 bg-white flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
-        <div className="flex flex-1 items-center gap-3">
-          <div className="relative w-full md:w-80">
+      <div className="p-4 border-b border-slate-100 bg-white flex flex-col lg:flex-row lg:items-center justify-between gap-4 shrink-0">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-3 flex-1 w-full">
+          <div className="relative w-full lg:w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input 
               type="text"
@@ -168,9 +168,12 @@ export default function EntitiesClient({ initialEntities, initialClubs }: Entiti
           </div>
           
           {/* FILTERS */}
-          <div className="flex items-center gap-2 border-l border-slate-200 pl-3">
-            <Filter className="w-4 h-4 text-slate-400 mr-1" />
-            <div className="w-[160px]">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 border-t lg:border-t-0 lg:border-l border-slate-200 pt-3 lg:pt-0 lg:pl-3 w-full lg:w-auto">
+            <div className="flex items-center gap-2 text-slate-400 text-sm">
+              <Filter className="w-4 h-4 shrink-0" />
+              <span className="lg:hidden font-medium text-slate-500 text-xs">Bộ lọc:</span>
+            </div>
+            <div className="w-full sm:w-[160px]">
               <CustomSelect 
                 options={[{value: 'ALL', label: 'Tất cả Môn'}, ...availableTypes]}
                 value={typeFilter}
@@ -178,7 +181,7 @@ export default function EntitiesClient({ initialEntities, initialClubs }: Entiti
                 placeholder="Tất cả Môn"
               />
             </div>
-            <div className="w-[200px]">
+            <div className="w-full sm:w-[200px]">
               <CustomSelect 
                 options={[{value: 'ALL', label: 'Tất cả CLB'}, ...initialClubs.map(c => ({value: c.id, label: c.name}))]}
                 value={clubFilter}
@@ -189,11 +192,11 @@ export default function EntitiesClient({ initialEntities, initialClubs }: Entiti
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-end gap-3 w-full lg:w-auto border-t lg:border-t-0 pt-3 lg:pt-0">
           <button 
             onClick={() => startTransition(() => router.refresh())}
             disabled={isPending}
-            className="flex items-center gap-2 px-3 py-2 text-[13px] font-bold text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors border border-slate-200 hover:border-emerald-200"
+            className="flex items-center justify-center gap-2 px-3 py-2 text-[13px] font-bold text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors border border-slate-200 hover:border-emerald-200 w-full sm:w-auto"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isPending ? 'animate-spin text-emerald-600' : ''}`} />
             Làm mới
@@ -203,7 +206,7 @@ export default function EntitiesClient({ initialEntities, initialClubs }: Entiti
             <button 
               onClick={handleBulkDelete}
               disabled={isSubmitting}
-              className="flex items-center justify-center gap-2 px-5 py-2.5 bg-red-50 text-red-600 font-bold text-sm rounded-lg hover:bg-red-100 border border-red-200 transition-colors whitespace-nowrap disabled:opacity-50"
+              className="flex items-center justify-center gap-2 px-5 py-2.5 bg-red-50 text-red-600 font-bold text-sm rounded-lg hover:bg-red-100 border border-red-200 transition-colors whitespace-nowrap disabled:opacity-50 w-full sm:w-auto"
             >
               <Trash2 className="w-4 h-4" /> Xóa ({selectedIds.length})
             </button>
@@ -211,8 +214,8 @@ export default function EntitiesClient({ initialEntities, initialClubs }: Entiti
         </div>
       </div>
 
-      {/* TABLE */}
-      <div className="flex-1 overflow-auto scrollbar-hide relative">
+      {/* TABLE & CARDS AREA */}
+      <div className="flex-1 overflow-auto scrollbar-hide relative flex flex-col">
         {isPending && (
           <div className="absolute inset-0 bg-white/60 backdrop-blur-[1.5px] z-20 flex items-center justify-center transition-all duration-300">
              <div className="flex flex-col items-center gap-3 bg-white/90 p-5 rounded-2xl shadow-xl border border-emerald-100">
@@ -221,7 +224,9 @@ export default function EntitiesClient({ initialEntities, initialClubs }: Entiti
              </div>
           </div>
         )}
-        <table className="w-full text-left border-collapse min-w-[800px]">
+
+        {/* DESKTOP TABLE VIEW */}
+        <table className="w-full text-left border-collapse min-w-[800px] hidden md:table">
           <thead className="bg-slate-50/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-10">
             <tr>
               <th className="py-3 px-5 w-12">
@@ -288,6 +293,80 @@ export default function EntitiesClient({ initialEntities, initialClubs }: Entiti
             )}
           </tbody>
         </table>
+
+        {/* MOBILE CARD VIEW */}
+        <div className="block md:hidden divide-y divide-slate-100 flex-1 overflow-auto bg-slate-50/50">
+          <div className="p-3 bg-white border-b border-slate-200 flex items-center justify-between sticky top-0 z-10">
+            <label className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase cursor-pointer select-none">
+              <input 
+                type="checkbox" 
+                checked={isAllSelected}
+                onChange={handleSelectAll}
+                className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer"
+              />
+              Chọn tất cả
+            </label>
+            <span className="text-xs text-slate-400 font-medium">Hiển thị {currentPaginatedData.length} VĐV</span>
+          </div>
+
+          {currentPaginatedData.map(e => (
+            <div key={e.id} className={`p-4 flex flex-col gap-3 hover:bg-emerald-50/10 transition-colors bg-white ${selectedIds.includes(e.id) ? 'bg-emerald-50/30' : ''}`}>
+              <div className="flex items-start gap-3">
+                <input 
+                  type="checkbox" 
+                  checked={selectedIds.includes(e.id)} 
+                  onChange={() => toggleSelect(e.id)} 
+                  className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer mt-1" 
+                />
+                
+                {e.avatar ? (
+                  <img src={e.avatar} className="w-12 h-12 rounded-full object-cover border border-slate-200 bg-white shrink-0" />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-slate-100 border border-slate-200 shrink-0"></div>
+                )}
+                
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-slate-800 text-[15px] truncate">{e.name}</div>
+                  <div className="text-[11px] text-slate-400 font-mono mt-0.5 truncate">{e.slug}</div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs pl-7">
+                <div>
+                  <span className="font-medium text-slate-400 block mb-0.5">Phân loại</span>
+                  <span className="inline-flex px-2 py-0.5 bg-slate-100 text-slate-600 rounded font-bold text-[10px]">
+                    {e.type === 'FOOTBALL_PLAYER' ? 'Bóng đá' : e.type === 'BILLIARDS_PLAYER' ? 'Billiards' : e.type}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-medium text-slate-400 block mb-0.5">Câu lạc bộ</span>
+                  <span className="text-slate-600 font-bold">
+                    {e.club ? e.club.name : <span className="text-slate-400 font-normal italic">Không có</span>}
+                  </span>
+                </div>
+              </div>
+
+              {/* Actions for Mobile Card */}
+              <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-2 pl-7 mt-1">
+                <Link href={`/admin/entities/${e.id}/edit`} className="flex items-center gap-1 px-3 py-1.5 text-xs text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors font-bold" title="Chỉnh sửa">
+                  <Edit2 className="w-3.5 h-3.5" /> Sửa
+                </Link>
+                <button onClick={() => handleDelete(e.id)} className="flex items-center gap-1 px-3 py-1.5 text-xs text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors font-bold" title="Xóa">
+                  <Trash2 className="w-3.5 h-3.5" /> Xóa
+                </button>
+              </div>
+            </div>
+          ))}
+
+          {filteredEntities.length === 0 && (
+            <div className="py-12 text-center text-slate-500 bg-white">
+              <div className="flex flex-col items-center justify-center">
+                <Users className="w-12 h-12 text-slate-200 mb-3" />
+                <p>Không tìm thấy Cầu thủ / VĐV nào.</p>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* PAGINATION */}

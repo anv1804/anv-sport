@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { Button } from '@/components/ui/Button'
 import { MenuItem, SiteMenuSettings } from '@/types/settings'
 import { updateSetting } from '@/app/admin/(dashboard)/settings/actions'
-import { Save, CheckCircle2, XCircle, Plus, Trash2, GripVertical, Link as LinkIcon, FolderTree, ExternalLink, CornerDownRight, Search, ChevronDown, ChevronRight } from 'lucide-react'
+import { Save, CheckCircle2, XCircle, Plus, Trash2, GripVertical, Link as LinkIcon, FolderTree, ExternalLink, CornerDownRight, Search, ChevronDown, ChevronRight, Tag, Globe } from 'lucide-react'
 
 type Category = { id: string; name: string; slug: string; parentId: string | null }
 
@@ -311,23 +311,78 @@ export function MenuSettings({ initialData, onSuccess, categories, onDirtyChange
         }}
       >
         <div 
-          className={`flex flex-col gap-2 p-3 bg-white rounded-xl border ${hasError ? 'border-red-400 bg-red-50/30' : isDragOver ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200'} ${isDragging ? 'opacity-50' : ''} shadow-sm group hover:${hasError ? 'border-red-500' : 'border-emerald-300'} transition-colors relative`}
+          className={`flex flex-col gap-3.5 p-4 rounded-2xl border transition-all duration-200 relative
+            ${depth > 0 
+              ? 'bg-slate-50/50 border-slate-200 shadow-none pl-3 sm:pl-4 border-l-[3px] border-l-emerald-500/50' 
+              : 'bg-white border-slate-200 shadow-[0_2px_8px_-3px_rgba(0,0,0,0.05)] hover:shadow-[0_4px_16px_-4px_rgba(0,0,0,0.08)]'
+            }
+            ${hasError ? 'border-red-300 bg-red-50/20' : isDragOver ? 'border-emerald-400 bg-emerald-50/30' : ''}
+            ${isDragging ? 'opacity-50' : ''}
+          `}
         >
-          <div className="flex w-full items-start sm:items-center flex-col sm:flex-row gap-3">
-            <div className="flex items-center gap-1 shrink-0 hidden sm:flex pl-1 pr-1">
-              <div className="text-slate-300 cursor-grab active:cursor-grabbing hover:text-slate-500 flex items-center">
+          {/* Mobile Header Bar (index, collapse, and actions) */}
+          <div className="flex items-center justify-between w-full sm:hidden gap-2 pb-2.5 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <span className="bg-slate-100 text-slate-600 w-6 h-6 rounded-full flex items-center justify-center font-bold text-[11px] font-mono shadow-inner border border-slate-200/50">
+                {indexString}
+              </span>
+              {item.children && item.children.length > 0 && (
+                <button 
+                  onClick={() => toggleCollapse(item.id)}
+                  className="p-1 rounded-lg text-slate-500 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 transition-colors flex items-center justify-center border border-slate-200/40"
+                >
+                  {isCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                </button>
+              )}
+            </div>
+            
+            {/* Actions for mobile in header */}
+            <div className="flex items-center gap-1 bg-slate-50 p-0.5 rounded-lg border border-slate-200/50">
+              <button
+                type="button"
+                onClick={() => handleChange(item.id, { target: item.target === '_blank' ? '_self' : '_blank' })}
+                className={`p-1.5 rounded-md transition-colors ${item.target === '_blank' ? 'bg-blue-100 text-blue-600 font-bold' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
+                title="Mở trong tab mới"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+              </button>
+              {depth < 1 && (
+                <button 
+                  type="button"
+                  onClick={() => handleAddChild(item.id)}
+                  className="p-1.5 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-md transition-colors"
+                  title="Thêm menu con"
+                >
+                  <CornerDownRight className="w-3.5 h-3.5" />
+                </button>
+              )}
+              <button 
+                type="button"
+                onClick={() => handleRemove(item.id)}
+                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                title="Xóa mục"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex w-full items-stretch sm:items-center flex-col sm:flex-row gap-3">
+            {/* Desktop Drag Handle, Collapse & Index */}
+            <div className="flex items-center gap-1.5 shrink-0 hidden sm:flex pl-1 pr-1.5">
+              <div className="text-slate-300 cursor-grab active:cursor-grabbing hover:text-slate-500 flex items-center p-0.5 hover:bg-slate-50 rounded-md transition-colors">
                 <GripVertical className="w-4 h-4 shrink-0" />
               </div>
               {item.children && item.children.length > 0 ? (
                 <button 
                   onClick={() => toggleCollapse(item.id)}
-                  className="p-0.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors flex items-center justify-center"
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors flex items-center justify-center"
                   title={isCollapsed ? "Mở rộng" : "Thu gọn"}
                 >
                   {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 </button>
               ) : (
-                <div className="w-5 h-5 shrink-0" />
+                <div className="w-6 h-6 shrink-0" />
               )}
               <span className="text-slate-400 font-mono text-[13px] min-w-[20px] text-center shrink-0 ml-1">{indexString}</span>
             </div>
@@ -336,70 +391,83 @@ export function MenuSettings({ initialData, onSuccess, categories, onDirtyChange
             <select
               value={item.type || 'custom'}
               onChange={(e) => handleChange(item.id, { type: e.target.value as 'custom' | 'category' })}
-              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 w-[130px] shrink-0"
+              className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 w-full sm:w-[140px] shrink-0 cursor-pointer hover:bg-slate-100 transition-colors"
             >
-              <option value="custom">Link tự do</option>
-              <option value="category">Từ danh mục</option>
+              <option value="custom">🔗 Link tự do</option>
+              <option value="category">📂 Từ danh mục</option>
             </select>
 
             {/* Inputs based on type */}
-            <div className="flex-1 flex gap-2 w-full items-start min-w-0">
+            <div className="flex-1 flex flex-col sm:flex-row gap-2.5 w-full items-stretch sm:items-center min-w-0">
               {isCategory ? (
                 <>
-                  <div className={`flex-[1.2] min-w-0 ${attemptedSave && isCategoryEmpty ? 'rounded-lg border border-red-400 ring-2 ring-red-500/20' : ''}`}>
+                  <div className={`flex-[1.2] min-w-0 ${attemptedSave && isCategoryEmpty ? 'rounded-xl border border-red-400 ring-2 ring-red-500/20' : ''}`}>
                     <CategorySearchSelect 
                       value={item.categoryId || ''} 
                       onChange={(val) => handleChange(item.id, { categoryId: val })} 
                       options={availableCategories} 
                     />
                   </div>
-                  <div className="flex-[0.8] hidden sm:block min-w-0">
+                  <div className="flex-[0.8] min-w-0 relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                      <Globe className="w-3.5 h-3.5" />
+                    </span>
                     <input 
                       type="text"
                       value={item.url || ''}
                       disabled
                       placeholder="Đường dẫn"
-                      className={`w-full px-3 py-2 bg-slate-50 border ${isDuplicateUrl ? 'border-red-400 text-red-600' : 'border-slate-200 text-slate-400'} rounded-lg text-sm font-mono cursor-not-allowed min-w-0`}
+                      className={`w-full pl-9 pr-3 py-2 bg-slate-50 border ${isDuplicateUrl ? 'border-red-400 text-red-600' : 'border-slate-200 text-slate-400'} rounded-xl text-sm font-mono cursor-not-allowed min-w-0`}
                     />
                   </div>
                 </>
               ) : (
                 <>
-                  <input 
-                    type="text"
-                    placeholder="Tên hiển thị"
-                    value={item.label}
-                    onChange={(e) => handleChange(item.id, { label: e.target.value })}
-                    className={`flex-1 px-3 py-2 bg-white border ${isDuplicateLabel || (attemptedSave && isLabelEmpty) ? 'border-red-400 focus:ring-red-500/50' : 'border-slate-200 focus:ring-emerald-500/50'} rounded-lg text-sm focus:outline-none focus:ring-2 min-w-0`}
-                  />
-                  <input 
-                    type="text"
-                    placeholder="URL (VD: /about)"
-                    value={item.url}
-                    onChange={(e) => handleChange(item.id, { url: e.target.value })}
-                    className={`flex-1 px-3 py-2 bg-white border ${isDuplicateUrl || (attemptedSave && isUrlEmpty) ? 'border-red-400 focus:ring-red-500/50' : 'border-slate-200 focus:ring-emerald-500/50'} rounded-lg text-sm font-mono text-slate-600 focus:outline-none focus:ring-2 min-w-0`}
-                  />
+                  <div className="flex-1 min-w-0 relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                      <Tag className="w-3.5 h-3.5" />
+                    </span>
+                    <input 
+                      type="text"
+                      placeholder="Tên hiển thị"
+                      value={item.label}
+                      onChange={(e) => handleChange(item.id, { label: e.target.value })}
+                      className={`w-full pl-9 pr-3 py-2 bg-white border ${isDuplicateLabel || (attemptedSave && isLabelEmpty) ? 'border-red-400 focus:ring-red-500/50' : 'border-slate-200 focus:ring-emerald-500/50'} rounded-xl text-sm focus:outline-none focus:ring-2 transition-all min-w-0`}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0 relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                      <LinkIcon className="w-3.5 h-3.5" />
+                    </span>
+                    <input 
+                      type="text"
+                      placeholder="URL (VD: /about)"
+                      value={item.url}
+                      onChange={(e) => handleChange(item.id, { url: e.target.value })}
+                      className={`w-full pl-9 pr-3 py-2 bg-white border ${isDuplicateUrl || (attemptedSave && isUrlEmpty) ? 'border-red-400 focus:ring-red-500/50' : 'border-slate-200 focus:ring-emerald-500/50'} rounded-xl text-sm font-mono text-slate-600 focus:outline-none focus:ring-2 transition-all min-w-0`}
+                    />
+                  </div>
                 </>
               )}
             </div>
 
-            {/* Target blank toggle */}
+            {/* Desktop Target blank toggle */}
             <button
               type="button"
               onClick={() => handleChange(item.id, { target: item.target === '_blank' ? '_self' : '_blank' })}
-              className={`p-2 rounded-lg transition-colors shrink-0 ${item.target === '_blank' ? 'bg-blue-50 text-blue-600' : 'text-slate-400 hover:bg-slate-100'} mt-1 sm:mt-0`}
+              className={`p-2 rounded-xl transition-all shrink-0 hidden sm:block ${item.target === '_blank' ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-600 border border-transparent hover:border-slate-200'}`}
               title="Mở trong tab mới"
             >
               <ExternalLink className="w-4 h-4" />
             </button>
 
-            {/* Actions */}
-            <div className="flex gap-1 shrink-0 sm:border-l sm:border-slate-200 sm:pl-2 mt-1 sm:mt-0">
+            {/* Desktop Actions */}
+            <div className="hidden sm:flex gap-1 shrink-0 sm:border-l sm:border-slate-200 sm:pl-2">
               {depth < 1 && (
                 <button 
                   type="button"
                   onClick={() => handleAddChild(item.id)}
-                  className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                  className="p-2 text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 rounded-xl transition-all border border-transparent hover:border-emerald-100"
                   title="Thêm menu con"
                 >
                   <CornerDownRight className="w-4 h-4" />
@@ -408,7 +476,7 @@ export function MenuSettings({ initialData, onSuccess, categories, onDirtyChange
               <button 
                 type="button"
                 onClick={() => handleRemove(item.id)}
-                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all border border-transparent hover:border-red-100"
                 title="Xóa mục"
               >
                 <Trash2 className="w-4 h-4" />
@@ -417,7 +485,8 @@ export function MenuSettings({ initialData, onSuccess, categories, onDirtyChange
           </div>
           
           {hasError && (
-            <div className="text-[12px] text-red-500 font-medium pl-[68px]">
+            <div className="text-[12px] text-red-500 font-medium pl-0 sm:pl-[68px] flex items-center gap-1">
+              <span className="w-1 h-1 rounded-full bg-red-500" />
               {(attemptedSave && isThisEmpty) 
                 ? 'Vui lòng nhập/chọn đầy đủ thông tin cho mục này.' 
                 : `Cảnh báo: ${isDuplicateLabel && isDuplicateUrl ? 'Tên hiển thị và Đường dẫn' : isDuplicateLabel ? 'Tên hiển thị' : 'Đường dẫn'} bị trùng lặp với Menu khác.`}
@@ -427,7 +496,7 @@ export function MenuSettings({ initialData, onSuccess, categories, onDirtyChange
 
         {/* Children render */}
         {item.children && item.children.length > 0 && !isCollapsed && (
-          <div className="flex flex-col relative ml-4 sm:ml-7 pl-3 sm:pl-4 border-l-2 border-slate-200 mt-4 gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex flex-col relative ml-2.5 sm:ml-7 pl-2 sm:pl-4 border-l-2 border-slate-200 mt-4 gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
             {item.children.map((child, idx) => renderItem(child, depth + 1, currentAncestors, `${indexString}${idx + 1}.`))}
           </div>
         )}
@@ -437,18 +506,18 @@ export function MenuSettings({ initialData, onSuccess, categories, onDirtyChange
 
   return (
     <>
-      <div className="flex-1 overflow-auto custom-scrollbar px-8 py-4 md:py-6">
+      <div className="flex-1 overflow-auto custom-scrollbar px-1.5 sm:px-8 py-3 md:py-6">
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-4">
             <p className="text-sm text-slate-500 max-w-2xl">
               Có thể Kéo Thả (Drag & Drop) vào biểu tượng 6 chấm để sắp xếp các mục. Chỉ hỗ trợ tối đa 2 cấp Menu (Menu gốc và Menu con).
             </p>
-            <Button onClick={handleAddRoot} variant="secondary" type="button" className="flex items-center gap-2 shadow-sm shrink-0">
+            <Button onClick={handleAddRoot} variant="secondary" type="button" className="flex items-center gap-2 shadow-sm shrink-0 w-full sm:w-auto justify-center">
               <Plus className="w-4 h-4" /> Thêm Menu gốc
             </Button>
           </div>
 
-          <div className="bg-slate-50/50 rounded-2xl p-4 sm:p-6 border border-slate-100 w-full min-w-fit">
+          <div className="bg-transparent sm:bg-slate-50/50 rounded-2xl p-0.5 sm:p-6 border border-transparent sm:border-slate-100 w-full min-w-0">
             {items.length === 0 ? (
               <div className="text-center py-12 text-slate-500">
                 Chưa có mục nào trong menu. Hãy bấm "Thêm Menu gốc" để bắt đầu!
