@@ -1,0 +1,30 @@
+/* SCSS Components Layer */
+@layer components {
+  /* Common UI Elements */
+  .btn {
+    @apply px-4 py-2 rounded-md font-semibold transition-transform duration-200 cursor-pointer;
+    
+    &:hover {
+      transform: scale(1.05);
+    }
+    
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+
+  .btn-football {
+    @extend .btn;
+    @apply bg-accent-football text-primary;
+  }
+
+  .btn-mma {
+    @extend .btn;
+    @apply bg-accent-mma text-primary;
+  }
+
+  .btn-billiards {
+    @extend .btn;
+    @apply bg-accent-billiards text-primary;
+  }
+}

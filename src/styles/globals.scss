@@ -1,0 +1,103 @@
+@import "tailwindcss";
+@import "./components.scss";
+@theme {
+  --color-primary: #FFFFFF;
+  --color-secondary: #F5F5F5;
+  --color-surface: #FFFFFF;
+  --color-accent-main: #16A34A; 
+  --color-accent-hover: #15803D;
+  
+  --color-accent-football: #16A34A;
+  --color-accent-mma: #DC2626;
+  --color-accent-billiards: #D97706;
+  
+  --color-text-main: #222222; 
+  --color-text-muted: #757575; 
+}
+
+/* Typography for Client UI only */
+.font-client-ui {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+
+/* Global baseline styles */
+body {
+  background-color: var(--color-primary);
+  color: var(--color-text-main);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Smooth scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(16, 185, 129, 0.8);
+}
+
+/* Firefox standard scrollbar rules */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
+}
+
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Custom Prose Styles for Editor and Viewer */
+.prose {
+  color: #222 !important;
+  font-size: 18px !important;
+  line-height: 1.6 !important;
+
+  p {
+    margin-bottom: 20px !important;
+    line-height: 1.6 !important;
+    font-size: 18px !important;
+  }
+  
+  img {
+    margin-left: auto !important;
+    margin-right: auto !important;
+    margin-bottom: 0.5rem !important;
+    margin-top: 1.5rem !important;
+    max-height: 550px !important;
+    max-width: 100% !important;
+    width: auto !important;
+    object-fit: contain !important;
+    display: block !important;
+    border-radius: 8px !important;
+  }
+
+  /* Tiptap removes <p> around block images, so we target img + p */
+  p:has(img) + p,
+  p:has(img) + p em,
+  img + p,
+  img + p em {
+    text-align: center !important;
+    font-size: 14px !important;
+    color: #888 !important;
+    font-style: italic !important;
+  }
+  
+  p:has(img) + p,
+  img + p {
+    margin-bottom: 2rem !important;
+  }
+}

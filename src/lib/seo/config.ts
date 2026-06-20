@@ -1,0 +1,25 @@
+export const SEO_RULES = {
+  // Tiêu đề & URL
+  TITLE_MIN_LENGTH: 40,
+  TITLE_MAX_LENGTH: 60,
+  EXCERPT_MIN_LENGTH: 120,
+  EXCERPT_MAX_LENGTH: 156,
+  URL_MAX_LENGTH: 75,
+
+  // Nội dung
+  CONTENT_MIN_WORDS: 300,
+  CONTENT_IDEAL_WORDS: 800,
+  PARAGRAPH_MAX_WORDS: 150, // Số từ tối đa 1 đoạn
+  SECTION_MAX_WORDS: 300, // Số từ tối đa giữa 2 heading
+
+  // Từ khóa
+  KEYWORD_MIN_DENSITY: 0.75, // %
+  KEYWORD_MAX_DENSITY: 2.5, // %
+
+  // Trọng số (Tổng = 100)
+  WEIGHT_FOCUS_KEYWORD: 25,
+  WEIGHT_BASIC_META: 20,
+  WEIGHT_MEDIA: 15,
+  WEIGHT_LINKS: 15,
+  WEIGHT_READABILITY: 25
+};
