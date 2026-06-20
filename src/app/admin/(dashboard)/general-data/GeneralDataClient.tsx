@@ -8,6 +8,8 @@ import { toast } from "react-hot-toast";
 import { CustomSelect } from "@/components/admin/entity-form/CustomSelect";
 import { useConfirm } from "@/components/providers/ConfirmProvider";
 import { Pagination } from "@/components/ui/Pagination";
+import { Modal } from "@/components/ui/Modal";
+import { Button } from "@/components/ui/Button";
 
 type Tab = "SPORTS" | "COUNTRIES" | "LEAGUES";
 
@@ -447,88 +449,121 @@ export default function GeneralDataClient({
 
       {/* MODALS */}
       {/* Sport Modal */}
-      {sportModal.isOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[100] animate-in fade-in duration-200 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl animate-in zoom-in-95 duration-200">
-            <h3 className="text-xl font-bold mb-6 text-slate-800">{sportModal.data ? "Sửa" : "Thêm"} Môn Thể Thao</h3>
-            <form onSubmit={handleSaveSport} className="space-y-4">
-              <div><label className="block text-sm font-semibold text-slate-700 mb-1.5">Tên môn <span className="text-red-500">*</span></label><input name="name" defaultValue={sportModal.data?.name} required className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"/></div>
-              <div><label className="block text-sm font-semibold text-slate-700 mb-1.5">Slug <span className="text-red-500">*</span></label><input name="slug" defaultValue={sportModal.data?.slug} required className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"/></div>
-              <div><label className="block text-sm font-semibold text-slate-700 mb-1.5">Icon (Emoji)</label><input name="icon" defaultValue={sportModal.data?.icon} className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"/></div>
-              <div className="flex justify-end gap-3 mt-8">
-                <button type="button" onClick={() => setSportModal({isOpen: false, data: null})} className="px-5 py-2.5 border border-slate-300 text-slate-700 font-semibold rounded-lg hover:bg-slate-50 transition-colors">Hủy</button>
-                <button type="submit" disabled={isSubmitting} className="px-5 py-2.5 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center">{isSubmitting ? "Đang lưu..." : "Lưu thay đổi"}</button>
-              </div>
-            </form>
+      <Modal
+        isOpen={sportModal.isOpen}
+        onClose={() => setSportModal({ isOpen: false, data: null })}
+        title={`${sportModal.data ? "Sửa" : "Thêm"} Môn Thể Thao`}
+        maxWidth="md"
+      >
+        <form onSubmit={handleSaveSport} className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Tên môn <span className="text-red-500">*</span></label>
+            <input name="name" defaultValue={sportModal.data?.name} required className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"/>
           </div>
-        </div>
-      )}
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Slug <span className="text-red-500">*</span></label>
+            <input name="slug" defaultValue={sportModal.data?.slug} required className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"/>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Icon (Emoji)</label>
+            <input name="icon" defaultValue={sportModal.data?.icon} className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"/>
+          </div>
+          <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-100 shrink-0">
+            <Button type="button" variant="outline" onClick={() => setSportModal({isOpen: false, data: null})}>Hủy</Button>
+            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Đang lưu..." : "Lưu thay đổi"}</Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Country Modal */}
-      {countryModal.isOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[100] animate-in fade-in duration-200 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl animate-in zoom-in-95 duration-200">
-            <h3 className="text-xl font-bold mb-6 text-slate-800">{countryModal.data ? "Sửa" : "Thêm"} Quốc gia</h3>
-            <form onSubmit={handleSaveCountry} className="space-y-4">
-              <div><label className="block text-sm font-semibold text-slate-700 mb-1.5">Tên quốc gia <span className="text-red-500">*</span></label><input name="name" defaultValue={countryModal.data?.name} required className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"/></div>
-              <div><label className="block text-sm font-semibold text-slate-700 mb-1.5">Slug <span className="text-red-500">*</span></label><input name="slug" defaultValue={countryModal.data?.slug} required className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"/></div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2"><label className="block text-sm font-semibold text-slate-700 mb-1.5">Link Cờ (URL)</label><input name="flag" defaultValue={countryModal.data?.flag} className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"/></div>
-                <div className="col-span-2"><label className="block text-sm font-semibold text-slate-700 mb-1.5">Mã ISO (VD: VN)</label><input name="code" defaultValue={countryModal.data?.code} className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"/></div>
-              </div>
-              <div className="flex justify-end gap-3 mt-8">
-                <button type="button" onClick={() => setCountryModal({isOpen: false, data: null})} className="px-5 py-2.5 border border-slate-300 text-slate-700 font-semibold rounded-lg hover:bg-slate-50 transition-colors">Hủy</button>
-                <button type="submit" disabled={isSubmitting} className="px-5 py-2.5 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50">{isSubmitting ? "Đang lưu..." : "Lưu thay đổi"}</button>
-              </div>
-            </form>
+      <Modal
+        isOpen={countryModal.isOpen}
+        onClose={() => setCountryModal({ isOpen: false, data: null })}
+        title={`${countryModal.data ? "Sửa" : "Thêm"} Quốc gia`}
+        maxWidth="md"
+      >
+        <form onSubmit={handleSaveCountry} className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Tên quốc gia <span className="text-red-500">*</span></label>
+            <input name="name" defaultValue={countryModal.data?.name} required className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"/>
           </div>
-        </div>
-      )}
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Slug <span className="text-red-500">*</span></label>
+            <input name="slug" defaultValue={countryModal.data?.slug} required className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"/>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2">
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Link Cờ (URL)</label>
+              <input name="flag" defaultValue={countryModal.data?.flag} className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"/>
+            </div>
+            <div className="col-span-2">
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Mã ISO (VD: VN)</label>
+              <input name="code" defaultValue={countryModal.data?.code} className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"/>
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-100 shrink-0">
+            <Button type="button" variant="outline" onClick={() => setCountryModal({isOpen: false, data: null})}>Hủy</Button>
+            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Đang lưu..." : "Lưu thay đổi"}</Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* League Modal */}
-      {leagueModal.isOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[100] animate-in fade-in duration-200 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-xl animate-in zoom-in-95 duration-200">
-            <h3 className="text-xl font-bold mb-6 text-slate-800">{leagueModal.data ? "Sửa" : "Thêm"} Giải đấu</h3>
-            <form onSubmit={handleSaveLeague} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className="block text-sm font-semibold text-slate-700 mb-1.5">Tên giải <span className="text-red-500">*</span></label><input name="name" defaultValue={leagueModal.data?.name} required className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"/></div>
-                <div><label className="block text-sm font-semibold text-slate-700 mb-1.5">Slug <span className="text-red-500">*</span></label><input name="slug" defaultValue={leagueModal.data?.slug} required className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"/></div>
-              </div>
-              
-              <div><label className="block text-sm font-semibold text-slate-700 mb-1.5">Chú thích</label><input name="description" defaultValue={leagueModal.data?.description} className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="Mô tả ngắn..."/></div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Môn thể thao <span className="text-red-500">*</span></label>
-                  <CustomSelect 
-                    name="sportId" 
-                    defaultValue={leagueModal.data?.sportId} 
-                    options={initialSports.map(s => ({value: s.id, label: s.name}))}
-                    placeholder="-- Chọn môn --"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-1.5">Quốc gia</label>
-                  <CustomSelect 
-                    name="countryId" 
-                    defaultValue={leagueModal.data?.countryId || ""} 
-                    options={[{value: '', label: '🌐 Giải Quốc tế'}, ...initialCountries.map(c => ({value: c.id, label: c.name}))]}
-                    placeholder="🌐 Giải Quốc tế"
-                  />
-                </div>
-              </div>
-
-              <div><label className="block text-sm font-semibold text-slate-700 mb-1.5">Link Logo (URL)</label><input name="logo" defaultValue={leagueModal.data?.logo} className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="https://..."/></div>
-              
-              <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-100">
-                <button type="button" onClick={() => setLeagueModal({isOpen: false, data: null})} className="px-5 py-2.5 border border-slate-300 text-slate-700 font-semibold rounded-lg hover:bg-slate-50 transition-colors">Hủy</button>
-                <button type="submit" disabled={isSubmitting} className="px-5 py-2.5 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50">{isSubmitting ? "Đang lưu..." : "Lưu thay đổi"}</button>
-              </div>
-            </form>
+      <Modal
+        isOpen={leagueModal.isOpen}
+        onClose={() => setLeagueModal({ isOpen: false, data: null })}
+        title={`${leagueModal.data ? "Sửa" : "Thêm"} Giải đấu`}
+        maxWidth="lg"
+      >
+        <form onSubmit={handleSaveLeague} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Tên giải <span className="text-red-500">*</span></label>
+              <input name="name" defaultValue={leagueModal.data?.name} required className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"/>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Slug <span className="text-red-500">*</span></label>
+              <input name="slug" defaultValue={leagueModal.data?.slug} required className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"/>
+            </div>
           </div>
-        </div>
-      )}
+          
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Chú thích</label>
+            <input name="description" defaultValue={leagueModal.data?.description} className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="Mô tả ngắn..."/>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Môn thể thao <span className="text-red-500">*</span></label>
+              <CustomSelect 
+                name="sportId" 
+                defaultValue={leagueModal.data?.sportId} 
+                options={initialSports.map(s => ({value: s.id, label: s.name}))}
+                placeholder="-- Chọn môn --"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Quốc gia</label>
+              <CustomSelect 
+                name="countryId" 
+                defaultValue={leagueModal.data?.countryId || ""} 
+                options={[{value: '', label: '🌐 Giải Quốc tế'}, ...initialCountries.map(c => ({value: c.id, label: c.name}))]}
+                placeholder="🌐 Giải Quốc tế"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Link Logo (URL)</label>
+            <input name="logo" defaultValue={leagueModal.data?.logo} className="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" placeholder="https://..."/>
+          </div>
+          
+          <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-100 shrink-0">
+            <Button type="button" variant="outline" onClick={() => setLeagueModal({isOpen: false, data: null})}>Hủy</Button>
+            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Đang lưu..." : "Lưu thay đổi"}</Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
