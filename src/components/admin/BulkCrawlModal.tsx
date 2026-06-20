@@ -161,14 +161,14 @@ export default function BulkCrawlModal({ isOpen, onClose, categories = [] }: { i
         <div className="p-6 overflow-y-auto flex-1 flex flex-col gap-6">
           
           {/* Tabs */}
-          <div className="flex gap-2 p-1 bg-slate-100 rounded-lg w-fit">
-            <button onClick={() => setActiveTab("paste")} className={`px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-colors ${activeTab === "paste" ? "bg-white text-emerald-600 shadow-sm" : "text-slate-600 hover:text-slate-800"}`}>
+          <div className="flex flex-wrap sm:flex-nowrap gap-2 p-1 bg-slate-100 rounded-lg w-full sm:w-fit overflow-x-auto">
+            <button onClick={() => setActiveTab("paste")} className={`flex-1 sm:flex-initial px-4 py-2 rounded-md text-sm font-bold flex items-center justify-center gap-2 transition-colors whitespace-nowrap ${activeTab === "paste" ? "bg-white text-emerald-600 shadow-sm" : "text-slate-600 hover:text-slate-800"}`}>
               <ListPlus className="w-4 h-4" /> Dán Link
             </button>
-            <button onClick={() => setActiveTab("upload")} className={`px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-colors ${activeTab === "upload" ? "bg-white text-emerald-600 shadow-sm" : "text-slate-600 hover:text-slate-800"}`}>
+            <button onClick={() => setActiveTab("upload")} className={`flex-1 sm:flex-initial px-4 py-2 rounded-md text-sm font-bold flex items-center justify-center gap-2 transition-colors whitespace-nowrap ${activeTab === "upload" ? "bg-white text-emerald-600 shadow-sm" : "text-slate-600 hover:text-slate-800"}`}>
               <Upload className="w-4 h-4" /> Tải File
             </button>
-            <button onClick={() => setActiveTab("category")} className={`px-4 py-2 rounded-md text-sm font-bold flex items-center gap-2 transition-colors ${activeTab === "category" ? "bg-white text-emerald-600 shadow-sm" : "text-slate-600 hover:text-slate-800"}`}>
+            <button onClick={() => setActiveTab("category")} className={`flex-1 sm:flex-initial px-4 py-2 rounded-md text-sm font-bold flex items-center justify-center gap-2 transition-colors whitespace-nowrap ${activeTab === "category" ? "bg-white text-emerald-600 shadow-sm" : "text-slate-600 hover:text-slate-800"}`}>
               <LinkIcon className="w-4 h-4" /> Quét Chuyên Mục
             </button>
           </div>
@@ -203,19 +203,19 @@ export default function BulkCrawlModal({ isOpen, onClose, categories = [] }: { i
             {activeTab === "category" && (
               <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-5">
                 <label className="block text-sm font-bold text-slate-700 mb-2">Link Trang Chuyên Mục (VnExpress)</label>
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <input 
                     type="url" 
                     value={categoryUrl}
                     onChange={(e) => setCategoryUrl(e.target.value)}
                     placeholder="VD: https://vnexpress.net/the-thao"
-                    className="flex-1 px-4 py-2.5 border border-emerald-200 rounded-lg focus:outline-none focus:border-emerald-500"
+                    className="flex-1 px-4 py-2.5 border border-emerald-200 rounded-lg focus:outline-none focus:border-emerald-500 w-full"
                     disabled={isExtracting || isCrawling}
                   />
                   <button 
                     onClick={handleExtractCategory}
                     disabled={isExtracting || isCrawling || !categoryUrl}
-                    className="px-6 py-2.5 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center gap-2 whitespace-nowrap"
+                    className="px-6 py-2.5 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 whitespace-nowrap w-full sm:w-auto"
                   >
                     {isExtracting ? <><Loader2 className="w-4 h-4 animate-spin" /> Đang quét...</> : "Trích xuất link"}
                   </button>
@@ -228,7 +228,7 @@ export default function BulkCrawlModal({ isOpen, onClose, categories = [] }: { i
           </div>
 
           {/* Config */}
-          <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-100">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-100">
             <div className="flex flex-col gap-1.5 z-20">
               <label className="text-sm font-bold text-slate-700">Trạng thái lưu bài:</label>
               <CustomSelect

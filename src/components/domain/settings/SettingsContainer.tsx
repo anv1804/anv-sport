@@ -97,7 +97,8 @@ export function SettingsContainer({ headerData, footerData, menuData, hamburgerD
   return (
     <div className="space-y-6">
       <div className="bg-white rounded-[24px] border border-slate-200/60 shadow-sm overflow-hidden">
-        <table className="w-full text-left border-collapse min-w-[800px]">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[800px]">
           <thead>
             <tr className="bg-slate-50/50 border-b border-slate-200/60 text-xs font-bold text-slate-400 uppercase tracking-wider">
               <th className="py-5 px-6">Thành phần</th>
@@ -144,6 +145,7 @@ export function SettingsContainer({ headerData, footerData, menuData, hamburgerD
           </tbody>
         </table>
       </div>
+    </div>
 
       <Modal
         isOpen={activeModal === 'HEADER'}

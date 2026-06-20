@@ -212,7 +212,7 @@ export default function EntitiesClient({ initialEntities, initialClubs }: Entiti
       </div>
 
       {/* TABLE */}
-      <div className="flex-1 overflow-y-auto scrollbar-hide relative">
+      <div className="flex-1 overflow-auto scrollbar-hide relative">
         {isPending && (
           <div className="absolute inset-0 bg-white/60 backdrop-blur-[1.5px] z-20 flex items-center justify-center transition-all duration-300">
              <div className="flex flex-col items-center gap-3 bg-white/90 p-5 rounded-2xl shadow-xl border border-emerald-100">
@@ -221,7 +221,7 @@ export default function EntitiesClient({ initialEntities, initialClubs }: Entiti
              </div>
           </div>
         )}
-        <table className="w-full text-left border-collapse">
+        <table className="w-full text-left border-collapse min-w-[800px]">
           <thead className="bg-slate-50/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-10">
             <tr>
               <th className="py-3 px-5 w-12">
