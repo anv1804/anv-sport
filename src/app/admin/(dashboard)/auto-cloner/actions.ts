@@ -199,13 +199,27 @@ export async function prepareCrawlForSource(sourceId: string) {
         linksToCheck.push(link);
       }
 
-      // Check date limits in parallel to dramatically speed up the category scan
-      const dateCheckResults = await Promise.all(
-        linksToCheck.map(async (link) => {
-          const withinLimit = await isArticleWithinDateLimit(link, source.daysLimit);
-          return { link, withinLimit };
-        })
-      );
+      // Check date limits: since the category is sorted from newest to oldest,
+      // if the oldest (last) new link is within the limit, all newer links are guaranteed to be within the limit too.
+      // This avoids up to 40 unnecessary HTTP requests.
+      let allNewLinksWithinLimit = false;
+      if (linksToCheck.length > 0) {
+        const oldestNewLink = linksToCheck[linksToCheck.length - 1];
+        allNewLinksWithinLimit = await isArticleWithinDateLimit(oldestNewLink, source.daysLimit);
+      }
+
+      let dateCheckResults = [];
+      if (allNewLinksWithinLimit) {
+        dateCheckResults = linksToCheck.map(link => ({ link, withinLimit: true }));
+      } else {
+        // Fallback to checking each one individually only if the oldest link is outside the limit
+        dateCheckResults = await Promise.all(
+          linksToCheck.map(async (link) => {
+            const withinLimit = await isArticleWithinDateLimit(link, source.daysLimit);
+            return { link, withinLimit };
+          })
+        );
+      }
 
       for (const res of dateCheckResults) {
         if (!res.withinLimit) {
