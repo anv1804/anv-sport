@@ -173,6 +173,7 @@ export async function prepareCrawlForSource(sourceId: string) {
       const links = extractResult.links;
       let newLinksFoundOnThisPage = 0;
       let olderArticlesCount = 0;
+      let duplicateArticlesCount = 0;
 
       const linksToCheck: string[] = [];
       for (const link of links) {
@@ -192,6 +193,7 @@ export async function prepareCrawlForSource(sourceId: string) {
         });
 
         if (existingPost) {
+          duplicateArticlesCount++;
           continue;
         }
         linksToCheck.push(link);
@@ -210,8 +212,14 @@ export async function prepareCrawlForSource(sourceId: string) {
           olderArticlesCount++;
           continue;
         }
+        validLinks.push(res.link);
       }
-      console.log(`[Auto Cloner] Page ${pageNum}: new links=${newLinksFoundOnThisPage}, older=${olderArticlesCount}, valid=${validLinks.length}`);
+      console.log(`[Auto Cloner] Page ${pageNum}: new links=${newLinksFoundOnThisPage}, duplicate=${duplicateArticlesCount}, older=${olderArticlesCount}, valid=${validLinks.length}`);
+
+      // Stop paginating if we hit duplicate articles (already crawled in previous runs)
+      if (duplicateArticlesCount > 0) {
+        shouldContinuePagination = false;
+      }
 
       // Stop paginating if we hit articles older than limit
       if (olderArticlesCount > 0) {
