@@ -186,8 +186,8 @@ export function initClonerScheduler() {
       const now = new Date();
       const currentHour = now.getHours();
       
-      // Target hours: 7, 12, 17, 22, 2
-      const targetHours = [7, 12, 17, 22, 2];
+      // Target hours: Run every hour (0 to 23)
+      const targetHours = Array.from({ length: 24 }, (_, i) => i);
       
       if (targetHours.includes(currentHour)) {
         // Format slot as YYYY-MM-DD-HH
