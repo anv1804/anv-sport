@@ -394,7 +394,7 @@ export default function PostListClient({ initialPosts, totalCount, currentPage: 
                         {/* Actions bar at bottom */}
                         <div className="flex items-center justify-between pt-2 border-t border-slate-100/60 mt-1">
                           <div className="flex items-center gap-2">
-                            <Link href={`/admin/posts/${post.id}/edit`} className="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-500 hover:text-emerald-600 transition-colors flex items-center justify-center" title="Sửa">
+                            <Link href={`/admin/posts/${post.id}/edit`} prefetch={false} className="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-500 hover:text-emerald-600 transition-colors flex items-center justify-center" title="Sửa">
                               <Edit className="w-3.5 h-3.5" />
                             </Link>
                             <button 
@@ -490,7 +490,7 @@ export default function PostListClient({ initialPosts, totalCount, currentPage: 
                     <td className="px-4 py-5 align-middle hidden md:table-cell">
                       <div className="flex flex-col items-center gap-3">
                         <div className="flex items-center gap-2.5">
-                          <Link href={`/admin/posts/${post.id}/edit`} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Chỉnh sửa"><Edit className="w-4 h-4" /></Link>
+                          <Link href={`/admin/posts/${post.id}/edit`} prefetch={false} className="text-slate-400 hover:text-emerald-600 transition-colors" title="Chỉnh sửa"><Edit className="w-4 h-4" /></Link>
                           <Link href={createArticleUrl(post.title, post.id)} target="_blank" className="text-slate-400 hover:text-emerald-600 transition-colors" title="Xem trước"><Eye className="w-4 h-4" /></Link>
                           <form action={async () => {
                               const ok = await confirm("Bạn có chắc muốn xoá?");

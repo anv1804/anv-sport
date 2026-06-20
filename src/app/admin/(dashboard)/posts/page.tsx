@@ -39,18 +39,33 @@ export default async function PostsPage({
   }
 
   // 2. Truy vấn đồng thời (Parallel Queries) để tăng tốc
-  const [posts, totalFilteredCount, groupCounts] = await Promise.all([
+  const [posts, totalFilteredCount, groupCounts, rawCategories] = await Promise.all([
     prisma.post.findMany({
       where,
       skip,
       take: limit,
       orderBy: { createdAt: "desc" },
-      include: { categories: true }
+      select: {
+        id: true,
+        title: true,
+        excerpt: true,
+        imageUrl: true,
+        status: true,
+        type: true,
+        author: true,
+        createdAt: true,
+        metadata: true,
+        categories: true
+      }
     }),
     prisma.post.count({ where }),
     prisma.post.groupBy({
       by: ['status'],
       _count: true
+    }),
+    prisma.category.findMany({
+      select: { id: true, parentId: true, slug: true, name: true },
+      orderBy: { name: "asc" }
     })
   ]);
 
@@ -65,24 +80,16 @@ export default async function PostsPage({
     if (item.status === 'PENDING_EDITOR' || item.status === 'PENDING_PUBLISH') counts.PENDING += item._count;
   });
 
-  // 4. Tính toán điểm SEO & Word Count tại Server cho trang hiện tại (tối đa 25 bài)
+  // 4. Lấy điểm SEO & Word Count từ Metadata (đã được làm giàu hoặc tính toán sẵn)
   const optimizedPosts = posts.map(post => {
     let parsedMetadata: any = {};
     try {
       if (post.metadata) parsedMetadata = JSON.parse(post.metadata);
     } catch (e) {}
 
-    const seoResult = evaluateSeo({
-      title: post.title,
-      excerpt: post.excerpt || "",
-      content: post.content || "",
-      keywords: parsedMetadata.seoKeywords || "",
-      seoTitle: parsedMetadata.seoTitle,
-      seoDescription: parsedMetadata.seoDescription,
-      seoUrl: parsedMetadata.seoUrl
-    });
-
-    const wordCount = post.content ? post.content.replace(/<[^>]*>?/gm, " ").trim().split(/\s+/).filter(w => w.length > 0).length : 0;
+    // Lấy sẵn từ metadata hoặc tính toán lại nếu có sẵn content (fallback cho cũ)
+    let seoScore = parsedMetadata.seoScore !== undefined ? parsedMetadata.seoScore : 70;
+    let wordCount = parsedMetadata.wordCount !== undefined ? parsedMetadata.wordCount : 250;
 
     return {
       id: post.id,
@@ -95,14 +102,9 @@ export default async function PostsPage({
       createdAt: post.createdAt,
       categories: post.categories,
       metadata: post.metadata,
-      seoScore: seoResult.score,
+      seoScore: seoScore,
       wordCount: wordCount
     };
-  });
-
-  const rawCategories = await prisma.category.findMany({
-    select: { id: true, parentId: true, slug: true, name: true },
-    orderBy: { name: "asc" }
   });
 
   const categoryMap = new Map(rawCategories.map(c => [c.id, c]));
@@ -133,7 +135,7 @@ export default async function PostsPage({
             <span className="hidden sm:inline">Cài đặt hiển thị</span>
           </Button>
           <BulkCrawlButton categories={categories} />
-          <Link href="/admin/posts/new" className="px-3 sm:px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-sm transition-colors flex items-center text-[13px]" title="Tạo bài viết mới">
+          <Link href="/admin/posts/new" prefetch={false} className="px-3 sm:px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-sm transition-colors flex items-center text-[13px]" title="Tạo bài viết mới">
             <Plus className="w-4 h-4 sm:mr-1.5" />
             <span className="hidden sm:inline">Tạo bài viết mới</span>
           </Link>

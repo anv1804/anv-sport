@@ -83,6 +83,7 @@ export function AdminSidebar({ userEmail, userRole, onSignOut, onItemClick }: Ad
                 <Link 
                   key={item.href} 
                   href={item.href} 
+                  prefetch={false}
                   title={isCollapsed ? item.name : undefined}
                   onClick={() => {
                     if (onItemClick) {

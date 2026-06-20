@@ -79,6 +79,7 @@ export function PostForm({ initialData, categories = [] }: { initialData?: any, 
   const [aiTitle, setAiTitle] = useState(parsedMeta.aiTitle || initialData?.title || "");
   const [aiUrl, setAiUrl] = useState(parsedMeta.aiUrl || "");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [pendingAiContent, setPendingAiContent] = useState<string | null>(null);
   const [aiProgress, setAiProgress] = useState(0);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiMode, setAiMode] = useState<'normal' | 'prediction'>('normal');
@@ -154,6 +155,18 @@ export function PostForm({ initialData, categories = [] }: { initialData?: any, 
     setSeoResult(result);
   }, [formData, metadata]);
 
+  // Synchronize AI Generation loading close after editor updates
+  useEffect(() => {
+    if (isGenerating && pendingAiContent && formData.content === pendingAiContent) {
+      const timer = setTimeout(() => {
+        setIsGenerating(false);
+        setIsAiModalOpen(false);
+        setPendingAiContent(null);
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [formData.content, isGenerating, pendingAiContent]);
+
   const handleAiGenerate = async () => {
     if (!aiTitle) { setAiError("Vui lòng nhập tiêu đề định hướng!"); return; }
     
@@ -214,31 +227,29 @@ export function PostForm({ initialData, categories = [] }: { initialData?: any, 
           clearInterval(currentProgressInterval);
           setAiProgress(100);
           
-          setTimeout(() => {
-            setFormData(prev => ({
-              ...prev,
-              title: res.data.title,
-              excerpt: res.data.excerpt,
-              content: res.data.content,
-              imageUrl: res.data.imageUrl || prev.imageUrl,
-            }));
-            
-            setMetadata((prev: any) => ({
-              ...prev,
-              aiTitle,
-              aiUrl,
-              tags: res.data.tags && res.data.tags.length > 0 ? res.data.tags : prev.tags,
-              seoTitle: res.data.seoTitle || prev.seoTitle,
-              seoDescription: res.data.seoDescription || prev.seoDescription,
-              seoKeywords: res.data.seoKeywords || (res.data.tags ? res.data.tags.join(', ') : prev.seoKeywords),
-              seoUrl: res.data.seoUrl || prev.seoUrl,
-              isPrediction: res.data.isPrediction || false,
-              predictionData: res.data.predictionData || null
-            }));
-            setAiError(null);
-            setIsAiModalOpen(false);
-            setIsGenerating(false);
-          }, 500);
+          setPendingAiContent(res.data.content);
+          
+          setFormData(prev => ({
+            ...prev,
+            title: res.data.title,
+            excerpt: res.data.excerpt,
+            content: res.data.content,
+            imageUrl: res.data.imageUrl || prev.imageUrl,
+          }));
+          
+          setMetadata((prev: any) => ({
+            ...prev,
+            aiTitle,
+            aiUrl,
+            tags: res.data.tags && res.data.tags.length > 0 ? res.data.tags : prev.tags,
+            seoTitle: res.data.seoTitle || prev.seoTitle,
+            seoDescription: res.data.seoDescription || prev.seoDescription,
+            seoKeywords: res.data.seoKeywords || (res.data.tags ? res.data.tags.join(', ') : prev.seoKeywords),
+            seoUrl: res.data.seoUrl || prev.seoUrl,
+            isPrediction: res.data.isPrediction || false,
+            predictionData: res.data.predictionData || null
+          }));
+          setAiError(null);
           break; 
         } else {
           attempt++;

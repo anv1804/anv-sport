@@ -303,18 +303,111 @@ export interface ClonerJob {
   failedCount: number;
   currentArticleUrl: string;
   status: 'pending' | 'running' | 'completed' | 'failed';
+  percentage?: number;
 }
 
-if (!(globalThis as any).clonerState) {
-  (globalThis as any).clonerState = {
-    activeJob: null as ClonerJob | null,
-    queue: [] as ClonerJob[],
-    shouldAbort: false
+interface DbClonerState {
+  activeJob: ClonerJob | null;
+  queue: ClonerJob[];
+  shouldAbort: boolean;
+  lastUpdated: string;
+}
+
+async function getDbState(): Promise<DbClonerState> {
+  try {
+    const setting = await prisma.setting.findUnique({
+      where: { key: "cloner_state" }
+    });
+    if (setting && setting.value) {
+      return JSON.parse(setting.value);
+    }
+  } catch (error) {
+    console.error("Error reading cloner state from DB:", error);
+  }
+  return {
+    activeJob: null,
+    queue: [],
+    shouldAbort: false,
+    lastUpdated: new Date().toISOString()
   };
 }
 
+async function saveDbState(state: DbClonerState) {
+  try {
+    await prisma.setting.upsert({
+      where: { key: "cloner_state" },
+      update: {
+        value: JSON.stringify(state),
+        updatedAt: new Date()
+      },
+      create: {
+        key: "cloner_state",
+        value: JSON.stringify(state),
+        description: "Auto Cloner Active Job and Queue State"
+      }
+    });
+  } catch (error) {
+    console.error("Error saving cloner state to DB:", error);
+  }
+}
+
+function calculatePercentage(job: ClonerJob): number {
+  if (job.status === 'completed') return 100;
+  if (job.status === 'failed') return 100;
+  
+  if (job.totalArticlesToCrawl === 0) {
+    return Math.round((job.currentSourceIndex / (job.totalSources || 1)) * 20);
+  } else {
+    const crawlProgress = job.processedArticles / job.totalArticlesToCrawl;
+    return Math.round(20 + crawlProgress * 80);
+  }
+}
+
+async function updateJobProgress(job: ClonerJob) {
+  const state = await getDbState();
+  if (state.activeJob && state.activeJob.id === job.id) {
+    state.activeJob = job;
+    state.lastUpdated = new Date().toISOString();
+    await saveDbState(state);
+  }
+}
+
 export async function getClonerState() {
-  const state = (globalThis as any).clonerState;
+  const state = await getDbState();
+  const now = new Date();
+  
+  if (state.activeJob && state.activeJob.status === 'running') {
+    const lastUpdatedTime = new Date(state.lastUpdated);
+    const secondsSinceLastUpdate = (now.getTime() - lastUpdatedTime.getTime()) / 1000;
+    const isRunningInThisProcess = (globalThis as any).clonerJobRunningId === state.activeJob.id;
+    
+    if (secondsSinceLastUpdate > 20 && !isRunningInThisProcess) {
+      console.log(`[Cloner] Active job ${state.activeJob.id} seems hung (last updated ${secondsSinceLastUpdate}s ago). Resuming...`);
+      state.lastUpdated = now.toISOString();
+      await saveDbState(state);
+      
+      runJobBackground(state.activeJob).catch(err => {
+        console.error("[Cloner] Error resuming job:", err);
+      });
+    }
+  } else if (!state.activeJob && state.queue.length > 0) {
+    const nextJob = state.queue.shift();
+    if (nextJob) {
+      state.activeJob = nextJob;
+      nextJob.status = 'running';
+      state.lastUpdated = now.toISOString();
+      await saveDbState(state);
+      
+      runJobBackground(nextJob).catch(err => {
+        console.error("[Cloner] Error starting next job:", err);
+      });
+    }
+  }
+  
+  if (state.activeJob) {
+    state.activeJob.percentage = calculatePercentage(state.activeJob);
+  }
+  
   return {
     activeJob: state.activeJob,
     queue: state.queue
@@ -323,6 +416,7 @@ export async function getClonerState() {
 
 async function runJobBackground(job: ClonerJob) {
   console.log(`[Background Cloner] Starting job ${job.id} for ${job.totalSources} sources`);
+  (globalThis as any).clonerJobRunningId = job.id;
   
   try {
     const sources = await prisma.autoClonerSource.findMany({
@@ -335,16 +429,18 @@ async function runJobBackground(job: ClonerJob) {
 
     // Step 1: Prep phase
     for (let i = 0; i < sources.length; i++) {
-      if ((globalThis as any).clonerState.shouldAbort) {
+      const currentState = await getDbState();
+      if (currentState.shouldAbort || !currentState.activeJob || currentState.activeJob.id !== job.id) {
         console.warn("[Background Cloner] Job aborted during prep.");
         job.status = 'failed';
-        finishActiveJob();
+        await finishActiveJob(job);
         return;
       }
       
       const source = sources[i];
       job.currentSourceIndex = i + 1;
       job.currentArticleUrl = `Đang kết nối nguồn: ${source.url}`;
+      await updateJobProgress(job);
       
       const prep = await prepareCrawlForSource(source.id);
       if (prep.success && prep.validLinks) {
@@ -361,12 +457,12 @@ async function runJobBackground(job: ClonerJob) {
     }
 
     job.totalArticlesToCrawl = job.validCount;
+    await updateJobProgress(job);
 
     if (job.totalArticlesToCrawl === 0) {
       console.log(`[Background Cloner] Job ${job.id} finished: no new articles found.`);
       job.status = 'completed';
       
-      // Update last run time
       for (const source of sources) {
         await prisma.autoClonerSource.update({
           where: { id: source.id },
@@ -374,21 +470,23 @@ async function runJobBackground(job: ClonerJob) {
         });
       }
       
-      finishActiveJob();
+      await finishActiveJob(job);
       return;
     }
 
     // Step 2: Crawl phase
     for (const prep of prepResults) {
       for (const link of prep.validLinks) {
-        if ((globalThis as any).clonerState.shouldAbort) {
+        const currentState = await getDbState();
+        if (currentState.shouldAbort || !currentState.activeJob || currentState.activeJob.id !== job.id) {
           console.warn("[Background Cloner] Job aborted during crawl.");
           job.status = 'failed';
-          finishActiveJob();
+          await finishActiveJob(job);
           return;
         }
         
         job.currentArticleUrl = link;
+        await updateJobProgress(job);
         
         const res = await crawlArticleLink(link, prep.categorySlug, prep.isForeign);
         job.processedArticles++;
@@ -398,9 +496,9 @@ async function runJobBackground(job: ClonerJob) {
         } else {
           job.failedCount++;
         }
+        await updateJobProgress(job);
       }
 
-      // Update last run time
       await prisma.autoClonerSource.update({
         where: { id: prep.id },
         data: { lastRunAt: new Date() }
@@ -413,43 +511,33 @@ async function runJobBackground(job: ClonerJob) {
     console.error(`[Background Cloner] Job ${job.id} failed:`, error);
     job.status = 'failed';
   } finally {
-    if (!(globalThis as any).clonerState.shouldAbort) {
-      finishActiveJob();
+    const currentState = await getDbState();
+    if (!currentState.shouldAbort) {
+      await finishActiveJob(job);
     }
   }
 }
 
-function finishActiveJob() {
-  const state = (globalThis as any).clonerState;
-  
-  // Explicitly clear references inside the job to help Garbage Collector (GC)
-  if (state.activeJob) {
-    state.activeJob.sourceIds = [];
-    state.activeJob.urlList = [];
-    state.activeJob.currentArticleUrl = '';
+async function finishActiveJob(job: ClonerJob) {
+  if ((globalThis as any).clonerJobRunningId === job.id) {
+    (globalThis as any).clonerJobRunningId = null;
   }
   
-  state.activeJob = null;
+  const state = await getDbState();
+  if (state.activeJob && state.activeJob.id === job.id) {
+    state.activeJob = null;
+    state.lastUpdated = new Date().toISOString();
+    await saveDbState(state);
+  }
   
-  // Trigger next job in queue after a short delay
-  setTimeout(() => {
-    processNextJob();
-  }, 1000);
-}
-
-function processNextJob() {
-  const state = (globalThis as any).clonerState;
-  if (state.activeJob !== null) {
-    return;
-  }
-  if (state.queue.length === 0) {
-    return;
-  }
-
-  const nextJob = state.queue.shift();
-  if (nextJob) {
-    state.activeJob = nextJob;
+  const updatedState = await getDbState();
+  if (updatedState.queue.length > 0 && !updatedState.activeJob) {
+    const nextJob = updatedState.queue.shift()!;
+    updatedState.activeJob = nextJob;
     nextJob.status = 'running';
+    updatedState.lastUpdated = new Date().toISOString();
+    await saveDbState(updatedState);
+    
     runJobBackground(nextJob).catch(err => {
       console.error("[Background Cloner] Error in running next job:", err);
     });
@@ -458,14 +546,12 @@ function processNextJob() {
 
 export async function addClonerJob(sourceIds: string[]) {
   try {
-    const state = (globalThis as any).clonerState;
+    const state = await getDbState();
     
-    // Safety cap to prevent memory bloat/DOS spamming
     if (state.queue.length >= 20) {
       return { success: false, message: "Hàng đợi đã đầy (Tối đa 20 yêu cầu). Vui lòng đợi!" };
     }
     
-    // Check if the exact same source list is already in active or queue to avoid duplicates
     if (state.activeJob && JSON.stringify(state.activeJob.sourceIds.sort()) === JSON.stringify(sourceIds.sort())) {
       return { success: true, message: "Yêu cầu trùng lặp với tiến trình đang chạy." };
     }
@@ -494,7 +580,20 @@ export async function addClonerJob(sourceIds: string[]) {
     };
 
     state.queue.push(newJob);
-    processNextJob();
+    state.lastUpdated = new Date().toISOString();
+    await saveDbState(state);
+
+    if (!state.activeJob) {
+      const nextJob = state.queue.shift();
+      if (nextJob) {
+        state.activeJob = nextJob;
+        nextJob.status = 'running';
+        await saveDbState(state);
+        runJobBackground(nextJob).catch(err => {
+          console.error("[Background Cloner] Error starting next job:", err);
+        });
+      }
+    }
 
     revalidatePath("/admin/auto-cloner");
     return { success: true, jobId: newJob.id };
@@ -505,17 +604,26 @@ export async function addClonerJob(sourceIds: string[]) {
 
 export async function stopActiveClonerJob() {
   try {
-    const state = (globalThis as any).clonerState;
+    const state = await getDbState();
     state.shouldAbort = true;
     state.queue = [];
     
     if (state.activeJob) {
       state.activeJob.status = 'failed';
     }
+    state.lastUpdated = new Date().toISOString();
+    await saveDbState(state);
     
-    setTimeout(() => {
-      state.activeJob = null;
-      state.shouldAbort = false;
+    setTimeout(async () => {
+      try {
+        const s = await getDbState();
+        s.activeJob = null;
+        s.shouldAbort = false;
+        s.lastUpdated = new Date().toISOString();
+        await saveDbState(s);
+      } catch (err) {
+        console.error(err);
+      }
     }, 1500);
 
     revalidatePath("/admin/auto-cloner");

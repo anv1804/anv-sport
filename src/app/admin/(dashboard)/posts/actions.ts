@@ -11,6 +11,33 @@ import { v4 as uuidv4 } from 'uuid';
 import { searchWebForInfo, searchWebForImages } from "@/lib/research";
 import { uploadToSupabase } from "@/services/supabaseUploader";
 import { generateWithFallback } from "@/lib/aiBox";
+import { evaluateSeo } from "@/lib/seo/evaluator";
+
+function enrichMetadata(title: string, excerpt: string, content: string, metadataStr: string | null): string {
+  let meta: any = {};
+  if (metadataStr) {
+    try {
+      meta = JSON.parse(metadataStr);
+    } catch (e) {}
+  }
+
+  const seoResult = evaluateSeo({
+    title,
+    excerpt: excerpt || "",
+    content: content || "",
+    keywords: meta.seoKeywords || "",
+    seoTitle: meta.seoTitle,
+    seoDescription: meta.seoDescription,
+    seoUrl: meta.seoUrl
+  });
+
+  const wordCount = content ? content.replace(/<[^>]*>?/gm, " ").trim().split(/\s+/).filter(w => w.length > 0).length : 0;
+
+  meta.seoScore = seoResult.score;
+  meta.wordCount = wordCount;
+
+  return JSON.stringify(meta);
+}
 
 export async function createPost(formData: FormData) {
   const title = formData.get("title") as string;
@@ -34,8 +61,10 @@ export async function createPost(formData: FormData) {
     } catch (e) {}
   }
 
+  const enrichedMetadata = enrichMetadata(title, excerpt, content, metadata);
+
   await prisma.post.create({
-    data: { title, excerpt, content, imageUrl, status, type, metadata, isAiGenerated,
+    data: { title, excerpt, content, imageUrl, status, type, metadata: enrichedMetadata, isAiGenerated,
       ...(categoryConnectCreate && { categories: categoryConnectCreate }) },
   });
   revalidatePath("/admin/posts");
@@ -64,9 +93,11 @@ export async function updatePost(id: number, formData: FormData) {
     } catch (e) {}
   }
 
+  const enrichedMetadata = enrichMetadata(title, excerpt, content, metadata);
+
   await prisma.post.update({
     where: { id },
-    data: { title, excerpt, content, imageUrl, status, type, metadata,
+    data: { title, excerpt, content, imageUrl, status, type, metadata: enrichedMetadata,
       ...(categoryConnectUpdate && { categories: categoryConnectUpdate }) },
   });
   revalidatePath("/admin/posts");
@@ -649,6 +680,19 @@ export async function bulkCrawlAndSavePost(url: string, status: string = "DRAFT"
     }
 
     const { data } = aiResult;
+    
+    const seoResult = evaluateSeo({
+      title: data.title || "Bài viết không tiêu đề",
+      excerpt: data.excerpt || "",
+      content: data.content || "",
+      keywords: data.seoKeywords || "",
+      seoTitle: data.seoTitle,
+      seoDescription: data.seoDescription,
+      seoUrl: data.seoUrl
+    });
+
+    const wordCount = data.content ? data.content.replace(/<[^>]*>?/gm, " ").trim().split(/\s+/).filter(w => w.length > 0).length : 0;
+
     const metadata = JSON.stringify({
       seoKeywords: data.seoKeywords || "",
       seoTitle: data.seoTitle || "",
@@ -658,7 +702,9 @@ export async function bulkCrawlAndSavePost(url: string, status: string = "DRAFT"
       aiUrl: url,
       postCategory: "STANDARD",
       mainCategory: categorySlug || "",
-      tags: data.tags || []
+      tags: data.tags || [],
+      seoScore: seoResult.score,
+      wordCount: wordCount
     });
 
     let categoryConnectCreate: any = undefined;
@@ -718,12 +764,21 @@ export async function getPaginatedPosts(page: number, status: string, search: st
       skip,
       take: limit,
       orderBy: { createdAt: "desc" },
-      include: { categories: true }
+      select: {
+        id: true,
+        title: true,
+        excerpt: true,
+        imageUrl: true,
+        status: true,
+        type: true,
+        author: true,
+        createdAt: true,
+        metadata: true,
+        categories: true
+      }
     }),
     prisma.post.count({ where }),
   ]);
-
-  const { evaluateSeo } = require("@/lib/seo/evaluator");
 
   const optimizedPosts = posts.map(post => {
     let parsedMetadata: any = {};
@@ -731,17 +786,8 @@ export async function getPaginatedPosts(page: number, status: string, search: st
       if (post.metadata) parsedMetadata = JSON.parse(post.metadata);
     } catch (e) {}
 
-    const seoResult = evaluateSeo({
-      title: post.title,
-      excerpt: post.excerpt || "",
-      content: post.content || "",
-      keywords: parsedMetadata.seoKeywords || "",
-      seoTitle: parsedMetadata.seoTitle,
-      seoDescription: parsedMetadata.seoDescription,
-      seoUrl: parsedMetadata.seoUrl
-    });
-
-    const wordCount = post.content ? post.content.replace(/<[^>]*>?/gm, " ").trim().split(/\s+/).filter(w => w.length > 0).length : 0;
+    let seoScore = parsedMetadata.seoScore !== undefined ? parsedMetadata.seoScore : 70;
+    let wordCount = parsedMetadata.wordCount !== undefined ? parsedMetadata.wordCount : 250;
 
     return {
       id: post.id,
@@ -754,7 +800,7 @@ export async function getPaginatedPosts(page: number, status: string, search: st
       createdAt: post.createdAt.toISOString(),
       categories: post.categories,
       metadata: post.metadata,
-      seoScore: seoResult.score,
+      seoScore: seoScore,
       wordCount: wordCount
     };
   });

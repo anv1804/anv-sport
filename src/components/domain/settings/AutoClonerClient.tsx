@@ -267,18 +267,20 @@ export function AutoClonerClient({ sources, categories }: AutoClonerClientProps)
           active: false,
           status: 'stopped'
         }))
-        router.refresh()
       }
     } catch (err: any) {
       addToast(err.message || 'Lỗi khi dừng tiến trình', 'error')
     }
   }
 
-  // Poll background cloner state from server every 2 seconds
+  // Poll background cloner state dynamically to avoid database and connection pool bloat
   useEffect(() => {
-    let active = true;
+    let active = true
+    let timeoutId: any = null
     
     const fetchState = async () => {
+      let pollDelay = 10000 // Default to 10s when idle
+      
       try {
         const state = await getClonerState()
         if (!active) return
@@ -286,6 +288,7 @@ export function AutoClonerClient({ sources, categories }: AutoClonerClientProps)
         setQueue(state.queue || [])
 
         if (state.activeJob) {
+          pollDelay = 2000 // Poll fast (2s) when actively running
           const isFailed = state.activeJob.status === 'failed'
           setIsCrawling(!isFailed)
           setShowProgressBanner(true)
@@ -324,15 +327,18 @@ export function AutoClonerClient({ sources, categories }: AutoClonerClientProps)
         }
       } catch (err) {
         console.error("Lỗi khi đồng bộ tiến trình:", err)
+      } finally {
+        if (active) {
+          timeoutId = setTimeout(fetchState, pollDelay)
+        }
       }
     }
 
     fetchState()
-    const interval = setInterval(fetchState, 2000)
     
     return () => {
       active = false
-      clearInterval(interval)
+      if (timeoutId) clearTimeout(timeoutId)
     }
   }, [router])
 
