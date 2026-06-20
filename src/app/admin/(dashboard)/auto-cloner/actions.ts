@@ -170,11 +170,11 @@ export async function prepareCrawlForSource(sourceId: string) {
       if (!extractResult.success || !extractResult.links || extractResult.links.length === 0) {
         break;
       }
-
       const links = extractResult.links;
       let newLinksFoundOnThisPage = 0;
       let olderArticlesCount = 0;
 
+      const linksToCheck: string[] = [];
       for (const link of links) {
         if (allLinks.includes(link)) {
           continue;
@@ -194,17 +194,23 @@ export async function prepareCrawlForSource(sourceId: string) {
         if (existingPost) {
           continue;
         }
+        linksToCheck.push(link);
+      }
 
-        // 2. Check date limit
-        const withinLimit = await isArticleWithinDateLimit(link, source.daysLimit);
-        if (!withinLimit) {
+      // Check date limits in parallel to dramatically speed up the category scan
+      const dateCheckResults = await Promise.all(
+        linksToCheck.map(async (link) => {
+          const withinLimit = await isArticleWithinDateLimit(link, source.daysLimit);
+          return { link, withinLimit };
+        })
+      );
+
+      for (const res of dateCheckResults) {
+        if (!res.withinLimit) {
           olderArticlesCount++;
           continue;
         }
-
-        validLinks.push(link);
       }
-
       console.log(`[Auto Cloner] Page ${pageNum}: new links=${newLinksFoundOnThisPage}, older=${olderArticlesCount}, valid=${validLinks.length}`);
 
       // Stop paginating if we hit articles older than limit
