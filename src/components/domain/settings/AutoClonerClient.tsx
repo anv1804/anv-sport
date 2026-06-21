@@ -950,42 +950,37 @@ export function AutoClonerClient({ sources, categories }: AutoClonerClientProps)
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[700px] sm:min-w-0">
-              <thead>
-                <tr className="bg-slate-50/50 border-b border-slate-200/60 text-xs font-bold text-slate-444 uppercase tracking-wider">
-                  <th className="py-4 px-4 sm:px-6 w-[55px] text-center">
-                    <input
-                      type="checkbox"
-                      className="w-4.5 h-4.5 border-slate-200 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                      checked={sources.length > 0 && selectedIds.length === sources.length}
-                      disabled={isCrawling || queue.length > 0}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedIds(sources.map(s => s.id))
-                        } else {
-                          setSelectedIds([])
-                        }
-                      }}
-                    />
-                  </th>
-                  <th className="py-4 px-4 sm:px-6 w-[90px]">Trạng thái</th>
-                  <th className="py-4 px-4 sm:px-6">Nguồn cào (URL)</th>
-                  <th className="py-4 px-4 sm:px-6 w-[140px] hidden sm:table-cell">Danh mục đích</th>
-                  <th className="py-4 px-4 sm:px-6 text-center w-[120px] hidden md:table-cell">Giới hạn ngày</th>
-                  <th className="py-4 px-4 sm:px-6 text-center w-[100px] hidden lg:table-cell">Dịch thuật</th>
-                  <th className="py-4 px-4 sm:px-6 w-[170px] hidden sm:table-cell">Lần quét cuối</th>
-                  <th className="py-4 px-4 sm:px-6 text-right w-[150px]">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {sources.map((source) => (
-                  <tr key={source.id} className={`group hover:bg-slate-50/50 transition-colors ${selectedIds.includes(source.id) ? 'bg-emerald-50/20' : ''}`}>
-                    {/* Checkbox Column */}
-                    <td className="py-4 px-4 sm:px-6 text-center">
+          <div>
+            {/* Mobile Stack Layout */}
+            <div className="block sm:hidden divide-y divide-slate-100">
+              {/* Select All header for Mobile */}
+              <div className="p-4 bg-slate-50/50 flex items-center justify-between">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="w-4.5 h-4.5 border-slate-200 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:opacity-50"
+                    checked={sources.length > 0 && selectedIds.length === sources.length}
+                    disabled={isCrawling || queue.length > 0}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedIds(sources.map(s => s.id))
+                      } else {
+                        setSelectedIds([])
+                      }
+                    }}
+                  />
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Chọn tất cả</span>
+                </label>
+              </div>
+
+              {sources.map((source) => (
+                <div key={source.id} className={`p-4 space-y-3 transition-colors ${selectedIds.includes(source.id) ? 'bg-emerald-50/20' : 'bg-white'}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      {/* Checkbox */}
                       <input
                         type="checkbox"
-                        className="w-4.5 h-4.5 border-slate-200 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-4.5 h-4.5 border-slate-200 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:opacity-50 mt-1"
                         checked={selectedIds.includes(source.id)}
                         disabled={isCrawling || queue.length > 0}
                         onChange={(e) => {
@@ -996,141 +991,300 @@ export function AutoClonerClient({ sources, categories }: AutoClonerClientProps)
                           }
                         }}
                       />
-                    </td>
+
+                      {/* URL and badges */}
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <Link2 className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                          <a
+                            href={source.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm font-bold text-slate-800 hover:text-emerald-600 block leading-tight break-all"
+                            title={source.url}
+                          >
+                            {formatUrlDisplay(source.url)}
+                          </a>
+                        </div>
+                        
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-md text-[10px] font-bold">
+                            {source.category.name}
+                          </span>
+                          {source.daysLimit && (
+                            <span className="px-2 py-0.5 bg-slate-50 text-slate-500 border border-slate-100 rounded-md text-[10px] font-bold">
+                              Giới hạn: {source.daysLimit} ngày
+                            </span>
+                          )}
+                          {source.isForeign && (
+                            <span className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded-md text-[10px] font-bold">
+                              Dịch AI
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
 
                     {/* Toggle Status */}
-                    <td className="py-4 px-4 sm:px-6">
-                      <button
-                        onClick={() => handleToggleStatus(source.id, source.isActive)}
-                        disabled={isCrawling || queue.length > 0}
-                        className={`transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed`}
-                        title={source.isActive ? 'Bấm để tạm dừng' : 'Bấm để kích hoạt'}
-                      >
-                        {source.isActive ? (
-                          <ToggleRight className="w-9 h-9 text-emerald-500 cursor-pointer" />
-                        ) : (
-                          <ToggleLeft className="w-9 h-9 text-slate-300 cursor-pointer" />
-                        )}
-                      </button>
-                    </td>
+                    <button
+                      onClick={() => handleToggleStatus(source.id, source.isActive)}
+                      disabled={isCrawling || queue.length > 0}
+                      className="transition-colors focus:outline-none disabled:opacity-50 flex-shrink-0"
+                      title={source.isActive ? 'Bấm để tạm dừng' : 'Bấm để kích hoạt'}
+                    >
+                      {source.isActive ? (
+                        <ToggleRight className="w-9 h-9 text-emerald-500 cursor-pointer" />
+                      ) : (
+                        <ToggleLeft className="w-9 h-9 text-slate-300 cursor-pointer" />
+                      )}
+                    </button>
+                  </div>
 
-                    {/* URL */}
-                    <td className="py-4 px-4 sm:px-6 max-w-[200px] sm:max-w-xs md:max-w-sm">
-                      <div className="flex items-center gap-2">
-                        <Link2 className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                        <a
-                          href={source.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm font-semibold text-slate-700 hover:text-emerald-600 truncate block"
-                          title={source.url}
+                  {/* Actions & Last Run info */}
+                  <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 text-xs">
+                    <div className="text-slate-400 font-medium">
+                      Lần cuối: {' '}
+                      <span className="text-slate-500 font-semibold">
+                        {source.lastRunAt ? (
+                          new Date(source.lastRunAt).toLocaleString('vi-VN', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            day: '2-digit',
+                            month: '2-digit',
+                          })
+                        ) : (
+                          'Chưa chạy'
+                        )}
+                      </span>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="flex gap-1">
+                      <a
+                        href={`/${source.category.slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1.5 text-slate-455 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                        title="Xem chuyên mục"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => crawlSources([source.id])}
+                        disabled={isCrawling || queue.length > 0}
+                        className="p-1.5 text-emerald-600 hover:bg-emerald-50 disabled:text-slate-300 disabled:hover:bg-transparent rounded-lg transition-all"
+                        title="Quét nguồn"
+                      >
+                        <Play className="w-4 h-4 fill-current" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleEditClick(source)}
+                        disabled={isCrawling || queue.length > 0}
+                        className="p-1.5 text-slate-455 hover:text-blue-600 hover:bg-blue-50 disabled:text-slate-300 disabled:hover:bg-transparent rounded-lg transition-all"
+                        title="Sửa"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteSource(source.id)}
+                        disabled={isCrawling || queue.length > 0}
+                        className="p-1.5 text-slate-455 hover:text-red-500 hover:bg-red-50 disabled:text-slate-300 disabled:hover:bg-transparent rounded-lg transition-all"
+                        title="Xóa"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table Layout */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[700px] sm:min-w-0">
+                <thead>
+                  <tr className="bg-slate-50/50 border-b border-slate-200/60 text-xs font-bold text-slate-444 uppercase tracking-wider">
+                    <th className="py-4 px-4 sm:px-6 w-[55px] text-center">
+                      <input
+                        type="checkbox"
+                        className="w-4.5 h-4.5 border-slate-200 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        checked={sources.length > 0 && selectedIds.length === sources.length}
+                        disabled={isCrawling || queue.length > 0}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedIds(sources.map(s => s.id))
+                          } else {
+                            setSelectedIds([])
+                          }
+                        }}
+                      />
+                    </th>
+                    <th className="py-4 px-4 sm:px-6 w-[90px]">Trạng thái</th>
+                    <th className="py-4 px-4 sm:px-6">Nguồn cào (URL)</th>
+                    <th className="py-4 px-4 sm:px-6 w-[140px] hidden sm:table-cell">Danh mục đích</th>
+                    <th className="py-4 px-4 sm:px-6 text-center w-[120px] hidden md:table-cell">Giới hạn ngày</th>
+                    <th className="py-4 px-4 sm:px-6 text-center w-[100px] hidden lg:table-cell">Dịch thuật</th>
+                    <th className="py-4 px-4 sm:px-6 w-[170px] hidden sm:table-cell">Lần quét cuối</th>
+                    <th className="py-4 px-4 sm:px-6 text-right w-[150px]">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {sources.map((source) => (
+                    <tr key={source.id} className={`group hover:bg-slate-50/50 transition-colors ${selectedIds.includes(source.id) ? 'bg-emerald-50/20' : ''}`}>
+                      {/* Checkbox Column */}
+                      <td className="py-4 px-4 sm:px-6 text-center">
+                        <input
+                          type="checkbox"
+                          className="w-4.5 h-4.5 border-slate-200 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                          checked={selectedIds.includes(source.id)}
+                          disabled={isCrawling || queue.length > 0}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedIds(prev => [...prev, source.id])
+                            } else {
+                              setSelectedIds(prev => prev.filter(id => id !== source.id))
+                            }
+                          }}
+                        />
+                      </td>
+
+                      {/* Toggle Status */}
+                      <td className="py-4 px-4 sm:px-6">
+                        <button
+                          onClick={() => handleToggleStatus(source.id, source.isActive)}
+                          disabled={isCrawling || queue.length > 0}
+                          className={`transition-colors focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed`}
+                          title={source.isActive ? 'Bấm để tạm dừng' : 'Bấm để kích hoạt'}
                         >
-                          {formatUrlDisplay(source.url)}
-                        </a>
-                      </div>
-                      {/* Responsive Badges for small screens */}
-                      <div className="mt-1 flex flex-wrap gap-1 sm:hidden">
-                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-md text-[10px] font-bold">
+                          {source.isActive ? (
+                            <ToggleRight className="w-9 h-9 text-emerald-500 cursor-pointer" />
+                          ) : (
+                            <ToggleLeft className="w-9 h-9 text-slate-300 cursor-pointer" />
+                          )}
+                        </button>
+                      </td>
+
+                      {/* URL */}
+                      <td className="py-4 px-4 sm:px-6 max-w-[200px] sm:max-w-xs md:max-w-sm">
+                        <div className="flex items-center gap-2">
+                          <Link2 className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                          <a
+                            href={source.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm font-semibold text-slate-700 hover:text-emerald-600 truncate block"
+                            title={source.url}
+                          >
+                            {formatUrlDisplay(source.url)}
+                          </a>
+                        </div>
+                        {/* Responsive Badges for small screens */}
+                        <div className="mt-1 flex flex-wrap gap-1 sm:hidden">
+                          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-md text-[10px] font-bold">
+                            {source.category.name}
+                          </span>
+                          {source.daysLimit && (
+                            <span className="px-2 py-0.5 bg-slate-50 text-slate-500 border border-slate-100 rounded-md text-[10px] font-bold">
+                              {source.daysLimit} ngày
+                            </span>
+                          )}
+                          {source.isForeign && (
+                            <span className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded-md text-[10px] font-bold">
+                              Dịch
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Target Category */}
+                      <td className="py-4 px-4 sm:px-6 hidden sm:table-cell">
+                        <span className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg text-xs font-bold whitespace-nowrap">
                           {source.category.name}
                         </span>
-                        {source.daysLimit && (
-                          <span className="px-2 py-0.5 bg-slate-50 text-slate-500 border border-slate-100 rounded-md text-[10px] font-bold">
-                            {source.daysLimit} ngày
+                      </td>
+
+                      {/* Days Limit */}
+                      <td className="py-4 px-4 sm:px-6 text-center text-sm font-bold text-slate-600 hidden md:table-cell">
+                        {source.daysLimit} ngày
+                      </td>
+
+                      {/* isForeign */}
+                      <td className="py-4 px-4 sm:px-6 text-center hidden lg:table-cell">
+                        {source.isForeign ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-0.5 rounded-lg">
+                            <Globe className="w-3.5 h-3.5" /> Có (Dịch)
+                          </span>
+                        ) : (
+                          <span className="text-xs font-bold text-slate-400 bg-slate-50 border border-slate-100 px-2.5 py-0.5 rounded-lg">
+                            Không
                           </span>
                         )}
-                        {source.isForeign && (
-                          <span className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded-md text-[10px] font-bold">
-                            Dịch
-                          </span>
+                      </td>
+
+                      {/* Last Run At */}
+                      <td className="py-4 px-4 sm:px-6 text-xs font-medium text-slate-500 hidden sm:table-cell">
+                        {source.lastRunAt ? (
+                          new Date(source.lastRunAt).toLocaleString('vi-VN', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            day: '2-digit',
+                            month: '2-digit',
+                            year: 'numeric'
+                          })
+                        ) : (
+                          <span className="text-slate-400 italic">Chưa chạy lần nào</span>
                         )}
-                      </div>
-                    </td>
+                      </td>
 
-                    {/* Target Category */}
-                    <td className="py-4 px-4 sm:px-6 hidden sm:table-cell">
-                      <span className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg text-xs font-bold whitespace-nowrap">
-                        {source.category.name}
-                      </span>
-                    </td>
-
-                    {/* Days Limit */}
-                    <td className="py-4 px-4 sm:px-6 text-center text-sm font-bold text-slate-600 hidden md:table-cell">
-                      {source.daysLimit} ngày
-                    </td>
-
-                    {/* isForeign */}
-                    <td className="py-4 px-4 sm:px-6 text-center hidden lg:table-cell">
-                      {source.isForeign ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-0.5 rounded-lg">
-                          <Globe className="w-3.5 h-3.5" /> Có (Dịch)
-                        </span>
-                      ) : (
-                        <span className="text-xs font-bold text-slate-400 bg-slate-50 border border-slate-100 px-2.5 py-0.5 rounded-lg">
-                          Không
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Last Run At */}
-                    <td className="py-4 px-4 sm:px-6 text-xs font-medium text-slate-500 hidden sm:table-cell">
-                      {source.lastRunAt ? (
-                        new Date(source.lastRunAt).toLocaleString('vi-VN', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                          day: '2-digit',
-                          month: '2-digit',
-                          year: 'numeric'
-                        })
-                      ) : (
-                        <span className="text-slate-400 italic">Chưa chạy lần nào</span>
-                      )}
-                    </td>
-
-                    {/* Actions */}
-                    <td className="py-4 px-4 sm:px-6 text-right">
-                      <div className="flex justify-end gap-1.5 sm:gap-2 sm:opacity-80 sm:group-hover:opacity-100 transition-opacity">
-                        <a
-                          href={`/${source.category.slug}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-1.5 sm:p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
-                          title="Xem chuyên mục trên website"
-                        >
-                          <ExternalLink className="w-4 h-4 sm:w-5 sm:h-5" />
-                        </a>
-                        <button
-                          type="button"
-                          onClick={() => crawlSources([source.id])}
-                          disabled={isCrawling || queue.length > 0}
-                          className="p-1.5 sm:p-2 text-emerald-600 hover:bg-emerald-50 disabled:text-slate-400 disabled:hover:bg-transparent disabled:cursor-not-allowed rounded-xl transition-all"
-                          title="Quét nguồn này"
-                        >
-                          <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleEditClick(source)}
-                          disabled={isCrawling || queue.length > 0}
-                          className="p-1.5 sm:p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 disabled:text-slate-300 disabled:hover:bg-transparent disabled:cursor-not-allowed rounded-xl transition-all"
-                          title="Sửa cấu hình nguồn"
-                        >
-                          <Pencil className="w-4 h-4 sm:w-5 sm:h-5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteSource(source.id)}
-                          disabled={isCrawling || queue.length > 0}
-                          className="p-1.5 sm:p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 disabled:text-slate-300 disabled:hover:bg-transparent disabled:cursor-not-allowed rounded-xl transition-all"
-                          title="Xóa nguồn quét"
-                        >
-                          <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      {/* Actions */}
+                      <td className="py-4 px-4 sm:px-6 text-right">
+                        <div className="flex justify-end gap-1.5 sm:gap-2 sm:opacity-80 sm:group-hover:opacity-100 transition-opacity">
+                          <a
+                            href={`/${source.category.slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1.5 sm:p-2 text-slate-455 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                            title="Xem chuyên mục trên website"
+                          >
+                            <ExternalLink className="w-4 h-4 sm:w-5 sm:h-5" />
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => crawlSources([source.id])}
+                            disabled={isCrawling || queue.length > 0}
+                            className="p-1.5 sm:p-2 text-emerald-600 hover:bg-emerald-50 disabled:text-slate-455 disabled:hover:bg-transparent disabled:cursor-not-allowed rounded-xl transition-all"
+                            title="Quét nguồn này"
+                          >
+                            <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleEditClick(source)}
+                            disabled={isCrawling || queue.length > 0}
+                            className="p-1.5 sm:p-2 text-slate-455 hover:text-blue-600 hover:bg-blue-50 disabled:text-slate-300 disabled:hover:bg-transparent disabled:cursor-not-allowed rounded-xl transition-all"
+                            title="Sửa cấu hình nguồn"
+                          >
+                            <Pencil className="w-4 h-4 sm:w-5 sm:h-5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteSource(source.id)}
+                            disabled={isCrawling || queue.length > 0}
+                            className="p-1.5 sm:p-2 text-slate-455 hover:text-red-500 hover:bg-red-50 disabled:text-slate-300 disabled:hover:bg-transparent disabled:cursor-not-allowed rounded-xl transition-all"
+                            title="Xóa nguồn quét"
+                          >
+                            <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>
@@ -1248,82 +1402,132 @@ export function AutoClonerClient({ sources, categories }: AutoClonerClientProps)
                   <p className="text-sm font-semibold">Không tìm thấy bài viết nào trong lịch sử quét</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto border border-slate-200/80 rounded-2xl w-full">
-                  <table className="w-full text-left border-collapse min-w-[500px] table-fixed">
-                    <thead>
-                      <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-450 uppercase tracking-wider text-slate-400">
-                        <th className="py-3.5 px-4 w-[60px] text-center hidden sm:table-cell">ID</th>
-                        <th className="py-3.5 px-4 w-[60%] sm:w-[50%]">Tên bài viết</th>
-                        <th className="py-3.5 px-4 hidden md:table-cell w-[25%]">Nguồn cào (URL)</th>
-                        <th className="py-3.5 px-4 w-[25%] sm:w-[150px]">Danh mục đích</th>
-                        <th className="py-3.5 px-4 w-[160px] hidden sm:table-cell">Ngày cào</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {historyData.posts.map((post: any) => (
-                        <tr key={post.id} className="hover:bg-slate-50/50 transition-colors text-sm">
-                          <td className="py-3.5 px-4 text-center font-mono font-bold text-slate-400 text-xs hidden sm:table-cell">{post.id}</td>
-                          <td className="py-3.5 px-4 max-w-0">
-                            <a
-                              href={`/admin/posts/edit/${post.id}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="font-bold text-slate-800 hover:text-emerald-600 block truncate"
-                              title={post.title}
-                            >
-                              {post.title}
-                            </a>
-                            {/* Fallback info for smaller widths */}
-                            <div className="mt-1 flex flex-wrap gap-1 md:hidden">
-                              {post.aiUrl && (
-                                <a
-                                  href={post.aiUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-[10px] text-emerald-600 hover:underline max-w-[200px] truncate"
-                                >
-                                  Nguồn cào
-                                </a>
-                              )}
-                              <span className="text-[10px] text-slate-400 sm:hidden">
-                                • {new Date(post.createdAt).toLocaleDateString('vi-VN')}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="py-3.5 px-4 max-w-0 hidden md:table-cell">
+                <div className="w-full">
+                  {/* Mobile Stack Layout */}
+                  <div className="block sm:hidden space-y-3">
+                    {historyData.posts.map((post: any) => (
+                      <div key={post.id} className="p-3 border border-slate-200/80 rounded-2xl bg-white hover:border-emerald-500 transition-all shadow-sm">
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">
+                            ID: {post.id}
+                          </span>
+                          <span className="text-[10px] font-medium text-slate-400">
+                            {new Date(post.createdAt).toLocaleDateString('vi-VN')} {new Date(post.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <a
+                          href={`/admin/posts/edit/${post.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-bold text-slate-800 hover:text-emerald-600 block text-xs leading-snug mb-2"
+                        >
+                          {post.title}
+                        </a>
+                        <div className="flex flex-col gap-1.5 pt-2 border-t border-slate-50">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-slate-400 font-medium">Danh mục:</span>
+                            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg text-[10px] font-bold truncate max-w-[180px]">
+                              {post.categories}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-slate-400 font-medium">Nguồn:</span>
                             {post.aiUrl ? (
                               <a
                                 href={post.aiUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="font-mono text-slate-400 hover:text-emerald-600 text-xs truncate block"
-                                title={post.aiUrl}
+                                className="text-emerald-600 hover:underline font-semibold truncate max-w-[185px]"
                               >
-                                {post.aiUrl}
+                                {post.aiUrl.replace(/https?:\/\/(www\.)?/, '').split('/')[0]}
                               </a>
                             ) : (
-                              <span className="text-slate-355 italic text-xs">Không có link nguồn</span>
+                              <span className="text-slate-355 italic">Không có link nguồn</span>
                             )}
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg text-xs font-bold whitespace-nowrap block w-max truncate max-w-full">
-                              {post.categories}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 text-xs font-medium text-slate-500 hidden sm:table-cell">
-                            {new Date(post.createdAt).toLocaleString('vi-VN')}
-                          </td>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop Table Layout */}
+                  <div className="hidden sm:block overflow-x-auto border border-slate-200/80 rounded-2xl w-full">
+                    <table className="w-full text-left border-collapse min-w-[500px] table-fixed">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-450 uppercase tracking-wider text-slate-400">
+                          <th className="py-3.5 px-4 w-[60px] text-center hidden sm:table-cell">ID</th>
+                          <th className="py-3.5 px-4 w-[60%] sm:w-[50%]">Tên bài viết</th>
+                          <th className="py-3.5 px-4 hidden md:table-cell w-[25%]">Nguồn cào (URL)</th>
+                          <th className="py-3.5 px-4 w-[25%] sm:w-[150px]">Danh mục đích</th>
+                          <th className="py-3.5 px-4 w-[160px] hidden sm:table-cell">Ngày cào</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {historyData.posts.map((post: any) => (
+                          <tr key={post.id} className="hover:bg-slate-50/50 transition-colors text-sm">
+                            <td className="py-3.5 px-4 text-center font-mono font-bold text-slate-400 text-xs hidden sm:table-cell">{post.id}</td>
+                            <td className="py-3.5 px-4 max-w-0">
+                              <a
+                                href={`/admin/posts/edit/${post.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-bold text-slate-800 hover:text-emerald-600 block truncate"
+                                title={post.title}
+                              >
+                                {post.title}
+                              </a>
+                              {/* Fallback info for smaller widths */}
+                              <div className="mt-1 flex flex-wrap gap-1 md:hidden">
+                                {post.aiUrl && (
+                                  <a
+                                    href={post.aiUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-[10px] text-emerald-600 hover:underline max-w-[200px] truncate"
+                                  >
+                                    Nguồn cào
+                                  </a>
+                                )}
+                                <span className="text-[10px] text-slate-400 sm:hidden">
+                                  • {new Date(post.createdAt).toLocaleDateString('vi-VN')}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-4 max-w-0 hidden md:table-cell">
+                              {post.aiUrl ? (
+                                <a
+                                  href={post.aiUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="font-mono text-slate-400 hover:text-emerald-600 text-xs truncate block"
+                                  title={post.aiUrl}
+                                >
+                                  {post.aiUrl}
+                                </a>
+                              ) : (
+                                <span className="text-slate-355 italic text-xs">Không có link nguồn</span>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg text-xs font-bold whitespace-nowrap block w-max truncate max-w-full">
+                                {post.categories}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 text-xs font-medium text-slate-500 hidden sm:table-cell">
+                              {new Date(post.createdAt).toLocaleString('vi-VN')}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>
  
             {/* Modal Footer / Pagination */}
             {historyData.totalPages > 1 && (
-              <div className="p-4 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 rounded-b-[24px]">
+              <div className="p-4 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 rounded-b-[24px] shrink-0">
                 <span className="text-xs text-slate-500 font-semibold text-center sm:text-left">
                   Hiển thị {(historyFilters.page - 1) * historyFilters.limit + 1} - {Math.min(historyFilters.page * historyFilters.limit, historyData.total)} trên tổng số {historyData.total} dòng
                 </span>
@@ -1333,14 +1537,25 @@ export function AutoClonerClient({ sources, categories }: AutoClonerClientProps)
                     type="button"
                     disabled={historyFilters.page <= 1}
                     onClick={() => setHistoryFilters(prev => ({ ...prev, page: prev.page - 1 }))}
-                    className="p-2 border border-slate-200 rounded-lg hover:bg-white disabled:opacity-50 transition-all cursor-pointer"
+                    className="p-2 border border-slate-200 rounded-lg hover:bg-white disabled:opacity-50 transition-all cursor-pointer bg-white"
                   >
                     <ChevronLeft className="w-4 h-4 text-slate-600" />
                   </button>
                   
-                  {Array.from({ length: historyData.totalPages }).map((_, idx) => {
-                    const pNum = idx + 1;
-                    return (
+                  {(() => {
+                    const current = historyFilters.page;
+                    const total = historyData.totalPages;
+                    let pages = [];
+                    if (total <= 5) {
+                      pages = Array.from({ length: total }, (_, i) => i + 1);
+                    } else if (current <= 3) {
+                      pages = [1, 2, 3, 4, 5];
+                    } else if (current >= total - 2) {
+                      pages = [total - 4, total - 3, total - 2, total - 1, total];
+                    } else {
+                      pages = [current - 2, current - 1, current, current + 1, current + 2];
+                    }
+                    return pages.map(pNum => (
                       <button
                         key={pNum}
                         type="button"
@@ -1348,19 +1563,19 @@ export function AutoClonerClient({ sources, categories }: AutoClonerClientProps)
                         className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
                           historyFilters.page === pNum
                             ? 'bg-emerald-600 text-white shadow-md'
-                            : 'border border-slate-200 hover:bg-white text-slate-700'
+                            : 'border border-slate-200 hover:bg-white text-slate-700 bg-white'
                         }`}
                       >
                         {pNum}
                       </button>
-                    )
-                  })}
+                    ));
+                  })()}
  
                   <button
                     type="button"
                     disabled={historyFilters.page >= historyData.totalPages}
                     onClick={() => setHistoryFilters(prev => ({ ...prev, page: prev.page + 1 }))}
-                    className="p-2 border border-slate-200 rounded-lg hover:bg-white disabled:opacity-50 transition-all cursor-pointer"
+                    className="p-2 border border-slate-200 rounded-lg hover:bg-white disabled:opacity-50 transition-all cursor-pointer bg-white"
                   >
                     <ChevronRight className="w-4 h-4 text-slate-600" />
                   </button>
