@@ -1,0 +1,71 @@
+{
+  "scenarios": {
+    "lead_preservation_and_tempo_control": {
+      "trigger_conditions": "Team leading by 1 goal after the 75th minute, or leading by 2+ goals after the 60th minute.",
+      "tactical_behaviors": [
+        "Transition to a mid-to-low defensive block (e.g., 4-1-4-1 or 5-4-1).",
+        "Slowing down game tempo: taking maximum time on goal kicks, throw-ins, and set-pieces.",
+        "Possession recycling: passing backwards and sideways among defenders rather than playing vertical progression.",
+        "Tactical substitutions: replacing creative wingers/strikers with physical defensive midfielders or extra center-backs."
+      ],
+      "statistical_impacts": {
+        "possession_tempo": "Decreased progressive passes, increased passing accuracy in own half.",
+        "attack_frequency": "Sharp decline in shots taken; focus shifts entirely to isolated counter-attacks.",
+        "fouling_rate": "Increased tactical fouling in the middle third to disrupt opponent transitions."
+      }
+    },
+    "high_stakes_must_win": {
+      "trigger_conditions": "Second leg knockout matches where a team is trailing on aggregate, or late-season matches where a team must win to avoid relegation or secure a championship/continental spot.",
+      "tactical_behaviors": [
+        "Aggressive risk-taking: pushing both full-backs high up, forming a 2-3-5 or 2-2-6 attacking shape.",
+        "Aggressive high pressing and counter-pressing to win the ball back as close to the opponent's box as possible.",
+        "Shorter build-up phases, shifting to direct long balls into the box during the final 15 minutes.",
+        "Goalkeeper joining set-pieces in the final minutes if trailing by 1 goal in a knockout."
+      ],
+      "statistical_impacts": {
+        "shots_and_crosses": "Significant increase in shots from distance and crosses into the box.",
+        "defensive_vulnerability": "High expected goals against (xGA) on counter-attacks due to vacated defensive spaces.",
+        "expected_corners": "Elevated corner counts due to sustained final-third pressure."
+      }
+    },
+    "local_derby_and_historical_rivalry": {
+      "trigger_conditions": "Matches between local city rivals (e.g., North London Derby, El Clasico) or teams with intense historical animosity.",
+      "tactical_behaviors": [
+        "Extremely high physical intensity and aggression in the first 15-20 minutes.",
+        "Tight man-marking and aggressive duels, frequently disrupting tactical flow.",
+        "High emotional volatility: players reacting aggressively to referee decisions or opponent fouls."
+      ],
+      "statistical_impacts": {
+        "cards_and_fouls": "Sharp increase in total fouls, yellow cards, and probability of red cards.",
+        "passing_fluidity": "Lower passing accuracy in the opening half due to high-intensity pressing and physical duels.",
+        "scoring_patterns": "High probability of early goals or goals resulting from individual defensive errors under pressure."
+      }
+    },
+    "mental_collapse_consecutive_concessions": {
+      "trigger_conditions": "Conceding 2 or more goals in a short span (e.g., within 5-10 minutes), especially for away teams or teams with low morale.",
+      "tactical_behaviors": [
+        "Loss of structural discipline: defenders pulling out of position due to panic.",
+        "Midfielders failing to track back or cover spaces in front of the defense.",
+        "Erratic passing and high turnover rate in own defensive third under press."
+      ],
+      "statistical_impacts": {
+        "concession_probability": "Exponentially higher probability of conceding additional goals in the next 15 minutes.",
+        "passing_accuracy": "Severe drop in defensive-third passing accuracy.",
+        "shot_concession": "Increase in shots on target allowed from central areas."
+      }
+    },
+    "early_red_card_survival": {
+      "trigger_conditions": "Conceding a red card in the first half or early second half.",
+      "tactical_behaviors": [
+        "Immediate formation adjustment: transitioning to compact structures like 4-4-1 (if a midfielder/defender was sent off) or 5-3-1.",
+        "Sacrificing the lone striker's attacking duties to help screen the midfield block.",
+        "Surrendering possession: defending deep inside own half, denying central spaces, and relying strictly on clearances."
+      ],
+      "statistical_impacts": {
+        "possession_percentage": "Possession drops to 30% - 35% on average.",
+        "shot_volume": "Opponent shot volume increases, but restricted mostly to low-quality shots from distance.",
+        "expected_cards": "Remaining players receive more cards due to persistent defensive pressure."
+      }
+    }
+  }
+}

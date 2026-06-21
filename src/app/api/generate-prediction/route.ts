@@ -198,6 +198,7 @@ export async function POST(req: Request) {
     // Load tactical reference database
     let tacticsReference = null;
     let playerTendenciesReference = null;
+    let matchDynamicsReference = null;
     try {
       const tacticsPath = path.join(process.cwd(), 'src/lib/tactics/formations_and_playstyles.json');
       if (fs.existsSync(tacticsPath)) {
@@ -206,6 +207,10 @@ export async function POST(req: Request) {
       const tendenciesPath = path.join(process.cwd(), 'src/lib/tactics/player_roles_and_tendencies.json');
       if (fs.existsSync(tendenciesPath)) {
         playerTendenciesReference = JSON.parse(fs.readFileSync(tendenciesPath, 'utf-8'));
+      }
+      const dynamicsPath = path.join(process.cwd(), 'src/lib/tactics/match_dynamics_and_psychology.json');
+      if (fs.existsSync(dynamicsPath)) {
+        matchDynamicsReference = JSON.parse(fs.readFileSync(dynamicsPath, 'utf-8'));
       }
     } catch (err) {
       console.error("Lỗi khi đọc file chiến thuật tham khảo:", err);
@@ -247,6 +252,7 @@ export async function POST(req: Request) {
       task: `Analyze the football match: "${title}" in extreme detail.`,
       tactics_reference_database: tacticsReference,
       player_roles_and_tendencies_database: playerTendenciesReference,
+      match_dynamics_and_psychology_database: matchDynamicsReference,
       sources_to_synthesize: [
         "SofaScore detailed match stats and player ratings",
         "WhoScored tactical characteristics & player strengths/weaknesses",
