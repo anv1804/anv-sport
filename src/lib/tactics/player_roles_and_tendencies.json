@@ -1,0 +1,152 @@
+{
+  "positions": {
+    "Goalkeepers (GK)": {
+      "roles": {
+        "Traditional Goalkeeper": {
+          "description": "Focuses strictly on shot-stopping, positioning on the goal line, and claiming crosses inside the 6-yard box.",
+          "tactical_tendencies": "Stays deep in the penalty area. Relies on long clearances when under pressure. Rarely participates in short-passing build-up.",
+          "required_traits": ["Elite reflexes", "Aerial dominance", "Command of the box", "Strong shot-stopping positioning"],
+          "formation_synergy": "Best suited for low-block defensive setups (e.g., 5-4-1, 4-4-2 Flat) where defense sits deep."
+        },
+        "Sweeper Keeper (SK)": {
+          "description": "Acts as the 11th outfield player. Sweeps up balls behind a high defensive line and actively participates in possession recycling.",
+          "tactical_tendencies": "Positions high up near the edge of the box. Key to starting short-passing build-up from the back. Will rush out to clear long balls behind the CBs.",
+          "required_traits": ["Elite passing (short & long)", "Composure under pressure", "Speed off the line", "Excellent game reading"],
+          "formation_synergy": "Essential for high-line possession styles (e.g., 4-3-3 Attacking, 3-4-3 Diamond) and Gegenpressing."
+        }
+      }
+    },
+    "Defenders (DF)": {
+      "roles": {
+        "Ball-Playing Defender (BPD)": {
+          "description": "A center-back tasked with initiating attacks and breaking opponent pressing lines with progressive passing or carrying.",
+          "tactical_tendencies": "Circulates possession comfortably. Plays vertical line-breaking ground passes to midfielders or long diagonal balls to wingers.",
+          "required_traits": ["Vision", "Passing accuracy", "Composure", "Ball control"],
+          "formation_synergy": "Synergizes with 4-3-3, 4-2-3-1, and 3-4-3 systems that build from the back."
+        },
+        "Stopper Center-back": {
+          "description": "An aggressive, front-foot defender who steps out of the defensive line to engage attackers early.",
+          "tactical_tendencies": "Aggressively tackles, interrupts build-up, wins aerial duels early, and commits tactical fouls if bypassed.",
+          "required_traits": ["Strength", "Aggression", "Elite tackling", "Proactive anticipation"],
+          "formation_synergy": "Pairs well with a 'Cover' CB in 4-4-2 or 3-center-back systems (3-5-2, 3-4-3) where they can step out safely."
+        },
+        "Cover Center-back": {
+          "description": "A reading-heavy defender who sweeps up loose balls and covers the space behind the Stopper CB.",
+          "tactical_tendencies": "Sits slightly deeper, tracks runs behind the defense, avoids lunging into tackles, and marks spaces.",
+          "required_traits": ["Pace", "Positional intelligence", "Interceptions", "Game reading"],
+          "formation_synergy": "Crucial partner to Stopper CBs in 4-4-2 or 4-2-3-1 setups."
+        },
+        "Inverted Full-back (IFB)": {
+          "description": "A fullback who tucks inside into midfield during possession to act as a temporary central midfielder/pivot.",
+          "tactical_tendencies": "Moves centrally to form a double pivot (e.g., 3-2 structure) in possession, protecting against central counters and overloading the midfield.",
+          "required_traits": ["Tactical flexibility", "Short passing", "Positional awareness", "Defensive tracking"],
+          "formation_synergy": "Used heavily in Pep-style 4-3-3 or 4-2-3-1 to build a 3-2-4-1 or 3-2-5 attacking shape."
+        },
+        "Overlapping Full-back": {
+          "description": "A traditional attacking fullback who runs along the touchline outside the winger to deliver crosses.",
+          "tactical_tendencies": "Runs past the winger to stretch the opposition defense, crossing from deep or from the goal-line. Recovers quickly to cover wide spaces.",
+          "required_traits": ["Stamina", "Pace", "Crossing capability", "Defensive recovery"],
+          "formation_synergy": "Synergizes with narrow wingers / Inside Forwards in a 4-3-3 or 4-2-3-1 system."
+        },
+        "Attacking Wing-back (CWB)": {
+          "description": "Operating in a 3-back system, covers the entire flank, acting as the primary source of wide defense and wide attack.",
+          "tactical_tendencies": "Pushes very high in possession (acting as a winger). Requires high defensive work-rate to track back into a 5-man line.",
+          "required_traits": ["Elite stamina", "Crossing", "1v1 dribbling", "Defensive tracking"],
+          "formation_synergy": "Mandatory role in 3-5-2, 3-4-3, and 5-4-1 formations."
+        }
+      }
+    },
+    "Midfielders (MF)": {
+      "roles": {
+        "Deep-Lying Playmaker (DLP/Regista)": {
+          "description": "A creative midfielder operating deep in front of the defense, orchestrating the team's build-up and tempo.",
+          "tactical_tendencies": "Drops deep to receive from CBs. Looks for long switches of play or vertical passes. Shields space with positioning rather than physical tackling.",
+          "required_traits": ["Vision", "Elite passing range", "La Pausa (Dictating tempo)", "Spatial awareness"],
+          "formation_synergy": "Fits as the single pivot in 4-3-3 or the deep playmaker in a 4-2-3-1/4-4-2 Diamond."
+        },
+        "Anchor / Destroyer": {
+          "description": "A purely defensive midfielder focused on breaking up opposition play and shielding the center-backs.",
+          "tactical_tendencies": "Sits deep, maintains position, makes interceptions, and plays simple passes to creative teammates immediately upon recovery.",
+          "required_traits": ["Tackling", "Strength", "Work-rate", "Positional discipline"],
+          "formation_synergy": "Crucial in 4-2-3-1 (as part of the double pivot), 4-3-3, and narrow diamond blocks."
+        },
+        "Box-to-Box Midfielder (B2B)": {
+          "description": "A dynamic midfielder who runs between both boxes, contributing heavily to both defensive press and final-third attacks.",
+          "tactical_tendencies": "Presses high, triggers counters, makes late runs into the opponent's penalty area, and tracks back to defend in own box.",
+          "required_traits": ["Elite stamina", "Work-rate", "Tackling", "Late-run timing", "Shooting"],
+          "formation_synergy": "Fits perfectly in flat 4-4-2, 4-3-3 (as a No. 8), and 4-2-3-1 (in double pivot)."
+        },
+        "Mezzala (Half-Space Attacker)": {
+          "description": "An attacking central midfielder who drifts wide to exploit the spaces between the center and the flanks (half-spaces).",
+          "tactical_tendencies": "Runs into the channels, combines with the winger and fullback, and shoots from the edge of the box.",
+          "required_traits": ["Agility", "Off-the-ball movement", "Dribbling", "Crossing/Passing"],
+          "formation_synergy": "Essential role in modern 4-3-3 Attacking and 3-1-4-2 systems."
+        },
+        "Carrilero (Shuttler)": {
+          "description": "A lateral midfielder who covers the wide spaces left by attacking fullbacks, shifting from side to side.",
+          "tactical_tendencies": "Maintains structural balance. Rarely makes vertical runs into the opponent box; focuses on lateral coverage and keeping possession.",
+          "required_traits": ["Tactical discipline", "Stamina", "Short passing", "Zonal containment"],
+          "formation_synergy": "Crucial in narrow diamond formations (4-1-2-1-2) or asymmetric 3-5-2 blocks."
+        },
+        "Shadow Striker (SS)": {
+          "description": "An attacking midfielder who plays in the hole behind the striker, behaving like a second forward when entering the box.",
+          "tactical_tendencies": "Makes forward runs beyond the striker to catch defenders off guard. Exploits spaces created by a dropping target man/false nine.",
+          "required_traits": ["Finishing", "Anticipation", "Off-the-ball intelligence", "Speed"],
+          "formation_synergy": "Pairs extremely well with a False Nine or Target Man in 4-2-3-1, 4-4-1-1, or 4-2-2-2."
+        }
+      }
+    },
+    "Attackers (FW)": {
+      "roles": {
+        "Inverted Winger / Inside Forward": {
+          "description": "A wide attacker playing on the opposite side of their stronger foot, cutting inside to shoot or combine centrally.",
+          "tactical_tendencies": "Drifts inside into half-spaces and the box. Leaves the touchline wide for overlapping fullbacks. Acts as a primary goal scorer.",
+          "required_traits": ["Dribbling", "Acceleration", "Finishing", "Agility"],
+          "formation_synergy": "Primary offensive force in 4-3-3 Attacking, 4-2-3-1, and 3-4-3 systems."
+        },
+        "Classic Winger": {
+          "description": "A winger who hugs the touchline, beats their marker on the outside, and crosses the ball.",
+          "tactical_tendencies": "Maintains wide positioning to stretch defenses. Runs down the flank and delivers crosses to strikers.",
+          "required_traits": ["Pace", "Crossing accuracy", "1v1 dribbling", "Stamina"],
+          "formation_synergy": "Suits flat 4-4-2, 3-5-2 (as wingbacks), and traditional 4-5-1 setups."
+        },
+        "False Nine (F9)": {
+          "description": "A striker who drops deep into midfield to draw out opposing center-backs and act as a playmaker.",
+          "tactical_tendencies": "Vacates the center-forward position, links up play with midfielders, and plays through-balls to inside-running wingers.",
+          "required_traits": ["First touch", "Passing", "Vision", "Composure", "Tactical IQ"],
+          "formation_synergy": "Best in 4-3-3 False Nine configurations."
+        },
+        "Target Man": {
+          "description": "A physically imposing striker who acts as the focal point for long passes, holding up play for runners.",
+          "tactical_tendencies": "Receives back-to-goal under physical pressure. Wins aerial duels, holds the ball to let midfielders join, and scores from close-range crosses.",
+          "required_traits": ["Strength", "Heading", "Ball shielding", "Aggression"],
+          "formation_synergy": "Synergizes with long-ball styles, wing play, 4-4-2 Flat, and 3-5-2."
+        },
+        "Advanced Forward / Poacher": {
+          "description": "A clinical striker who plays off the shoulder of the last defender, focusing entirely on finishing chances inside the box.",
+          "tactical_tendencies": "Stays on the edge of the offside line. Makes diagonal runs in behind. Rarely drops deep to help build-up; prioritizes scoring.",
+          "required_traits": ["Finishing", "Acceleration", "Off-the-ball timing", "Composure"],
+          "formation_synergy": "Commonly paired with a Target Man or creative No. 10 in 4-4-2, 3-5-2, and 4-2-3-1."
+        },
+        "Pressing Forward": {
+          "description": "A defensive-minded forward tasked with leading the team's high-pressing line.",
+          "tactical_tendencies": "Aggressively chases opposing center-backs and goalkeeper. Blocks passing lanes, forces turnovers, and tracks back when needed.",
+          "required_traits": ["Work-rate", "Aggression", "Pace", "Tactical discipline"],
+          "formation_synergy": "Essential in high-pressing systems like Gegenpressing, 4-2-2-2, and modern 4-3-3."
+        }
+      }
+    }
+  },
+  "tactical_interactions": {
+    "midfield_matching": {
+      "3_vs_2_midfield": "A 3-midfielder formation (like 4-3-3 or 4-1-2-1-2) will naturally overload a 2-midfielder block (like 4-4-2 Flat). To counter this, one of the 4-4-2 strikers must drop deep as a defensive target, or wide midfielders must tuck inside.",
+      "double_pivot_neutralization": "A 4-2-3-1 double pivot sits deep enough to neutralize late runs from 4-3-3 Mezzalas, but can get overrun if the 4-3-3 wingers tuck inside to create a central 4v2 overload."
+    },
+    "wing_space_exploitation": {
+      "back_three_flank_vulnerability": "Formations with 3 at the back (e.g., 3-5-2, 3-4-3) leave space behind their wing-backs. High, pacey wingers (e.g., in a 4-3-3) can isolate the wide center-backs in 1v1 situations if the wing-backs fail to recover quickly."
+    },
+    "low_block_unlocking": {
+      "half_space_overloads": "To break down a low-block 5-4-1, teams utilize Mezzalas and Inverted Wingers to create numerical overloads in the half-spaces (the channels between CBs and wing-backs), dragging defenders out of position."
+    }
+  }
+}
