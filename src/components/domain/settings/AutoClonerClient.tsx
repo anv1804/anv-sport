@@ -951,10 +951,10 @@ export function AutoClonerClient({ sources, categories }: AutoClonerClientProps)
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[900px]">
+            <table className="w-full text-left border-collapse min-w-[700px] sm:min-w-0">
               <thead>
-                <tr className="bg-slate-50/50 border-b border-slate-200/60 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  <th className="py-4 px-6 w-[50px] text-center">
+                <tr className="bg-slate-50/50 border-b border-slate-200/60 text-xs font-bold text-slate-444 uppercase tracking-wider">
+                  <th className="py-4 px-4 sm:px-6 w-[55px] text-center">
                     <input
                       type="checkbox"
                       className="w-4.5 h-4.5 border-slate-200 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
@@ -969,20 +969,20 @@ export function AutoClonerClient({ sources, categories }: AutoClonerClientProps)
                       }}
                     />
                   </th>
-                  <th className="py-4 px-6">Trạng thái</th>
-                  <th className="py-4 px-6">Nguồn cào (URL)</th>
-                  <th className="py-4 px-6">Danh mục đích</th>
-                  <th className="py-4 px-6 text-center">Giới hạn ngày</th>
-                  <th className="py-4 px-6 text-center">Dịch thuật</th>
-                  <th className="py-4 px-6">Lần quét cuối</th>
-                  <th className="py-4 px-6 text-right">Thao tác</th>
+                  <th className="py-4 px-4 sm:px-6 w-[90px]">Trạng thái</th>
+                  <th className="py-4 px-4 sm:px-6">Nguồn cào (URL)</th>
+                  <th className="py-4 px-4 sm:px-6 w-[140px] hidden sm:table-cell">Danh mục đích</th>
+                  <th className="py-4 px-4 sm:px-6 text-center w-[120px] hidden md:table-cell">Giới hạn ngày</th>
+                  <th className="py-4 px-4 sm:px-6 text-center w-[100px] hidden lg:table-cell">Dịch thuật</th>
+                  <th className="py-4 px-4 sm:px-6 w-[170px] hidden sm:table-cell">Lần quét cuối</th>
+                  <th className="py-4 px-4 sm:px-6 text-right w-[150px]">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {sources.map((source) => (
                   <tr key={source.id} className={`group hover:bg-slate-50/50 transition-colors ${selectedIds.includes(source.id) ? 'bg-emerald-50/20' : ''}`}>
                     {/* Checkbox Column */}
-                    <td className="py-4 px-6 text-center">
+                    <td className="py-4 px-4 sm:px-6 text-center">
                       <input
                         type="checkbox"
                         className="w-4.5 h-4.5 border-slate-200 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
@@ -999,7 +999,7 @@ export function AutoClonerClient({ sources, categories }: AutoClonerClientProps)
                     </td>
 
                     {/* Toggle Status */}
-                    <td className="py-4 px-6">
+                    <td className="py-4 px-4 sm:px-6">
                       <button
                         onClick={() => handleToggleStatus(source.id, source.isActive)}
                         disabled={isCrawling || queue.length > 0}
@@ -1015,7 +1015,7 @@ export function AutoClonerClient({ sources, categories }: AutoClonerClientProps)
                     </td>
 
                     {/* URL */}
-                    <td className="py-4 px-6 max-w-[220px]">
+                    <td className="py-4 px-4 sm:px-6 max-w-[200px] sm:max-w-xs md:max-w-sm">
                       <div className="flex items-center gap-2">
                         <Link2 className="w-4 h-4 text-slate-400 flex-shrink-0" />
                         <a
@@ -1028,22 +1028,38 @@ export function AutoClonerClient({ sources, categories }: AutoClonerClientProps)
                           {formatUrlDisplay(source.url)}
                         </a>
                       </div>
+                      {/* Responsive Badges for small screens */}
+                      <div className="mt-1 flex flex-wrap gap-1 sm:hidden">
+                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-md text-[10px] font-bold">
+                          {source.category.name}
+                        </span>
+                        {source.daysLimit && (
+                          <span className="px-2 py-0.5 bg-slate-50 text-slate-500 border border-slate-100 rounded-md text-[10px] font-bold">
+                            {source.daysLimit} ngày
+                          </span>
+                        )}
+                        {source.isForeign && (
+                          <span className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded-md text-[10px] font-bold">
+                            Dịch
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* Target Category */}
-                    <td className="py-4 px-6">
+                    <td className="py-4 px-4 sm:px-6 hidden sm:table-cell">
                       <span className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg text-xs font-bold whitespace-nowrap">
                         {source.category.name}
                       </span>
                     </td>
 
                     {/* Days Limit */}
-                    <td className="py-4 px-6 text-center text-sm font-bold text-slate-600">
+                    <td className="py-4 px-4 sm:px-6 text-center text-sm font-bold text-slate-600 hidden md:table-cell">
                       {source.daysLimit} ngày
                     </td>
 
                     {/* isForeign */}
-                    <td className="py-4 px-6 text-center">
+                    <td className="py-4 px-4 sm:px-6 text-center hidden lg:table-cell">
                       {source.isForeign ? (
                         <span className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-0.5 rounded-lg">
                           <Globe className="w-3.5 h-3.5" /> Có (Dịch)
@@ -1056,7 +1072,7 @@ export function AutoClonerClient({ sources, categories }: AutoClonerClientProps)
                     </td>
 
                     {/* Last Run At */}
-                    <td className="py-4 px-6 text-xs font-medium text-slate-500">
+                    <td className="py-4 px-4 sm:px-6 text-xs font-medium text-slate-500 hidden sm:table-cell">
                       {source.lastRunAt ? (
                         new Date(source.lastRunAt).toLocaleString('vi-VN', {
                           hour: '2-digit',
@@ -1071,43 +1087,43 @@ export function AutoClonerClient({ sources, categories }: AutoClonerClientProps)
                     </td>
 
                     {/* Actions */}
-                    <td className="py-4 px-6 text-right">
-                      <div className="flex justify-end gap-2 opacity-80 group-hover:opacity-100 transition-opacity">
+                    <td className="py-4 px-4 sm:px-6 text-right">
+                      <div className="flex justify-end gap-1.5 sm:gap-2 sm:opacity-80 sm:group-hover:opacity-100 transition-opacity">
                         <a
                           href={`/${source.category.slug}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                          className="p-1.5 sm:p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
                           title="Xem chuyên mục trên website"
                         >
-                          <ExternalLink className="w-5 h-5" />
+                          <ExternalLink className="w-4 h-4 sm:w-5 sm:h-5" />
                         </a>
                         <button
                           type="button"
                           onClick={() => crawlSources([source.id])}
                           disabled={isCrawling || queue.length > 0}
-                          className="p-2 text-emerald-600 hover:bg-emerald-50 disabled:text-slate-400 disabled:hover:bg-transparent disabled:cursor-not-allowed rounded-xl transition-all"
+                          className="p-1.5 sm:p-2 text-emerald-600 hover:bg-emerald-50 disabled:text-slate-400 disabled:hover:bg-transparent disabled:cursor-not-allowed rounded-xl transition-all"
                           title="Quét nguồn này"
                         >
-                          <Play className="w-5 h-5 fill-current" />
+                          <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
                         </button>
                         <button
                           type="button"
                           onClick={() => handleEditClick(source)}
                           disabled={isCrawling || queue.length > 0}
-                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 disabled:text-slate-300 disabled:hover:bg-transparent disabled:cursor-not-allowed rounded-xl transition-all"
+                          className="p-1.5 sm:p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 disabled:text-slate-300 disabled:hover:bg-transparent disabled:cursor-not-allowed rounded-xl transition-all"
                           title="Sửa cấu hình nguồn"
                         >
-                          <Pencil className="w-5 h-5" />
+                          <Pencil className="w-4 h-4 sm:w-5 sm:h-5" />
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDeleteSource(source.id)}
                           disabled={isCrawling || queue.length > 0}
-                          className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 disabled:text-slate-300 disabled:hover:bg-transparent disabled:cursor-not-allowed rounded-xl transition-all"
+                          className="p-1.5 sm:p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 disabled:text-slate-300 disabled:hover:bg-transparent disabled:cursor-not-allowed rounded-xl transition-all"
                           title="Xóa nguồn quét"
                         >
-                          <Trash2 className="w-5 h-5" />
+                          <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
                         </button>
                       </div>
                     </td>
