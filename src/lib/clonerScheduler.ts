@@ -180,8 +180,7 @@ export function initClonerScheduler() {
 
   console.log("[Auto Cloner] Background scheduler initialized.");
 
-  // Check every 5 minutes
-  setInterval(async () => {
+  const runSchedulerTick = async () => {
     try {
       const now = new Date();
       const currentHour = now.getHours();
@@ -228,5 +227,11 @@ export function initClonerScheduler() {
     } catch (err) {
       console.error("[Auto Cloner] Scheduler tick error:", err);
     }
-  }, 5 * 60 * 1000); // 5 minutes
+  };
+
+  // Run immediately on start
+  setTimeout(runSchedulerTick, 5000);
+
+  // Check every 5 minutes
+  setInterval(runSchedulerTick, 5 * 60 * 1000); // 5 minutes
 }
