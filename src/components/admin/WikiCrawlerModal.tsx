@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X, Search, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { X, Search, Loader2, CheckCircle, AlertCircle, Info } from 'lucide-react';
 import { useAlert } from '@/components/providers/ConfirmProvider';
 
 export function WikiCrawlerModal({ isOpen, onClose, onRefresh }: { isOpen: boolean; onClose: () => void; onRefresh: () => void }) {
@@ -10,33 +10,62 @@ export function WikiCrawlerModal({ isOpen, onClose, onRefresh }: { isOpen: boole
   const [lang, setLang] = useState('vi');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any[]>([]);
+  const [progress, setProgress] = useState(0);
+  const [currentName, setCurrentName] = useState('');
+  const [processedCount, setProcessedCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
 
   if (!isOpen) return null;
 
   const handleCrawl = async () => {
-    if (!names.trim()) return;
+    const nameList = names
+      .split(/[\n,]/)
+      .map(n => n.trim())
+      .filter(n => n.length > 0);
+
+    if (nameList.length === 0) return;
+
     setLoading(true);
     setResults([]);
+    setProgress(0);
+    setProcessedCount(0);
+    setTotalCount(nameList.length);
 
-    try {
-      const res = await fetch('/api/admin/crawler/wiki', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ names, lang })
-      });
+    let hasSuccess = false;
 
-      const data = await res.json();
-      if (data.success) {
-        setResults(data.results || []);
-        onRefresh();
-      } else {
-        await alert(data.error || 'Có lỗi xảy ra');
+    for (let i = 0; i < nameList.length; i++) {
+      const name = nameList[i];
+      setCurrentName(name);
+      try {
+        const res = await fetch('/api/admin/crawler/wiki', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ names: name, lang, skipIfExists: true })
+        });
+
+        const data = await res.json();
+        if (data.success && data.results && data.results.length > 0) {
+          const resultItem = data.results[0];
+          setResults(prev => [...prev, resultItem]);
+          if (resultItem.status === 'success') {
+            hasSuccess = true;
+          }
+        } else {
+          setResults(prev => [...prev, { name, status: 'error', message: data.error || 'Có lỗi xảy ra' }]);
+        }
+      } catch (error) {
+        setResults(prev => [...prev, { name, status: 'error', message: 'Lỗi kết nối tới máy chủ' }]);
       }
-    } catch (error) {
-      await alert('Lỗi kết nối tới máy chủ');
-    } finally {
-      setLoading(false);
+
+      const newProcessedCount = i + 1;
+      setProcessedCount(newProcessedCount);
+      setProgress(Math.round((newProcessedCount / nameList.length) * 100));
     }
+
+    if (hasSuccess) {
+      onRefresh();
+    }
+    setLoading(false);
   };
 
   return (
@@ -74,25 +103,60 @@ export function WikiCrawlerModal({ isOpen, onClose, onRefresh }: { isOpen: boole
                 onChange={e => setNames(e.target.value)}
                 placeholder="Nhập tên cầu thủ, mỗi tên một dòng (hoặc cách nhau bằng dấu phẩy).&#10;Ví dụ:&#10;Lionel Messi&#10;Cristiano Ronaldo"
                 className="w-full h-32 px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none text-sm"
+                disabled={loading}
               />
             </div>
             
+            {loading && (
+              <div className="space-y-2 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                <div className="flex justify-between items-center text-sm font-medium text-slate-700">
+                  <span className="flex items-center gap-2">
+                    <Loader2 size={16} className="animate-spin text-emerald-600" />
+                    Đang xử lý: <span className="text-emerald-700 font-semibold">{currentName}</span>
+                  </span>
+                  <span>{processedCount}/{totalCount} ({progress}%)</span>
+                </div>
+                <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+                  <div 
+                    className="bg-emerald-600 h-2.5 rounded-full transition-all duration-300" 
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
             {results.length > 0 && (
               <div className="mt-6">
                 <h3 className="text-sm font-bold text-slate-800 mb-3 border-b pb-2">Kết quả cào dữ liệu ({results.length}):</h3>
-                <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                  {results.map((r, idx) => (
-                    <div key={idx} className={`p-3 rounded-lg border text-sm flex items-start gap-3 \${r.status === 'success' ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}`}>
-                      {r.status === 'success' ? <CheckCircle className="text-emerald-500 shrink-0 mt-0.5" size={18} /> : <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={18} />}
-                      <div>
-                        <p className="font-semibold text-slate-800">{r.name}</p>
-                        {r.status === 'error' && <p className="text-red-600 mt-1">{r.message}</p>}
-                        {r.status === 'success' && (
-                           <p className="text-emerald-700 mt-1 text-xs">Đã lưu: {r.entity?.name}</p>
-                        )}
+                <div className="space-y-2 max-h-[250px] overflow-y-auto">
+                  {results.map((r, idx) => {
+                    let cardClass = '';
+                    let icon = null;
+                    if (r.status === 'success') {
+                      cardClass = 'bg-emerald-50 border-emerald-100 text-emerald-800';
+                      icon = <CheckCircle className="text-emerald-500 shrink-0 mt-0.5" size={18} />;
+                    } else if (r.status === 'skipped') {
+                      cardClass = 'bg-amber-50 border-amber-100 text-amber-800';
+                      icon = <Info className="text-amber-500 shrink-0 mt-0.5" size={18} />;
+                    } else {
+                      cardClass = 'bg-red-50 border-red-100 text-red-800';
+                      icon = <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={18} />;
+                    }
+
+                    return (
+                      <div key={idx} className={`p-3 rounded-lg border text-sm flex items-start gap-3 ${cardClass}`}>
+                        {icon}
+                        <div className="flex-1">
+                          <p className="font-semibold">{r.name}</p>
+                          {r.status === 'error' && <p className="text-red-600 mt-1 text-xs">{r.message}</p>}
+                          {r.status === 'skipped' && <p className="text-amber-600 mt-1 text-xs">{r.message}</p>}
+                          {r.status === 'success' && (
+                             <p className="text-emerald-700 mt-1 text-xs">Đã lưu: {r.entity?.name}</p>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -100,7 +164,7 @@ export function WikiCrawlerModal({ isOpen, onClose, onRefresh }: { isOpen: boole
         </div>
 
         <div className="p-4 md:p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 shrink-0">
-          <button onClick={onClose} className="px-6 py-2.5 rounded-lg border border-slate-300 text-slate-600 font-medium hover:bg-slate-100 transition-colors">
+          <button onClick={onClose} disabled={loading} className="px-6 py-2.5 rounded-lg border border-slate-300 text-slate-600 font-medium hover:bg-slate-100 transition-colors disabled:opacity-50">
             Đóng
           </button>
           <button 

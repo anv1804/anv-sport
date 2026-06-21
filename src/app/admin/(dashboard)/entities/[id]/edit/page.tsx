@@ -25,9 +25,17 @@ export default async function EditEntityPage({ params }: { params: Promise<{ id:
   const clubs = await prisma.club.findMany({ orderBy: { name: 'asc' } });
   const updateEntityWithId = updateEntity.bind(null, entity.id);
 
-  const statsJson        = entity.stats        ? JSON.stringify(entity.stats,        null, 2) : '';
-  const achievementsJson = entity.achievements ? JSON.stringify(entity.achievements, null, 2) : '';
-  const bi               = entity.basicInfo as any;
+  const statsJson        = entity.stats ? (typeof entity.stats === 'string' ? entity.stats : JSON.stringify(entity.stats)) : '';
+  const achievementsJson = entity.achievements ? (typeof entity.achievements === 'string' ? entity.achievements : JSON.stringify(entity.achievements)) : '';
+  
+  let bi: any = {};
+  if (entity.basicInfo) {
+    try {
+      bi = typeof entity.basicInfo === 'string' ? JSON.parse(entity.basicInfo) : entity.basicInfo;
+    } catch (e) {
+      console.error("Failed to parse basicInfo", e);
+    }
+  }
 
   const biNationality: string[] = Array.isArray(bi?.nationality)
     ? bi.nationality

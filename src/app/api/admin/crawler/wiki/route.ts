@@ -4,22 +4,29 @@ import { generateWithFallback } from '@/lib/aiBox';
 
 export async function POST(request: Request) {
   try {
-    const { names, lang = 'vi' } = await request.json();
+    const { names, lang = 'vi', skipIfExists = false } = await request.json();
 
     if (!names) {
       return NextResponse.json({ success: false, error: 'Thiếu danh sách tên cầu thủ' }, { status: 400 });
     }
 
-    const nameList = names.split(',').map((n: string) => n.trim()).filter((n: string) => n.length > 0);
+    const nameList = typeof names === 'string'
+      ? names.split(/[\n,]/).map((n: string) => n.trim()).filter((n: string) => n.length > 0)
+      : Array.isArray(names) ? names : [];
     const results = [];
-
-
 
     for (const name of nameList) {
       try {
         // 1. Search Wikipedia for the exact page title
+        const headers = {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        };
+
         const searchUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(name)}&utf8=&format=json`;
-        const searchRes = await fetch(searchUrl);
+        const searchRes = await fetch(searchUrl, { headers });
+        if (!searchRes.ok) {
+          throw new Error(`Wikipedia search API error: ${searchRes.status}`);
+        }
         const searchData = await searchRes.json();
         
         if (!searchData.query?.search?.length) {
@@ -28,10 +35,24 @@ export async function POST(request: Request) {
         }
 
         const title = searchData.query.search[0].title;
+        const slug = title.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+
+        if (skipIfExists) {
+          const existing = await prisma.entity.findUnique({
+            where: { slug }
+          });
+          if (existing) {
+            results.push({ name: title, status: 'skipped', message: 'Đã tồn tại (Bỏ qua)' });
+            continue;
+          }
+        }
 
         // 2. Fetch page summary and thumbnail (REST API)
         const summaryUrl = `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
-        const summaryRes = await fetch(summaryUrl);
+        const summaryRes = await fetch(summaryUrl, { headers });
+        if (!summaryRes.ok) {
+          throw new Error(`Wikipedia summary API error: ${summaryRes.status}`);
+        }
         const summaryData = await summaryRes.json();
         
         const avatar = summaryData.thumbnail?.source || null;
@@ -39,7 +60,10 @@ export async function POST(request: Request) {
 
         // 3. Fetch full wikitext for AI parsing
         const textUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&prop=extracts&explaintext=1&titles=${encodeURIComponent(title)}&format=json`;
-        const textRes = await fetch(textUrl);
+        const textRes = await fetch(textUrl, { headers });
+        if (!textRes.ok) {
+          throw new Error(`Wikipedia extract text API error: ${textRes.status}`);
+        }
         const textData = await textRes.json();
         
         const pages = textData.query?.pages;
@@ -60,14 +84,14 @@ Yêu cầu trả về đúng cấu trúc JSON sau (không chứa markdown \`\`\`
 {
   "basicInfo": {
     "fullName": "Tên đầy đủ",
-    "birthDate": "Ngày sinh (DD/MM/YYYY)",
-    "nationality": "Quốc tịch (Viết tắt 3 chữ cái, VD: ENG, VIE)",
-    "height": "Chiều cao (cm)",
-    "position": "Vị trí thi đấu (VD: F, M, D, G)",
+    "birthDate": "Ngày sinh (BẮT BUỘC định dạng YYYY-MM-DD, VD: 1997-10-30)",
+    "nationality": ["Mảng chứa mã quốc tịch 3 chữ cái viết hoa, chính đứng trước, phụ đứng sau. Ví dụ: [\"FRA\"] hoặc [\"VIE\", \"FRA\"]"],
+    "height": "Chiều cao (cm, ví dụ: 178)",
+    "position": ["Mảng chứa vị trí viết tắt, chính đứng trước, phụ đứng sau. Các giá trị hợp lệ: GK, CB, LB, RB, LWB, RWB, DM, CM, AM, LM, RM, LW, RW, CF, ST, SS, F, M, D. Ví dụ: [\"CF\"] hoặc [\"LW\", \"RW\"]"],
     "preferredFoot": "Chân thuận (Left/Right/Both)",
-    "shirtNumber": "Số áo",
-    "playerValue": "Giá trị chuyển nhượng (VD: 147M €)",
-    "contractUntil": "Hạn hợp đồng (VD: 30 Jun 2027)",
+    "shirtNumber": "Số áo (chỉ số, ví dụ: 7)",
+    "playerValue": "Giá trị chuyển nhượng (Ví dụ: 147M € hoặc 15M €)",
+    "contractUntil": "Hạn hợp đồng (BẮT BUỘC định dạng YYYY-MM-DD, VD: 2027-06-30)",
     "excerpt": "${excerpt.replace(/"/g, '\\"')}"
   },
   "attributes": {
@@ -75,7 +99,9 @@ Yêu cầu trả về đúng cấu trúc JSON sau (không chứa markdown \`\`\`
     "TEC": 80, 
     "TAC": 75, 
     "DEF": 40, 
-    "CRE": 82
+    "CRE": 82,
+    "STA": 78,
+    "PHY": 80
   },
   "strengthsAndWeaknesses": {
     "strengths": ["Positioning", "Penalty taking", "High pressing"],
@@ -104,10 +130,18 @@ Yêu cầu trả về đúng cấu trúc JSON sau (không chứa markdown \`\`\`
           throw new Error(`AI generation failed: ${err.message}`);
         }
 
-        const parsedData = JSON.parse(contentText);
+        // Trích xuất phần JSON trong trường hợp AI trả về text hội thoại bọc ngoài
+        let cleanJson = contentText;
+        const firstBrace = contentText.indexOf('{');
+        const lastBrace = contentText.lastIndexOf('}');
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+          cleanJson = contentText.substring(firstBrace, lastBrace + 1);
+        }
+
+        const parsedData = JSON.parse(cleanJson);
 
         // 5. Store in Database
-        let slug = title.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+        
         
         // Find or create club if present
         let clubId = null;

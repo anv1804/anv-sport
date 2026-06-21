@@ -3,15 +3,23 @@ import { generateWithFallback } from '@/lib/aiBox';
 
 export async function POST(req: Request) {
   try {
-    const { title } = await req.json();
+    const { title, matchData } = await req.json();
 
     if (!title) {
       return NextResponse.json({ error: 'Thiếu tiêu đề trận đấu' }, { status: 400 });
     }
 
+    let additionalContext = "";
+    if (matchData) {
+      additionalContext = `\nDữ liệu tham khảo (từ API-Football): ${JSON.stringify({
+        statistics: matchData.statistics,
+        lineups: matchData.lineups,
+        events: matchData.events
+      })}. Dựa vào dữ liệu thống kê, đội hình và diễn biến này, hãy đưa ra nhận định, đánh giá chuyên sâu và viết HTML bài phân tích sao cho logic và khớp với các con số này.`;
+    }
 
     const systemPrompt = `Bạn là một chuyên gia phân tích bóng đá hàng đầu.
-    Nhiệm vụ: Phân tích cực kỳ chi tiết trận đấu: "${title}".
+    Nhiệm vụ: Phân tích cực kỳ chi tiết trận đấu: "${title}".${additionalContext}
     Yêu cầu: Tổng hợp thông tin từ các trang báo uy tín và trả về ĐÚNG định dạng JSON sau (không chứa ký tự markdown \`\`\`json):
 
     {

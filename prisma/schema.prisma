@@ -243,3 +243,9 @@ model AutoClonerSource {
   category     Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 }
 
+model FixtureCache {
+  id          String   @id // Match ID
+  data        Json     // API JSON payload
+  status      String   // Fixture status
+  lastUpdated DateTime @default(now())
+}

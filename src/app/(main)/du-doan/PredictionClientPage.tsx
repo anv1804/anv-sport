@@ -16,6 +16,7 @@ export default function PredictionClientPage() {
   const [filterType, setFilterType] = useState<'all' | 'upcoming' | 'finished'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedGroup, setSelectedGroup] = useState<string>('all');
 
   // New Tab State for Sports
   const [activeSport, setActiveSport] = useState<'bongda' | 'vothuat'>('bongda');
@@ -69,7 +70,14 @@ export default function PredictionClientPage() {
 
     // 4. Filter by Category
     if (selectedCategory !== 'all') {
-      filtered = filtered.filter(f => f.category === selectedCategory);
+      if (selectedCategory === 'FIFA World Cup 2026') {
+        filtered = filtered.filter(f => f.category?.startsWith('FIFA World Cup 2026'));
+        if (selectedGroup !== 'all') {
+          filtered = filtered.filter(f => f.category === `FIFA World Cup 2026 - ${selectedGroup}`);
+        }
+      } else {
+        filtered = filtered.filter(f => f.category === selectedCategory);
+      }
     }
 
     // Group by Date (ngày thi đấu)
@@ -99,9 +107,15 @@ export default function PredictionClientPage() {
     });
 
     setGroupedFixtures(sortedGrouped);
-  }, [fixtures, activeSport, filterType, searchQuery, selectedCategory]);
+  }, [fixtures, activeSport, filterType, searchQuery, selectedCategory, selectedGroup]);
 
-  const categories = Array.from(new Set(fixtures.filter(f => f.sportType === activeSport).map(f => f.category || 'Giải đấu khác')));
+  const rawCategories = Array.from(new Set(fixtures.filter(f => f.sportType === activeSport).map(f => f.category || 'Giải đấu khác')));
+  const categories = Array.from(new Set(rawCategories.map(cat => {
+    if (cat.startsWith('FIFA World Cup 2026')) {
+      return 'FIFA World Cup 2026';
+    }
+    return cat;
+  })));
 
   return (
     <div className="w-full font-client-ui bg-[#f3f4f6]">
@@ -173,7 +187,10 @@ export default function PredictionClientPage() {
                 <Trophy className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <select 
                   value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedCategory(e.target.value);
+                    setSelectedGroup('all');
+                  }}
                   className="w-full pl-9 pr-8 py-2 border border-slate-200 rounded text-sm text-slate-700 appearance-none bg-white focus:outline-none focus:border-green-500 font-bold"
                 >
                   <option value="all">Tất cả các giải ({categories.length})</option>
@@ -181,6 +198,32 @@ export default function PredictionClientPage() {
                 </select>
                 <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 rotate-90 pointer-events-none" />
               </div>
+
+              {selectedCategory === 'FIFA World Cup 2026' && (
+                <div className="relative w-full max-w-[180px] hidden md:block">
+                  <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <select 
+                    value={selectedGroup}
+                    onChange={(e) => setSelectedGroup(e.target.value)}
+                    className="w-full pl-9 pr-8 py-2 border border-slate-200 rounded text-sm text-slate-700 appearance-none bg-white focus:outline-none focus:border-green-500 font-bold"
+                  >
+                    <option value="all">Tất cả các bảng</option>
+                    <option value="Group A">Bảng A</option>
+                    <option value="Group B">Bảng B</option>
+                    <option value="Group C">Bảng C</option>
+                    <option value="Group D">Bảng D</option>
+                    <option value="Group E">Bảng E</option>
+                    <option value="Group F">Bảng F</option>
+                    <option value="Group G">Bảng G</option>
+                    <option value="Group H">Bảng H</option>
+                    <option value="Group I">Bảng I</option>
+                    <option value="Group J">Bảng J</option>
+                    <option value="Group K">Bảng K</option>
+                    <option value="Group L">Bảng L</option>
+                  </select>
+                  <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 rotate-90 pointer-events-none" />
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-2 w-full md:w-auto">

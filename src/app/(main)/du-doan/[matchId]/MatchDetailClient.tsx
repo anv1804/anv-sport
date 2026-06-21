@@ -178,6 +178,7 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
   const [error, setError] = useState<string | null>(null);
   
   const [activeTab, setActiveTab] = useState<'dienbien' | 'doihinh' | 'thongke'>('thongke');
+  const [showAllStats, setShowAllStats] = useState(false);
 
   useEffect(() => {
     const fetchMatch = async () => {
@@ -234,7 +235,7 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
       const res = await fetch('/api/generate-prediction', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: query })
+        body: JSON.stringify({ title: query, matchData: matchInfo })
       });
       const data = await res.json();
 
@@ -295,7 +296,133 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
     imageUrl: ""
   };
 
-  const isFinished = matchInfo.status && !matchInfo.status.toLowerCase().includes('upcoming') && matchInfo.status !== 'Chưa diễn ra';
+  const statusLower = (matchInfo.status || '').toLowerCase();
+  const isFinished = statusLower === 'ft' || 
+                     statusLower === 'aet' || 
+                     statusLower === 'pen' || 
+                     statusLower === 'finished' || 
+                     statusLower.includes('kết thúc') ||
+                     statusLower.includes('đã kết thúc');
+
+  const isLive = !isFinished && 
+                 statusLower !== 'chưa diễn ra' && 
+                 statusLower !== 'upcoming' && 
+                 statusLower !== 'ns' && 
+                 statusLower !== 'tbd';
+
+  const parseMatchDate = (dateStr: string) => {
+    if (!dateStr) return new Date();
+    if (dateStr.includes('/')) {
+      const parts = dateStr.split('/');
+      if (parts.length === 3) {
+        const day = parseInt(parts[0]);
+        const month = parseInt(parts[1]) - 1;
+        const year = parseInt(parts[2]);
+        return new Date(year, month, day);
+      }
+    }
+    const parsed = new Date(dateStr);
+    return isNaN(parsed.getTime()) ? new Date() : parsed;
+  };
+
+  const categoryLower = matchInfo.category?.toLowerCase() || '';
+  const roundLower = matchInfo.round?.toLowerCase() || '';
+  const isNeutral = categoryLower.includes('world cup') || 
+                    categoryLower.includes('fifa') || 
+                    categoryLower.includes('friendly') || 
+                    categoryLower.includes('giao hữu') || 
+                    categoryLower.includes('euro') || 
+                    categoryLower.includes('copa america') || 
+                    categoryLower.includes('afcon') || 
+                    categoryLower.includes('asian cup') ||
+                    roundLower.includes('chung kết') ||
+                    roundLower.includes('final') ||
+                    roundLower.includes('play-off') ||
+                    roundLower.includes('play-off');
+
+  const renderTeamEventsSummary = (teamName: string, isAlignRight: boolean) => {
+    if (!matchInfo) return null;
+    const playerGoals: Record<string, string[]> = {};
+    const playerRedCards: Record<string, string[]> = {};
+
+    if (matchInfo.events && matchInfo.events.length > 0) {
+      matchInfo.events.forEach((evt: any) => {
+        if (!evt.team || evt.team.name !== teamName) return;
+        const playerName = evt.player?.name || "Cầu thủ";
+        const elapsed = evt.time?.elapsed;
+        const timeStr = elapsed ? `${elapsed}'` : "";
+
+        if (evt.type === "Goal") {
+          if (!playerGoals[playerName]) {
+            playerGoals[playerName] = [];
+          }
+          const suffix = evt.detail === "Penalty" ? " (P)" : (evt.detail === "Own Goal" ? " (OG)" : "");
+          if (timeStr) playerGoals[playerName].push(`${timeStr}${suffix}`);
+        } else if (evt.type === "Card" && evt.detail?.toLowerCase().includes("red")) {
+          if (!playerRedCards[playerName]) {
+            playerRedCards[playerName] = [];
+          }
+          if (timeStr) playerRedCards[playerName].push(timeStr);
+        }
+      });
+    } else {
+      const goalsStr = teamName === matchInfo.team1.name ? matchInfo.goals?.home : matchInfo.goals?.away;
+      if (goalsStr) {
+        const cleanStr = goalsStr.replace(/NaN'/g, "90+'");
+        const parts = cleanStr.split(';').map(s => s.trim()).filter(Boolean);
+        parts.forEach(part => {
+          const lastSpaceIndex = part.lastIndexOf(' ');
+          if (lastSpaceIndex !== -1) {
+            const name = part.substring(0, lastSpaceIndex).trim();
+            const minute = part.substring(lastSpaceIndex + 1).trim();
+            if (!playerGoals[name]) {
+              playerGoals[name] = [];
+            }
+            playerGoals[name].push(minute);
+          } else {
+            if (!playerGoals[part]) {
+              playerGoals[part] = [];
+            }
+          }
+        });
+      }
+    }
+
+    const items: React.ReactNode[] = [];
+
+    Object.entries(playerGoals).forEach(([player, minutes]) => {
+      items.push(
+        <span key={`goal-${player}`} className="flex items-center gap-1.5 text-[13px] leading-tight text-slate-700">
+          {!isAlignRight && <span className="text-[10px]">⚽</span>}
+          <span className="font-bold">{player}</span>
+          <span className="text-slate-500 font-semibold">{minutes.join(', ')}</span>
+          {isAlignRight && <span className="text-[10px]">⚽</span>}
+        </span>
+      );
+    });
+
+    Object.entries(playerRedCards).forEach(([player, minutes]) => {
+      items.push(
+        <span key={`red-${player}`} className="flex items-center gap-1.5 text-[13px] leading-tight text-slate-700">
+          {!isAlignRight && <span className="text-[10px] flex items-center justify-center w-2 h-2.5 bg-red-500 rounded-[1px] border border-red-600 shadow-[0_1px_1px_rgba(0,0,0,0.15)] flex-shrink-0"></span>}
+          <span className="font-bold text-red-600">{player}</span>
+          <span className="text-red-500 font-semibold">{minutes.join(', ')}</span>
+          {isAlignRight && <span className="text-[10px] flex items-center justify-center w-2 h-2.5 bg-red-500 rounded-[1px] border border-red-600 shadow-[0_1px_1px_rgba(0,0,0,0.15)] flex-shrink-0"></span>}
+        </span>
+      );
+    });
+
+    if (items.length === 0) return null;
+
+    return (
+      <div className={`flex flex-col gap-1.5 ${isAlignRight ? 'items-end' : 'items-start'}`}>
+        {items}
+      </div>
+    );
+  };
+
+  const hasGoalsOrRedCards = (matchInfo.goals?.home || matchInfo.goals?.away) || 
+                             (matchInfo.events && matchInfo.events.some((e: any) => e.type === "Card" && e.detail?.toLowerCase().includes("red")));
 
   return (
     <div 
@@ -316,10 +443,24 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
               <ArrowLeft className="w-4 h-4" /> Quay lại
             </Link>
             <span className="text-slate-300">|</span>
-            <span className="font-semibold">{matchInfo.category}</span>
+            <div className="flex items-center gap-1.5">
+              <span className="font-semibold">{matchInfo.category}</span>
+              {matchInfo.round && (
+                <>
+                  <span className="text-slate-300">·</span>
+                  <span className="text-slate-600 font-bold bg-slate-200/60 px-2 py-0.5 rounded text-[11px] uppercase tracking-wider">{matchInfo.round}</span>
+                </>
+              )}
+            </div>
           </div>
-          <span className={`font-bold px-2 py-0.5 rounded text-[11px] uppercase tracking-wider ${isFinished ? 'bg-slate-200 text-slate-600' : 'bg-green-100 text-green-700'}`}>
-            {isFinished ? 'Kết thúc' : 'Chưa đá'}
+          <span className={`font-bold px-2 py-0.5 rounded text-[11px] uppercase tracking-wider ${
+            isFinished 
+              ? 'bg-slate-200 text-slate-600' 
+              : isLive 
+                ? 'bg-red-100 text-red-700 animate-pulse font-extrabold' 
+                : 'bg-green-100 text-green-700'
+          }`}>
+            {isFinished ? 'Kết thúc' : isLive ? (matchInfo.status || 'Đang đá') : 'Chưa đá'}
           </span>
         </div>
 
@@ -327,7 +468,7 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
         <div className="bg-white border-b border-slate-100 px-6 py-3 flex flex-wrap items-center justify-center gap-4 md:gap-8 text-[12px] font-bold text-slate-500 uppercase tracking-widest shadow-sm relative z-10">
            <span className="flex items-center gap-1.5 text-slate-700">
              <Calendar className="w-4 h-4 text-green-600"/> 
-             {new Date(matchInfo.matchDate).toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
+             {parseMatchDate(matchInfo.matchDate).toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
            </span>
            <span className="flex items-center gap-1.5 text-slate-700">
              <div className="w-1.5 h-1.5 rounded-full bg-slate-300"></div>
@@ -349,16 +490,25 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
               <img src={matchInfo.team1.logo} alt={matchInfo.team1.name} className="w-full h-full object-contain" />
             </div>
             <h2 className="text-xl md:text-2xl font-black text-slate-900 mb-1">{matchInfo.team1.name}</h2>
-            <span className="text-slate-400 text-[12px] font-bold uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-full border border-slate-100">Đội nhà</span>
+            {!isNeutral && (
+              <span className="text-slate-400 text-[12px] font-bold uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-full border border-slate-100">Đội nhà</span>
+            )}
           </div>
           
           {/* Score */}
           <div className="flex flex-col items-center justify-center mx-4 mb-6 md:mb-0 w-full md:w-auto">
              {matchInfo.score1 !== null && matchInfo.score1 !== undefined ? (
-                <div className="flex items-center justify-center gap-6 md:gap-10">
-                  <span className={`text-5xl md:text-6xl font-black ${isFinished && matchInfo.score1 > matchInfo.score2 ? 'text-green-600' : 'text-slate-800'}`}>{matchInfo.score1}</span>
-                  <span className="text-3xl text-slate-300 font-light">-</span>
-                  <span className={`text-5xl md:text-6xl font-black ${isFinished && matchInfo.score2 > matchInfo.score1 ? 'text-green-600' : 'text-slate-800'}`}>{matchInfo.score2}</span>
+                <div className="flex flex-col items-center justify-center">
+                  <div className="flex items-center justify-center gap-6 md:gap-10">
+                    <span className={`text-5xl md:text-6xl font-black ${isFinished && matchInfo.score1 > matchInfo.score2 ? 'text-green-600' : 'text-slate-800'}`}>{matchInfo.score1}</span>
+                    <span className="text-3xl text-slate-300 font-light">-</span>
+                    <span className={`text-5xl md:text-6xl font-black ${isFinished && matchInfo.score2 > matchInfo.score1 ? 'text-green-600' : 'text-slate-800'}`}>{matchInfo.score2}</span>
+                  </div>
+                  {matchInfo.penScore1 !== undefined && matchInfo.penScore1 !== null && matchInfo.penScore2 !== undefined && matchInfo.penScore2 !== null && (
+                    <div className="mt-2 text-xs font-bold text-red-600 bg-red-50 px-3 py-1 rounded border border-red-200 uppercase tracking-widest">
+                      Phạt luân lưu: {matchInfo.penScore1} - {matchInfo.penScore2}
+                    </div>
+                  )}
                 </div>
              ) : (
                 <div className="text-3xl md:text-4xl text-slate-300 font-black px-8 py-2 italic">VS</div>
@@ -371,19 +521,21 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
               <img src={matchInfo.team2.logo} alt={matchInfo.team2.name} className="w-full h-full object-contain" />
             </div>
             <h2 className="text-xl md:text-2xl font-black text-slate-900 mb-1">{matchInfo.team2.name}</h2>
-            <span className="text-slate-400 text-[12px] font-bold uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-full border border-slate-100">Đội khách</span>
+            {!isNeutral && (
+              <span className="text-slate-400 text-[12px] font-bold uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-full border border-slate-100">Đội khách</span>
+            )}
           </div>
         </div>
 
-        {/* SUBHEADER - GOAL SCORERS */}
-        {matchInfo.goals && (matchInfo.goals.home || matchInfo.goals.away) && (
-          <div className="px-8 py-5 flex items-center justify-between text-slate-600 text-[14px] bg-slate-50 border-b border-slate-100">
-             <div className="flex-1 text-left font-medium">
-               {matchInfo.goals?.home && <span className="flex items-center gap-2"><span className="text-xs">⚽</span> {matchInfo.goals.home.split(';').filter(Boolean).join(', ')}</span>}
+        {/* SUBHEADER - GOAL SCORERS & RED CARDS */}
+        {hasGoalsOrRedCards && (
+          <div className="px-8 py-4 flex items-start justify-between bg-slate-50 border-b border-slate-100">
+             <div className="flex-1 text-left">
+                {renderTeamEventsSummary(matchInfo.team1.name, false)}
              </div>
-             <div className="mx-4"><div className="w-1.5 h-1.5 rounded-full bg-slate-300"></div></div>
-             <div className="flex-1 text-right font-medium">
-               {matchInfo.goals?.away && <span className="flex items-center justify-end gap-2">{matchInfo.goals.away.split(';').filter(Boolean).join(', ')} <span className="text-xs">⚽</span></span>}
+             <div className="mx-6 self-center"><div className="w-1.5 h-1.5 rounded-full bg-slate-300"></div></div>
+             <div className="flex-1 text-right">
+                {renderTeamEventsSummary(matchInfo.team2.name, true)}
              </div>
           </div>
         )}
@@ -452,59 +604,140 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
                  </div>
               </div>
 
-            {matchInfo.statistics && matchInfo.statistics.length === 2 ? (
-              <div className="space-y-6 max-w-2xl mx-auto">
-                 {matchInfo.statistics[0].statistics.map((statObj: any, index: number) => {
-                    const statTranslations: Record<string, string> = {
-                      "Ball Possession": "Kiểm soát bóng",
-                      "Total Shots": "Tổng cú sút",
-                      "Shots on Goal": "Sút trúng đích",
-                      "Shots off Goal": "Sút chệch mục tiêu",
-                      "Blocked Shots": "Cú sút bị chặn",
-                      "Corner Kicks": "Phạt góc",
-                      "Offsides": "Việt vị",
-                      "Fouls": "Phạm lỗi",
-                      "Yellow Cards": "Thẻ vàng",
-                      "Red Cards": "Thẻ đỏ",
-                      "Total passes": "Tổng đường chuyền",
-                      "Passes accurate": "Chuyền chính xác",
-                      "Passes %": "Tỷ lệ chuyền chính xác"
-                    };
-                    
-                    const rawType = statObj.type;
-                    const type = statTranslations[rawType] || rawType;
-                    const val1 = statObj.value;
-                    const val2 = matchInfo.statistics[1].statistics.find((s: any) => s.type === rawType)?.value;
-                    
-                    const num1 = typeof val1 === 'string' && val1.includes('%') ? parseInt(val1.replace('%', '')) : (val1 || 0);
-                    const num2 = typeof val2 === 'string' && val2.includes('%') ? parseInt(val2.replace('%', '')) : (val2 || 0);
-                    
-                    const total = num1 + num2;
-                    // For percentage based stats like possession, max is 100, so we just use the number itself
-                    const isPercentage = typeof val1 === 'string' && val1.includes('%');
-                    const w1 = total === 0 ? 0 : (isPercentage ? num1 : (num1 / total) * 100);
-                    const w2 = total === 0 ? 0 : (isPercentage ? num2 : (num2 / total) * 100);
+            {matchInfo.statistics && matchInfo.statistics.length === 2 ? (() => {
+              const statTranslations: Record<string, string> = {
+                "Ball Possession": "Kiểm soát bóng",
+                "Total Shots": "Tổng cú sút",
+                "Shots on Goal": "Sút trúng đích",
+                "Shots off Goal": "Sút chệch mục tiêu",
+                "Blocked Shots": "Cú sút bị chặn",
+                "Corner Kicks": "Phạt góc",
+                "Offsides": "Việt vị",
+                "Fouls": "Phạm lỗi",
+                "Yellow Cards": "Thẻ vàng",
+                "Red Cards": "Thẻ đỏ",
+                "Total passes": "Tổng đường chuyền",
+                "Passes accurate": "Chuyền chính xác",
+                "Passes %": "Tỷ lệ chuyền chính xác",
+                "Saves": "Pha cứu thua",
+                "Shots": "Cú sút",
+                "On Target %": "Tỷ lệ sút trúng đích",
+                "Penalty Goals": "Bàn thắng phạt đền",
+                "Penalty Kicks Taken": "Quả phạt đền đã sút",
+                "Accurate Crosses": "Tạt bóng chính xác",
+                "Crosses": "Quả tạt bóng",
+                "Cross %": "Tỷ lệ tạt bóng chính xác",
+                "Long Balls": "Đường chuyền dài",
+                "Accurate Long Balls": "Chuyền dài chính xác",
+                "Long Balls %": "Tỷ lệ chuyền dài chính xác",
+                "Effective Tackles": "Tắc bóng thành công",
+                "Tackles": "Pha tắc bóng",
+                "Tackle %": "Tỷ lệ tắc bóng thành công",
+                "Interceptions": "Đánh chặn (Cắt bóng)",
+                "Effective Clearances": "Phá bóng giải nguy thành công",
+                "Clearances": "Pha phá bóng giải nguy"
+              };
 
-                    return (
-                      <div key={type} className="flex flex-col mb-4">
-                        <div className="flex justify-between items-center mb-1.5">
-                          <span className={`font-black text-[13px] w-12 text-left ${num1 >= num2 ? 'text-slate-900' : 'text-slate-500'}`}>{val1 !== null ? val1 : 0}</span>
-                          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 text-center flex-1">{type}</span>
-                          <span className={`font-black text-[13px] w-12 text-right ${num2 >= num1 ? 'text-slate-900' : 'text-slate-500'}`}>{val2 !== null ? val2 : 0}</span>
-                        </div>
-                        <div className="flex w-full items-center gap-1.5">
-                          <div className="flex-1 flex justify-end h-1.5 bg-slate-100 rounded-l-full overflow-hidden">
-                            <div className={`h-full transition-all duration-1000 ${num1 >= num2 ? 'bg-blue-600' : 'bg-blue-300'}`} style={{ width: `${w1}%` }}></div>
-                          </div>
-                          <div className="flex-1 flex justify-start h-1.5 bg-slate-100 rounded-r-full overflow-hidden">
-                            <div className={`h-full transition-all duration-1000 ${num2 >= num1 ? 'bg-emerald-500' : 'bg-emerald-300'}`} style={{ width: `${w2}%` }}></div>
-                          </div>
-                        </div>
+              const importantStatsOrder = [
+                "Ball Possession",
+                "Total Shots",
+                "Shots on Goal",
+                "Corner Kicks",
+                "Offsides",
+                "Fouls",
+                "Yellow Cards",
+                "Red Cards",
+                "Total passes",
+                "Passes accurate",
+                "Passes %"
+              ];
+
+              const t1Stats = matchInfo.statistics[0].statistics || [];
+              const t2Stats = matchInfo.statistics[1].statistics || [];
+
+              // Get all unique stat names
+              const allStatNames = Array.from(new Set([
+                ...t1Stats.map((s: any) => s.type),
+                ...t2Stats.map((s: any) => s.type)
+              ]));
+
+              // Sort names: important first, then others
+              const mainStatNames = importantStatsOrder.filter(name => allStatNames.includes(name));
+              const extraStatNames = allStatNames.filter(name => !importantStatsOrder.includes(name));
+
+              const formatStatValue = (val: any, rawType: string) => {
+                if (val === null || val === undefined) return "0";
+                const valStr = String(val);
+                if (valStr.includes('%')) return valStr;
+                const isPctType = rawType.includes('%') || rawType === "Ball Possession";
+                if (isPctType) {
+                  const num = parseFloat(valStr);
+                  if (!isNaN(num)) {
+                    const pctVal = num <= 1 ? Math.round(num * 100) : Math.round(num);
+                    return `${pctVal}%`;
+                  }
+                }
+                return valStr;
+              };
+
+              const renderStatRow = (rawType: string) => {
+                const type = statTranslations[rawType] || rawType;
+                
+                const s1 = t1Stats.find((s: any) => s.type === rawType);
+                const s2 = t2Stats.find((s: any) => s.type === rawType);
+                
+                const rawVal1 = s1 ? s1.value : "0";
+                const rawVal2 = s2 ? s2.value : "0";
+
+                const val1 = formatStatValue(rawVal1, rawType);
+                const val2 = formatStatValue(rawVal2, rawType);
+
+                const num1 = val1.includes('%') ? parseInt(val1.replace('%', '')) : (parseInt(val1) || 0);
+                const num2 = val2.includes('%') ? parseInt(val2.replace('%', '')) : (parseInt(val2) || 0);
+                
+                const total = num1 + num2;
+                const isPercentage = val1.includes('%') || val2.includes('%') || rawType === "Ball Possession" || rawType.includes('%');
+                const w1 = total === 0 ? 0 : (isPercentage ? num1 : (num1 / total) * 100);
+                const w2 = total === 0 ? 0 : (isPercentage ? num2 : (num2 / total) * 100);
+
+                return (
+                  <div key={rawType} className="flex flex-col mb-4">
+                    <div className="flex justify-between items-center mb-1.5">
+                      <span className={`font-black text-[13px] w-12 text-left ${num1 >= num2 ? 'text-slate-900' : 'text-slate-500'}`}>{val1}</span>
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 text-center flex-1">{type}</span>
+                      <span className={`font-black text-[13px] w-12 text-right ${num2 >= num1 ? 'text-slate-900' : 'text-slate-500'}`}>{val2}</span>
+                    </div>
+                    <div className="flex w-full items-center gap-1.5">
+                      <div className="flex-1 flex justify-end h-1.5 bg-slate-100 rounded-l-full overflow-hidden">
+                        <div className={`h-full transition-all duration-1000 ${num1 >= num2 ? 'bg-blue-600' : 'bg-blue-300'}`} style={{ width: `${w1}%` }}></div>
                       </div>
-                    );
-                 })}
-              </div>
-            ) : (
+                      <div className="flex-1 flex justify-start h-1.5 bg-slate-100 rounded-r-full overflow-hidden">
+                        <div className={`h-full transition-all duration-1000 ${num2 >= num1 ? 'bg-emerald-500' : 'bg-emerald-300'}`} style={{ width: `${w2}%` }}></div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              };
+
+              return (
+                <div className="space-y-6 max-w-2xl mx-auto">
+                  {mainStatNames.map(name => renderStatRow(name))}
+                  
+                  {showAllStats && extraStatNames.map(name => renderStatRow(name))}
+                  
+                  {extraStatNames.length > 0 && (
+                    <div className="pt-4 flex justify-center">
+                      <button
+                        onClick={() => setShowAllStats(!showAllStats)}
+                        className="px-6 py-2 border border-slate-200 hover:border-green-600 text-slate-600 hover:text-green-600 rounded-md font-bold text-xs uppercase tracking-wider transition-colors shadow-sm bg-white"
+                      >
+                        {showAllStats ? "Thu gọn số liệu" : `Xem thêm ${extraStatNames.length} số liệu khác`}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })() : (
               <div className="flex flex-col items-center justify-center py-12 text-slate-400">
                  <Info className="w-10 h-10 mb-3 text-slate-300" />
                  <p className="text-[13px] font-bold uppercase tracking-widest">Chưa có dữ liệu thống kê thực tế</p>
@@ -705,30 +938,32 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
           </div>
         )}
 
-        {/* AI BUTTON (ALWAYS VISIBLE) */}
-        <div className="p-8 md:p-12 bg-white text-center">
-          <h3 className="text-slate-900 font-black mb-2 text-xl uppercase tracking-tighter">Báo Cáo Phân Tích Chuyên Sâu</h3>
-          <p className="text-slate-500 text-[13px] font-medium mb-6 max-w-md mx-auto">
-            Kích hoạt siêu máy tính AI của ANV Sport để tổng hợp dữ liệu H2H, đội hình dự kiến và đưa ra dự đoán kết quả chính xác nhất.
-          </p>
-          
-          {!isGenerating && !predictionData && (
-            <Button 
-              onClick={handleGenerate} 
-              className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded text-[13px] font-black uppercase tracking-widest shadow-md flex items-center justify-center mx-auto transition-colors"
-            >
-              <Bot className="w-4 h-4 mr-2" />
-              Yêu Cầu AI Dự Đoán
-            </Button>
-          )}
-          
-          {isGenerating && (
-            <div className="bg-slate-50 rounded p-6 flex flex-col items-center border border-slate-200 max-w-sm mx-auto shadow-sm">
-              <div className="w-8 h-8 rounded-full border-[3px] border-green-500 border-t-transparent animate-spin mb-4"></div>
-              <p className="text-green-600 text-[13px] font-bold uppercase tracking-wider">{loadingText}</p>
-            </div>
-          )}
-        </div>
+        {/* AI BUTTON (ONLY VISIBLE FOR UPCOMING MATCHES) */}
+        {!isFinished && (
+          <div className="p-8 md:p-12 bg-white text-center">
+            <h3 className="text-slate-900 font-black mb-2 text-xl uppercase tracking-tighter">Báo Cáo Phân Tích Chuyên Sâu</h3>
+            <p className="text-slate-500 text-[13px] font-medium mb-6 max-w-md mx-auto">
+              Kích hoạt siêu máy tính AI của ANV Sport để tổng hợp dữ liệu H2H, đội hình dự kiến và đưa ra dự đoán kết quả chính xác nhất.
+            </p>
+            
+            {!isGenerating && !predictionData && (
+              <Button 
+                onClick={handleGenerate} 
+                className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded text-[13px] font-black uppercase tracking-widest shadow-md flex items-center justify-center mx-auto transition-colors"
+              >
+                <Bot className="w-4 h-4 mr-2" />
+                Yêu Cầu AI Dự Đoán
+              </Button>
+            )}
+            
+            {isGenerating && (
+              <div className="bg-slate-50 rounded p-6 flex flex-col items-center border border-slate-200 max-w-sm mx-auto shadow-sm">
+                <div className="w-8 h-8 rounded-full border-[3px] border-green-500 border-t-transparent animate-spin mb-4"></div>
+                <p className="text-green-600 text-[13px] font-bold uppercase tracking-wider">{loadingText}</p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* AI PREDICTION RESULTS */}
         {predictionData && !isGenerating && (
