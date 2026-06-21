@@ -500,7 +500,9 @@ export async function GET(request: Request) {
         video: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
         statistics: [] as any[],
         lineups: [] as any[],
-        events: [] as any[]
+        events: [] as any[],
+        headToHeadGames: espnData.headToHeadGames || null,
+        lastFiveGames: espnData.lastFiveGames || null
       };
 
       // 1. Map Real Statistics from ESPN

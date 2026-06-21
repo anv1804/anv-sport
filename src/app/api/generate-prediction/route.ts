@@ -56,6 +56,99 @@ function getDeterministicForm(team: string) {
   return form;
 }
 
+// Parse real Head-to-Head from ESPN data structure
+function parseRealH2H(headToHeadGames: any, t1Name: string, t2Name: string) {
+  if (!headToHeadGames || headToHeadGames.length === 0) return null;
+  
+  const events = headToHeadGames[0]?.events || [];
+  if (events.length === 0) return null;
+
+  let team1Wins = 0;
+  let draws = 0;
+  let team2Wins = 0;
+  const recentMatches = [];
+
+  for (const evt of events) {
+    const score = evt.score || "";
+    const dateRaw = evt.gameDate ? new Date(evt.gameDate) : null;
+    const dateStr = dateRaw && !isNaN(dateRaw.getTime()) 
+      ? dateRaw.toLocaleDateString('vi-VN') 
+      : "";
+    
+    const scoreParts = score.split('-').map((s: string) => parseInt(s.trim()));
+    let homeScore = 0;
+    let awayScore = 0;
+    if (scoreParts.length === 2) {
+      homeScore = scoreParts[0];
+      awayScore = scoreParts[1];
+    } else {
+      homeScore = parseInt(evt.homeTeamScore) || 0;
+      awayScore = parseInt(evt.awayTeamScore) || 0;
+    }
+
+    const opponentName = evt.opponent?.displayName || "";
+    const isOpponentTeam1 = opponentName.toLowerCase().includes(t1Name.toLowerCase()) || 
+                             t1Name.toLowerCase().includes(opponentName.toLowerCase());
+
+    let winner = 0;
+    if (homeScore === awayScore) {
+      draws++;
+      winner = 0;
+    } else {
+      const isHomeTeam1 = !isOpponentTeam1;
+      if (isHomeTeam1) {
+        if (homeScore > awayScore) {
+          team1Wins++;
+          winner = 1;
+        } else {
+          team2Wins++;
+          winner = 2;
+        }
+      } else {
+        if (homeScore > awayScore) {
+          team2Wins++;
+          winner = 2;
+        } else {
+          team1Wins++;
+          winner = 1;
+        }
+      }
+    }
+
+    recentMatches.push({
+      date: dateStr,
+      score: `${homeScore}-${awayScore}`,
+      winner
+    });
+  }
+
+  return {
+    total: events.length,
+    team1Wins,
+    draws,
+    team2Wins,
+    recentMatches: recentMatches.slice(0, 5)
+  };
+}
+
+// Parse real form from ESPN data structure
+function parseRealForm(lastFiveGames: any, tName: string) {
+  if (!lastFiveGames || lastFiveGames.length !== 2) return null;
+  
+  const teamItem = lastFiveGames.find((item: any) => {
+    const displayName = item.team?.displayName || "";
+    return displayName.toLowerCase().includes(tName.toLowerCase()) || 
+           tName.toLowerCase().includes(displayName.toLowerCase());
+  });
+
+  if (!teamItem || !teamItem.events || teamItem.events.length === 0) return null;
+
+  return teamItem.events.slice(0, 5).map((evt: any) => {
+    const res = evt.gameResult || "D";
+    return ["W", "D", "L"].includes(res) ? res : "D";
+  });
+}
+
 export async function POST(req: Request) {
   try {
     const { title, matchData } = await req.json();
@@ -88,10 +181,21 @@ export async function POST(req: Request) {
       }
     }
 
-    // 2. Generate deterministic H2H and form
-    const deterministicT1Form = getDeterministicForm(t1);
-    const deterministicT2Form = getDeterministicForm(t2);
-    const deterministicH2H = getDeterministicH2H(t1, t2);
+    // 2. Generate H2H and form (Use real ESPN data if available, fallback to deterministic)
+    let deterministicT1Form = parseRealForm(matchData?.lastFiveGames, t1);
+    if (!deterministicT1Form || deterministicT1Form.length === 0) {
+      deterministicT1Form = getDeterministicForm(t1);
+    }
+    
+    let deterministicT2Form = parseRealForm(matchData?.lastFiveGames, t2);
+    if (!deterministicT2Form || deterministicT2Form.length === 0) {
+      deterministicT2Form = getDeterministicForm(t2);
+    }
+    
+    let deterministicH2H = parseRealH2H(matchData?.headToHeadGames, t1, t2);
+    if (!deterministicH2H) {
+      deterministicH2H = getDeterministicH2H(t1, t2);
+    }
 
     let additionalContext = "";
     if (matchData) {
