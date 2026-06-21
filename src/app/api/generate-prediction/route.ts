@@ -154,7 +154,7 @@ function parseRealForm(lastFiveGames: any, tName: string) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { title, matchData, historyOnly } = body;
+    const { title, matchData, historyOnly, previewOnly } = body;
 
     const matchId = matchData?.id || body.matchId;
 
@@ -396,39 +396,41 @@ export async function POST(req: Request) {
         result.predictionData.formAndH2h.h2hData = parseRealH2H(matchData.headToHeadGames, t1, t2) || getDeterministicH2H(t1, t2);
       }
 
-      // 3. Cache the generated prediction in the Database (Only for upcoming or finished matches)
-      if (matchId && !isLive) {
-        const cached = await prisma.fixtureCache.findUnique({ where: { id: matchId } });
-        if (cached) {
-          const updatedData = {
-            ...(cached.data as any),
-            prediction: result.predictionData
-          };
-          await prisma.fixtureCache.update({
-            where: { id: matchId },
-            data: { data: updatedData }
+      if (!previewOnly) {
+        // 3. Cache the generated prediction in the Database (Only for upcoming or finished matches)
+        if (matchId && !isLive) {
+          const cached = await prisma.fixtureCache.findUnique({ where: { id: matchId } });
+          if (cached) {
+            const updatedData = {
+              ...(cached.data as any),
+              prediction: result.predictionData
+            };
+            await prisma.fixtureCache.update({
+              where: { id: matchId },
+              data: { data: updatedData }
+            });
+          }
+        }
+
+        // 4. Save this checkpoint into PredictionHistory
+        if (matchId) {
+          const milestone = isLive ? "LIVE" : "PRE_MATCH";
+          const scoreState = (matchData?.score1 !== null && matchData?.score2 !== null)
+            ? `${matchData.score1}-${matchData.score2}`
+            : "0-0";
+          const liveTime = isLive ? (matchData?.liveClock || "Đang đá") : null;
+          
+          await prisma.predictionHistory.create({
+            data: {
+              matchId,
+              milestone,
+              prediction: result.predictionData,
+              scoreState,
+              liveTime,
+              status: matchData?.status || "Chưa diễn ra"
+            }
           });
         }
-      }
-
-      // 4. Save this checkpoint into PredictionHistory
-      if (matchId) {
-        const milestone = isLive ? "LIVE" : "PRE_MATCH";
-        const scoreState = (matchData?.score1 !== null && matchData?.score2 !== null)
-          ? `${matchData.score1}-${matchData.score2}`
-          : "0-0";
-        const liveTime = isLive ? (matchData?.liveClock || "Đang đá") : null;
-        
-        await prisma.predictionHistory.create({
-          data: {
-            matchId,
-            milestone,
-            prediction: result.predictionData,
-            scoreState,
-            liveTime,
-            status: matchData?.status || "Chưa diễn ra"
-          }
-        });
       }
     }
 
