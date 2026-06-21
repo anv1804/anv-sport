@@ -59,34 +59,110 @@ export function PredictionView({ post, predictionData }: { post: any, prediction
       <FormAndH2H {...predictionData.formAndH2h} />
 
       {/* ADVANCED METRICS */}
-      {predictionData.advancedMetrics && (
-        <div className="bg-[#1a1a1a] p-6 rounded mb-8 text-white shadow-sm border border-[#333333]">
-          <h3 className="text-md font-black uppercase tracking-wider mb-5 flex items-center gap-2 border-b border-white/10 pb-3">
-            <span className="bg-[#16A34A] w-6 h-6 flex items-center justify-center rounded text-xs">📊</span>
-            CHỈ SỐ DỰ ĐOÁN CHUYÊN SÂU (AI)
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <div className="bg-white/5 rounded p-4 border border-white/10 text-center">
-              <div className="text-slate-400 text-[11px] font-bold uppercase tracking-wider mb-2">Bàn Thắng Kỳ Vọng</div>
-              <div className="text-2xl font-black text-yellow-400">{predictionData.advancedMetrics.totalGoals}</div>
-            </div>
-            <div className="bg-white/5 rounded p-4 border border-white/10 text-center">
-              <div className="text-slate-400 text-[11px] font-bold uppercase tracking-wider mb-2">Số Thẻ Phạt Dự Kiến</div>
-              <div className="text-2xl font-black text-[#16A34A]">{predictionData.advancedMetrics.cards?.total || '?'}</div>
-              <div className="text-[11px] text-slate-400 mt-2 font-medium">
-                {predictionData.header.team1.name}: <span className="text-white">{predictionData.advancedMetrics.cards?.team1}</span> | {predictionData.header.team2.name}: <span className="text-white">{predictionData.advancedMetrics.cards?.team2}</span>
+      {predictionData.advancedMetrics && (() => {
+        const am = predictionData.advancedMetrics as any;
+        const hasDetailed = !!am.expectedGoals;
+        const t1 = predictionData.header.team1.name;
+        const t2 = predictionData.header.team2.name;
+        
+        return (
+          <div className="bg-[#18181b] p-5 md:p-6 rounded-xl mb-8 text-white shadow-md border border-[#27272a]">
+            <h3 className="text-sm md:text-base font-black uppercase tracking-wider mb-5 flex items-center gap-2 border-b border-white/10 pb-3">
+              <span className="bg-[#16A34A] w-6 h-6 flex items-center justify-center rounded text-xs">📊</span>
+              CHỈ SỐ DỰ ĐOÁN CHUYÊN SÂU (AI)
+            </h3>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              {/* BÀN THẮNG KỲ VỌNG */}
+              <div className="bg-white/5 rounded-xl p-4 border border-white/10 flex flex-col justify-between">
+                <div>
+                  <div className="text-slate-400 text-[11px] font-black uppercase tracking-wider mb-3">Bàn Thắng Kỳ Vọng (xG)</div>
+                  {hasDetailed ? (
+                    <div className="space-y-2 text-xs text-slate-300">
+                      <div className="flex justify-between border-b border-white/5 pb-1.5">
+                        <span className="font-semibold text-slate-400">Hiệp 1:</span>
+                        <span className="font-bold text-yellow-400">{am.expectedGoals?.half1 || '—'}</span>
+                      </div>
+                      <div className="flex justify-between border-b border-white/5 pb-1.5">
+                        <span className="font-semibold text-slate-400">Hiệp 2:</span>
+                        <span className="font-bold text-yellow-400">{am.expectedGoals?.half2 || '—'}</span>
+                      </div>
+                      <div className="flex justify-between pt-0.5">
+                        <span className="font-bold text-white">Cả trận:</span>
+                        <span className="font-extrabold text-yellow-400 text-sm">{am.expectedGoals?.fullMatch || '—'}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-2xl font-black text-yellow-400 py-3 text-center">{am.totalGoals}</div>
+                  )}
+                </div>
               </div>
-            </div>
-            <div className="bg-white/5 rounded p-4 border border-white/10 text-center">
-              <div className="text-slate-400 text-[11px] font-bold uppercase tracking-wider mb-2">Số Phạt Góc Dự Kiến</div>
-              <div className="text-2xl font-black text-blue-400">{predictionData.advancedMetrics.corners?.total || '?'}</div>
-              <div className="text-[11px] text-slate-400 mt-2 font-medium">
-                {predictionData.header.team1.name}: <span className="text-white">{predictionData.advancedMetrics.corners?.team1}</span> | {predictionData.header.team2.name}: <span className="text-white">{predictionData.advancedMetrics.corners?.team2}</span>
+
+              {/* SỐ THẺ PHẠT DỰ KIẾN */}
+              <div className="bg-white/5 rounded-xl p-4 border border-white/10 flex flex-col justify-between">
+                <div>
+                  <div className="text-slate-400 text-[11px] font-black uppercase tracking-wider mb-3">Số Thẻ Phạt Dự Kiến</div>
+                  {hasDetailed ? (
+                    <div className="space-y-2 text-xs text-slate-300">
+                      <div className="flex justify-between border-b border-white/5 pb-1.5">
+                        <span className="font-semibold text-slate-400">Hiệp 1:</span>
+                        <span className="font-bold text-[#16A34A]">{am.expectedCards?.half1?.total ?? '—'} <span className="text-[10px] text-slate-500 font-normal">({am.expectedCards?.half1?.team1 || 0} - {am.expectedCards?.half1?.team2 || 0})</span></span>
+                      </div>
+                      <div className="flex justify-between border-b border-white/5 pb-1.5">
+                        <span className="font-semibold text-slate-400">Hiệp 2:</span>
+                        <span className="font-bold text-[#16A34A]">{am.expectedCards?.half2?.total ?? '—'} <span className="text-[10px] text-slate-500 font-normal">({am.expectedCards?.half2?.team1 || 0} - {am.expectedCards?.half2?.team2 || 0})</span></span>
+                      </div>
+                      <div className="flex justify-between pt-0.5">
+                        <span className="font-bold text-white">Cả trận:</span>
+                        <span className="font-extrabold text-[#16A34A] text-sm">{am.expectedCards?.fullMatch?.total ?? '—'} <span className="text-[10px] text-slate-500 font-normal">({am.expectedCards?.fullMatch?.team1 || 0} - {am.expectedCards?.fullMatch?.team2 || 0})</span></span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-2">
+                      <div className="text-2xl font-black text-[#16A34A]">{am.cards?.total || '?'}</div>
+                      <div className="text-[10px] text-slate-400 mt-1">
+                        {t1}: <span className="text-white font-bold">{am.cards?.team1}</span> | {t2}: <span className="text-white font-bold">{am.cards?.team2}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
+
+              {/* SỐ PHẠT GÓC DỰ KIẾN */}
+              <div className="bg-white/5 rounded-xl p-4 border border-white/10 flex flex-col justify-between">
+                <div>
+                  <div className="text-slate-400 text-[11px] font-black uppercase tracking-wider mb-3">Số Phạt Góc Dự Kiến</div>
+                  {hasDetailed ? (
+                    <div className="space-y-2 text-xs text-slate-300">
+                      <div className="flex justify-between border-b border-white/5 pb-1.5">
+                        <span className="font-semibold text-slate-400">Hiệp 1:</span>
+                        <span className="font-bold text-blue-400">{am.expectedCorners?.half1?.total ?? '—'} <span className="text-[10px] text-slate-500 font-normal">({am.expectedCorners?.half1?.team1 || 0} - {am.expectedCorners?.half1?.team2 || 0})</span></span>
+                      </div>
+                      <div className="flex justify-between border-b border-white/5 pb-1.5">
+                        <span className="font-semibold text-slate-400">Hiệp 2:</span>
+                        <span className="font-bold text-blue-400">{am.expectedCorners?.half2?.total ?? '—'} <span className="text-[10px] text-slate-500 font-normal">({am.expectedCorners?.half2?.team1 || 0} - {am.expectedCorners?.half2?.team2 || 0})</span></span>
+                      </div>
+                      <div className="flex justify-between pt-0.5">
+                        <span className="font-bold text-white">Cả trận:</span>
+                        <span className="font-extrabold text-blue-400 text-sm">{am.expectedCorners?.fullMatch?.total ?? '—'} <span className="text-[10px] text-slate-500 font-normal">({am.expectedCorners?.fullMatch?.team1 || 0} - {am.expectedCorners?.fullMatch?.team2 || 0})</span></span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-2">
+                      <div className="text-2xl font-black text-blue-400">{am.corners?.total || '?'}</div>
+                      <div className="text-[10px] text-slate-400 mt-1">
+                        {t1}: <span className="text-white font-bold">{am.corners?.team1}</span> | {t2}: <span className="text-white font-bold">{am.corners?.team2}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
          <div className="bg-red-50/50 p-4 rounded border border-red-100">

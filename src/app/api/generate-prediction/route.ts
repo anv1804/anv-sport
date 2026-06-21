@@ -200,6 +200,10 @@ Dữ liệu tham khảo: ${JSON.stringify({
         events: matchData.events
       })}.
 Dựa vào tỷ số hiện tại, trạng thái trận đấu, các thống kê chi tiết, đội hình và sự kiện thực tế ở trên, hãy đưa ra nhận định bóng đá cực kỳ chuyên sâu bám sát thực tế.
+
+LƯU Ý VỀ CHỈ SỐ DỰ ĐOÁN CHUYÊN SÂU (advancedMetrics):
+Bạn phải phân tích và tính toán tỉ mỉ, cẩn thận để đưa ra dự đoán Bàn thắng kỳ vọng (expectedGoals), Số thẻ phạt (expectedCards), Số phạt góc (expectedCorners) chia tách chi tiết theo Hiệp 1 (half1), Hiệp 2 (half2) và Cả trận (fullMatch) dựa trên phong độ, lối chơi của 2 đội. Tuyệt đối không được điền bừa bãi hay để trống. Các giá trị phải logic (ví dụ: Tổng hiệp 1 + Hiệp 2 phải tương thích với cả trận).
+
 `;
 
       if (hasRealForm || hasRealH2H) {
@@ -254,9 +258,21 @@ VÍ DỤ: Tây Ban Nha (Spain) chưa bao giờ thua Ả Rập Xê Út (Saudi Ara
           "missingPlayers": { "team1": [], "team2": [] }
         },
         "advancedMetrics": {
-          "totalGoals": "2.5 (Tài)",
-          "cards": { "team1": 2, "team2": 3, "total": 5 },
-          "corners": { "team1": 5, "team2": 4, "total": 9 }
+          "expectedGoals": {
+            "half1": "1.0 (Xỉu)",
+            "half2": "1.5 (Tài)",
+            "fullMatch": "2.5 (Tài)"
+          },
+          "expectedCards": {
+            "half1": { "team1": 0, "team2": 1, "total": 1 },
+            "half2": { "team1": 1, "team2": 1, "total": 2 },
+            "fullMatch": { "team1": 1, "team2": 2, "total": 3 }
+          },
+          "expectedCorners": {
+            "half1": { "team1": 2, "team2": 1, "total": 3 },
+            "half2": { "team1": 3, "team2": 2, "total": 5 },
+            "fullMatch": { "team1": 5, "team2": 3, "total": 8 }
+          }
         },
         "analysisHtml": "<h3>1. Tình hình lực lượng & Diễn biến</h3><p>Nội dung chi tiết...</p><h3>2. Chiến thuật & Nhận định</h3><p>Nội dung...</p>",
         "sources": [
