@@ -216,6 +216,9 @@ export async function POST(req: Request) {
                    statusLower !== 'upcoming' && 
                    statusLower !== 'ns' && 
                    statusLower !== 'tbd' &&
+                   !statusLower.includes('scheduled') &&
+                   !statusLower.includes('chưa bắt đầu') &&
+                   !statusLower.includes('chưa diễn ra') &&
                    statusLower !== 'ft' && 
                    statusLower !== 'aet' && 
                    statusLower !== 'pen' && 

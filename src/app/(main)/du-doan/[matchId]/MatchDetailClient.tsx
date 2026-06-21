@@ -383,7 +383,10 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
     const isLive = statusLower !== 'chưa diễn ra' && 
                    statusLower !== 'upcoming' && 
                    statusLower !== 'ns' && 
-                   statusLower !== 'tbd';
+                   statusLower !== 'tbd' &&
+                   !statusLower.includes('scheduled') &&
+                   !statusLower.includes('chưa bắt đầu') &&
+                   !statusLower.includes('chưa diễn ra');
 
     const triggerAutoGeneration = async () => {
       const hasPreMatch = predictionHistory.some(hist => hist.milestone === 'PRE_MATCH');
