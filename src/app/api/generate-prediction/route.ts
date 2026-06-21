@@ -151,13 +151,23 @@ function parseRealForm(lastFiveGames: any, tName: string) {
 
 export async function POST(req: Request) {
   try {
-    const { title, matchData } = await req.json();
+    const body = await req.json();
+    const { title, matchData, historyOnly } = body;
+
+    const matchId = matchData?.id || body.matchId;
+
+    if (historyOnly && matchId) {
+      const history = await prisma.predictionHistory.findMany({
+        where: { matchId },
+        orderBy: { predictedAt: 'desc' }
+      });
+      return NextResponse.json({ success: true, history });
+    }
 
     if (!title) {
       return NextResponse.json({ error: 'Thiếu tiêu đề trận đấu' }, { status: 400 });
     }
 
-    const matchId = matchData?.id;
     const t1 = matchData?.team1?.name || "Đội nhà";
     const t2 = matchData?.team2?.name || "Đội khách";
     const statusLower = (matchData?.status || '').toLowerCase();
@@ -201,9 +211,18 @@ Dữ liệu tham khảo: ${JSON.stringify({
       })}.
 Dựa vào tỷ số hiện tại, trạng thái trận đấu, các thống kê chi tiết, đội hình và sự kiện thực tế ở trên, hãy đưa ra nhận định bóng đá cực kỳ chuyên sâu bám sát thực tế.
 
+LƯU Ý VỀ TỔNG HỢP VÀ PHÂN TÍCH YẾU TỐ:
+Bạn bắt buộc phải tổng hợp và liên kết chặt chẽ các thông tin sau để đưa ra kết quả phân tích:
+1. Lịch sử đối đầu (H2H) và vị trí bảng xếp hạng hiện tại của hai đội.
+2. Phong độ thi đấu gần đây của cả đội và phong độ nổi bật của các cầu thủ chủ chốt (stars).
+3. Giá trị đội hình (squad value) để thấy sự chênh lệch chất lượng nhân sự.
+4. Đội hình xuất phát & sơ đồ chiến thuật: Nếu matchData.lineups đã có đội hình chính thức công bố từ dữ liệu thật, bạn BẮT BUỘC sử dụng nó làm cơ sở nhận định chính xác. Nếu chưa có, bạn phải phân tích tình hình chấn thương/treo giò để TỰ DỰ ĐOÁN sơ đồ chiến thuật tối ưu nhất.
+5. Phân tích lối chơi, điểm mạnh, điểm yếu chiến thuật, khả năng khắc chế lối đá lẫn nhau (matchups), tinh thần thi đấu của tập thể và mục tiêu cụ thể của từng đội ở trận đấu này (đua vô địch, trụ hạng, giữ sức, v.v.).
+
 LƯU Ý VỀ CHỈ SỐ DỰ ĐOÁN CHUYÊN SÂU (advancedMetrics):
 Bạn phải phân tích và tính toán tỉ mỉ, cẩn thận để đưa ra dự đoán Bàn thắng kỳ vọng (expectedGoals) theo cấu trúc đối tượng có 3 trường: "predicted" (số bàn thắng dự kiến, VD: "1 bàn", "2 bàn", "3 bàn"), "ouLine" (tỷ lệ kèo tài xỉu nhà cái, VD: "0.75", "1.5", "2.5"), và "ouPick" (lựa chọn Tài hoặc Xỉu, VD: "Tài", "Xỉu").
 Số thẻ phạt (expectedCards) và Số phạt góc (expectedCorners) chia tách chi tiết theo Hiệp 1 (half1), Hiệp 2 (half2) và Cả trận (fullMatch) dựa trên phong độ, lối chơi của 2 đội. Tuyệt đối không được điền bừa bãi hay để trống. Các giá trị phải logic (ví dụ: Tổng hiệp 1 + Hiệp 2 phải tương thích với cả trận).
+
 
 `;
 
@@ -325,9 +344,34 @@ VÍ DỤ: Tây Ban Nha (Spain) chưa bao giờ thua Ả Rập Xê Út (Saudi Ara
           });
         }
       }
+
+      // 4. Save this checkpoint into PredictionHistory
+      if (matchId) {
+        const milestone = isLive ? "LIVE" : "PRE_MATCH";
+        const scoreState = (matchData?.score1 !== null && matchData?.score2 !== null)
+          ? `${matchData.score1}-${matchData.score2}`
+          : "0-0";
+        const liveTime = isLive ? (matchData?.liveClock || "Đang đá") : null;
+        
+        await prisma.predictionHistory.create({
+          data: {
+            matchId,
+            milestone,
+            prediction: result.predictionData,
+            scoreState,
+            liveTime,
+            status: matchData?.status || "Chưa diễn ra"
+          }
+        });
+      }
     }
 
-    return NextResponse.json(result);
+    const history = matchId ? await prisma.predictionHistory.findMany({
+      where: { matchId },
+      orderBy: { predictedAt: 'desc' }
+    }) : [];
+
+    return NextResponse.json({ ...result, history });
 
   } catch (error: any) {
     console.error('Prediction Generation Error:', error);

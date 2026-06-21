@@ -249,3 +249,17 @@ model FixtureCache {
   status      String   // Fixture status
   lastUpdated DateTime @default(now())
 }
+
+model PredictionHistory {
+  id          String   @id @default(cuid())
+  matchId     String
+  milestone   String   // "PRE_MATCH" or "LIVE"
+  predictedAt DateTime @default(now())
+  prediction  Json     // Stores the full predictionData payload
+  scoreState  String   // e.g. "0-0", "1-1"
+  liveTime    String?  // e.g. "30'", "HT", "75'"
+  status      String   // e.g. "Đang đá", "Chưa đá"
+
+  @@index([matchId])
+  @@index([predictedAt])
+}

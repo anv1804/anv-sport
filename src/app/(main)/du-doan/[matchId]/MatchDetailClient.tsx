@@ -175,10 +175,35 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [loadingText, setLoadingText] = useState('');
   const [predictionData, setPredictionData] = useState<PredictionData | null>(null);
+  const [predictionHistory, setPredictionHistory] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   
   const [activeTab, setActiveTab] = useState<'dienbien' | 'doihinh' | 'thongke'>('thongke');
   const [showAllStats, setShowAllStats] = useState(false);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const res = await fetch('/api/generate-prediction', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ historyOnly: true, matchId })
+        });
+        const data = await res.json();
+        if (data.success && data.history) {
+          setPredictionHistory(data.history);
+          if (data.history.length > 0) {
+            setPredictionData(data.history[0].prediction);
+          }
+        }
+      } catch (err) {
+        console.error("Lỗi khi tải lịch sử nhận định", err);
+      }
+    };
+    if (matchId) {
+      fetchHistory();
+    }
+  }, [matchId]);
 
   useEffect(() => {
     const fetchMatch = async () => {
@@ -227,7 +252,6 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
     if (!matchInfo) return;
     setIsGenerating(true);
     setError(null);
-    setPredictionData(null);
 
     const query = `${matchInfo.team1.name} vs ${matchInfo.team2.name}, ${matchInfo.category}`;
 
@@ -243,6 +267,9 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
 
       if (data.predictionData) {
         setPredictionData(data.predictionData);
+        if (data.history) {
+          setPredictionHistory(data.history);
+        }
       } else {
         throw new Error("Dữ liệu trả về từ AI không đúng định dạng mong đợi");
       }
@@ -944,21 +971,21 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
           </div>
         )}
 
-        {/* AI BUTTON (ONLY VISIBLE FOR UPCOMING MATCHES) */}
+        {/* AI BUTTON */}
         {!isFinished && (
           <div className="p-8 md:p-12 bg-white text-center">
             <h3 className="text-slate-900 font-black mb-2 text-xl uppercase tracking-tighter">Báo Cáo Phân Tích Chuyên Sâu</h3>
             <p className="text-slate-500 text-[13px] font-medium mb-6 max-w-md mx-auto">
-              Kích hoạt siêu máy tính AI của ANV Sport để tổng hợp dữ liệu H2H, đội hình dự kiến và đưa ra dự đoán kết quả chính xác nhất.
+              Kích hoạt siêu máy tính AI của ANV Sport để tổng hợp dữ liệu H2H, bxh hiện tại, phong độ gần đây, giá trị đội hình, đội hình ra sân, sơ đồ chiến thuật và lối chơi để đưa ra nhận định kết quả chính xác nhất.
             </p>
             
-            {!isGenerating && !predictionData && (
+            {!isGenerating && (!predictionData || isLive) && (
               <Button 
                 onClick={handleGenerate} 
                 className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded text-[13px] font-black uppercase tracking-widest shadow-md flex items-center justify-center mx-auto transition-colors"
               >
                 <Bot className="w-4 h-4 mr-2" />
-                Yêu Cầu AI Dự Đoán
+                {predictionData ? 'Cập nhật phân tích AI trực tiếp' : 'Yêu Cầu AI Dự Đoán'}
               </Button>
             )}
             
@@ -974,6 +1001,37 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
         {/* AI PREDICTION RESULTS */}
         {predictionData && !isGenerating && (
            <div className="border-t-4 border-green-600 bg-white">
+             {/* History selector */}
+             {predictionHistory.length > 1 && (
+               <div className="bg-slate-50 border-b border-slate-100 px-6 py-4">
+                 <div className="flex items-center gap-2 mb-3">
+                   <div className="w-1.5 h-3.5 bg-green-600 rounded-sm"></div>
+                   <span className="text-[12px] font-black text-slate-700 uppercase tracking-wider">Lịch sử nhận định AI qua các mốc thời gian</span>
+                 </div>
+                 <div className="flex flex-wrap gap-2">
+                   {predictionHistory.map((hist) => {
+                     const isSelected = JSON.stringify(hist.prediction) === JSON.stringify(predictionData);
+                     const dateText = new Date(hist.predictedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + new Date(hist.predictedAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+                     const label = hist.milestone === 'LIVE' ? `Trực tiếp (${hist.liveTime || 'Đang đá'} • ${hist.scoreState})` : `Trước trận (${hist.scoreState})`;
+                     
+                     return (
+                       <button
+                         key={hist.id}
+                         onClick={() => setPredictionData(hist.prediction)}
+                         className={`px-3 py-1.5 rounded text-[11px] font-bold border transition-all flex flex-col items-start gap-0.5 shadow-sm
+                           ${isSelected 
+                             ? 'bg-green-600 border-green-600 text-white' 
+                             : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                       >
+                         <span>{label}</span>
+                         <span className={`text-[9px] ${isSelected ? 'text-green-200' : 'text-slate-400'}`}>{dateText}</span>
+                       </button>
+                     );
+                   })}
+                 </div>
+               </div>
+             )}
+
              <div className="bg-green-50/50 border-b border-green-100 p-4 text-center">
                <p className="text-green-800 font-black uppercase tracking-widest text-[11px] flex items-center justify-center gap-2">
                  <Bot className="w-4 h-4" /> Báo cáo phân tích AI đã sẵn sàng
