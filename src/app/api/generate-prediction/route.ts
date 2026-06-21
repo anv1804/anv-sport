@@ -199,7 +199,9 @@ export async function POST(req: Request) {
       additionalContext = `
 TRẠNG THÁI TRẬN ĐẤU HIỆN TẠI: ${matchData.status}. 
 TỶ SỐ HIỆN TẠI: ${t1} ${matchData.score1} - ${matchData.score2} ${t2}.
-${isLive ? 'LƯU Ý QUAN TRỌNG: Trận đấu đang diễn ra TRỰC TIẾP. Bạn phải phân tích diễn biến hiện tại, tỷ số hiện tại và đưa ra nhận định chiến thuật theo thời gian thực dựa trên các con số này.' : ''}
+${isLive ? `LƯU Ý QUAN TRỌNG: Trận đấu đang diễn ra TRỰC TIẾP. 
+LƯU Ý VỀ TỶ LỆ THẮNG (probabilities): Tỷ lệ thắng (probabilities) phải phản ánh đúng tỷ số hiện tại (${matchData.score1} - ${matchData.score2}). 
+Nếu một đội đang dẫn sâu (VD: 3-0 hoặc 4-0), tỷ lệ thắng của đội dẫn trước phải cực kỳ lớn (95% - 99%), tỷ lệ hòa và lật kèo của đội thua phải cực kỳ nhỏ (1% - 5%). Tuyệt đối không giữ nguyên tỷ lệ hòa/lật kèo lớn như trước trận.` : ''}
 
 Dữ liệu tham khảo: ${JSON.stringify({
         score1: matchData.score1,
