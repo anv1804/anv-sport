@@ -1,0 +1,111 @@
+{
+  "external_factors": {
+    "weather_and_pitch_conditions": {
+      "heavy_rain_slippery_pitch": {
+        "description": "Playing in heavy rain or on an excessively watered pitch.",
+        "tactical_impacts": [
+          "Ball slides much faster on the surface, increasing the probability of goalkeeper handling errors.",
+          "High-risk short passing in own third; possession-heavy teams (Tiki-Taka) struggle with accuracy and must play safer.",
+          "Favors direct counter-attacking and long-range shooting styles.",
+          "Increased risk of sliding tackle foul cards due to poor traction."
+        ],
+        "statistical_impacts": {
+          "passing_accuracy": "Decreased by 5% - 8% overall.",
+          "shots_from_distance": "Increased volume, higher shot-on-target conversion rate due to slippery ball.",
+          "total_fouls": "Elevated by 15% - 20% due to late sliding challenges."
+        }
+      },
+      "extreme_heat_and_humidity": {
+        "description": "Temperatures exceeding 32°C (90°F) or high relative humidity.",
+        "tactical_impacts": [
+          "Rapid depletion of player stamina, especially past the 60th minute.",
+          "High-intensity pressing styles (Gegenpress) become highly risky and unsustainable for 90 minutes.",
+          "Favors possession-based, slow-tempo teams who run the ball rather than themselves, preserving energy.",
+          "Managers forced to use all 5 substitutions earlier to maintain energy levels."
+        ],
+        "statistical_impacts": {
+          "match_tempo": "Significant decline in sprint frequencies in the second half.",
+          "second_half_goals": "Higher late goal probability due to defender fatigue and lapses in concentration."
+        }
+      }
+    },
+    "referee_profile": {
+      "strict_card_happy_referee": {
+        "description": "Referee with a high historical card-per-game ratio (e.g., > 4.5 yellows/game, high red card frequency).",
+        "tactical_impacts": [
+          "Forces physical, aggressive pressing teams to tone down their tackling intensity.",
+          "Favors technical dribblers who draw fouls easily.",
+          "Defenders must drop deeper to avoid committing professional fouls in 1v1 situations."
+        ],
+        "statistical_impacts": {
+          "expected_cards": "Significantly elevated yellow and red card projections.",
+          "set_piece_frequency": "Higher count of free kicks awarded in dangerous areas."
+        }
+      },
+      "lenient_let_play_referee": {
+        "description": "Referee who permits physical contact and rarely stops the match for minor collisions.",
+        "tactical_impacts": [
+          "Favors highly physical, compact defensive low blocks and pressing teams.",
+          "Technical playmakers are frequently disrupted, leading to frustration and loss of possession.",
+          "Slowing down the match transition as fewer fouls are awarded to relieve pressure."
+        ],
+        "statistical_impacts": {
+          "total_fouls_called": "Decreased by 20% - 30% below league average.",
+          "expected_cards": "Lower card projection, higher threshold for yellow cards."
+        }
+      }
+    },
+    "fixture_congestion_and_travel": {
+      "midweek_continental_travel_fatigue": {
+        "description": "Playing a midweek European/continental match (e.g., UCL, UEL) with long-distance travel, followed by a weekend domestic league game.",
+        "tactical_impacts": [
+          "Heavy squad rotation in the weekend domestic match to rest key players.",
+          "Lower physical intensity and pressing capability during the opening 30 minutes of the weekend match.",
+          "Vulnerability to high-energy, rested opponents who had a full week of preparation."
+        ],
+        "statistical_impacts": {
+          "running_distance": "Lower average team distance covered.",
+          "first_half_concession": "Higher probability of conceding early goals due to sluggish starts."
+        }
+      }
+    },
+    "stadium_atmosphere_hostile_away": {
+      "extreme_hostile_stadium_crowd": {
+        "description": "Away team playing in a highly vocal, high-pressure stadium (e.g., Turkish or South American hostile atmospheres).",
+        "tactical_impacts": [
+          "Subconscious referee bias toward the home team (higher home foul tolerance).",
+          "Away team communication breakdown due to crowd noise, leading to defensive misunderstanding.",
+          "Boost in home team physical intensity and high press driven by crowd momentum in the first 15 minutes."
+        ],
+        "statistical_impacts": {
+          "home_team_momentum": "Home team dominates possession and shots in the opening 15-20 minutes.",
+          "away_defensive_errors": "Increased rate of unforced turnovers and miscommunication clearances by away defenders."
+        }
+      }
+    }
+  },
+  "in_match_injuries_impacts": {
+    "key_deep_playmaker_injury": {
+      "description": "In-match injury to the team's primary deep-lying playmaker (Regista/DLP).",
+      "tactical_impacts": [
+        "Immediate breakdown of the team's build-up phase; struggle to progress the ball from defense to midfield.",
+        "Team forced to play longer, direct clearances, surrendering possession control."
+      ],
+      "statistical_impacts": {
+        "possession_percentage": "Drops by 10% - 15% for the remainder of the match.",
+        "passing_accuracy_middle_third": "Severe decline."
+      }
+    },
+    "central_defender_injury_sub": {
+      "description": "In-match injury to a starting central center-back, forcing a mid-game substitution.",
+      "tactical_impacts": [
+        "Loss of defensive line synchronization and offside trap coordination.",
+        "Set-piece defensive organization is temporarily disrupted while the substitute settles."
+      ],
+      "statistical_impacts": {
+        "concession_risk": "Highly elevated goal concession risk in the 10 minutes immediately following the substitution.",
+        "set_piece_concession": "Increased vulnerability to aerial set-piece goals."
+      }
+    }
+  }
+}
