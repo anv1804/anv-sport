@@ -191,73 +191,86 @@ export async function POST(req: Request) {
       }
     }
 
-    const hasRealH2H = matchData?.headToHeadGames && matchData.headToHeadGames.length > 0;
-    const hasRealForm = matchData?.lastFiveGames && matchData.lastFiveGames.length === 2;
-    
-    let additionalContext = "";
+    let additionalContextObj: any = {};
     if (matchData) {
-      additionalContext = `
-[CURRENT MATCH SITUATION]
-- Status: ${matchData.status}
-- Current Score: ${t1} ${matchData.score1} - ${matchData.score2} ${t2}
-- Live Match Context (JSON): ${JSON.stringify({
-        score1: matchData.score1,
-        score2: matchData.score2,
-        status: matchData.status,
-        statistics: matchData.statistics,
-        lineups: matchData.lineups,
-        events: matchData.events
-      })}
-
-[TREATMENT RULES FOR LIVE MATCHES]
-${isLive ? `- CRITICAL: The match is currently IN-PLAY. Your analysis and predictions must adapt to the live score (${matchData.score1} - ${matchData.score2}) and game state in real-time.
-- PROBABILITIES RULE: The 'probabilities' field must dynamically reflect the live score. For example, if a team is leading by 3+ goals (e.g., 3-0), their win probability must be extremely high (95% to 99%), while the draw and loss probabilities must be miniscule (1% to 5%). Never output pre-match probabilities for in-play matches.` : '- The match has not started yet. Analyze based on pre-match contexts.'}
-
-[REQUIRED ANALYTICAL FACTORS]
-You must synthesize the following factors to produce the prediction:
-1. Head-to-Head (H2H) history & current league table standings.
-2. Recent team forms and individual star player forms.
-3. Squad values showing the quality gap between the two sides.
-4. Lineups & Formations: If 'matchData.lineups' contains official lineups, you MUST prioritize them. Otherwise, predict the lineups and formations based on injury/suspension news.
-5. Tactical Counter-strategies (Matchups), playstyles, strengths, weaknesses, team morale, and match goals (e.g. title race, relegation struggle).
-`;
+      additionalContextObj = {
+        current_match_situation: {
+          status: matchData.status,
+          current_score: `${t1} ${matchData.score1} - ${matchData.score2} ${t2}`,
+          live_statistics: matchData.statistics,
+          lineups: matchData.lineups,
+          events: matchData.events
+        }
+      };
 
       if (hasRealForm || hasRealH2H) {
         const realT1Form = parseRealForm(matchData.lastFiveGames, t1);
         const realT2Form = parseRealForm(matchData.lastFiveGames, t2);
         const realH2H = parseRealH2H(matchData.headToHeadGames, t1, t2);
         
-        additionalContext += `
-[GROUND TRUTH DATA TO COOP IN formAndH2h]
-${realT1Form ? `- Team 1 Form: ${JSON.stringify(realT1Form)}` : ''}
-${realT2Form ? `- Team 2 Form: ${JSON.stringify(realT2Form)}` : ''}
-${realH2H ? `- Historical H2H: ${JSON.stringify(realH2H)}` : ''}
-`;
+        additionalContextObj.ground_truth_stats = {
+          team_1_form: realT1Form,
+          team_2_form: realT2Form,
+          historical_h2h: realH2H
+        };
       } else {
-        additionalContext += `
-[HISTORICAL ACCURACY RULE]
-- You must leverage your real-world soccer database knowledge to accurately populate the 'formAndH2h' fields. For example, Spain has never lost to Saudi Arabia in real-world football history, so your historical wins/draws distribution must accurately align with this reality. Never hallucinate fake historical outcomes.
-`;
+        additionalContextObj.historical_accuracy_rules = [
+          "Use your real-world soccer database knowledge to accurately populate the 'formAndH2h' fields.",
+          "Spain has never lost to Saudi Arabia in real-world history, so Spain wins/draws distribution must align with this reality. No fake historical outcomes."
+        ];
       }
     }
 
-    const systemPrompt = `You are a world-class football analyst and tactical expert with acute understanding of sports analytics and bookmaker odd lines.
-    Your task: Analyze the football match: "${title}" in extreme detail.
+    const systemPrompt = `You are a world-class football analyst and tactical expert.
     
-    [ADDITIONAL DATA CONTEXT]
-    ${additionalContext}
+    [TASK CONFIGURATION (JSON)]
+    ${JSON.stringify({
+      task: `Analyze the football match: "${title}" in extreme detail.`,
+      sources_to_synthesize: [
+        "SofaScore",
+        "WhoScored",
+        "ESPN",
+        "The Athletic",
+        "Foreign betting market odds & line movements"
+      ],
+      tactical_analysis_requirements: {
+        formation_counter_strategies: "Explain how formations counteract/unlock spaces for each team (e.g. midfield superiority, low block solutions).",
+        match_flow_dynamics: "Describe match tempo, transition phases, pressing block levels, and possession tendencies.",
+        player_tendencies: "Highlight individual movements (e.g. Inverted Wingers, Box-to-Box midfielders, overlap patterns)."
+      },
+      live_match_rules: {
+        is_live_match: isLive,
+        score_state: isLive ? `${matchData?.score1} - ${matchData?.score2}` : "N/A",
+        rules: [
+          "CRITICAL: Adapt predictions and tactical blocks to the live score state in real-time.",
+          "PROBABILITIES: Probabilities must reflect the live score. If a team leads by 3+ goals, win probability must be 95%-99%. Draw/loss probabilities must be 1%-5%. Never output pre-match probabilities for live matches."
+        ]
+      },
+      analytical_factors: [
+        "H2H history and current table standings",
+        "Recent team form & individual star player forms",
+        "Squad value differences",
+        "Lineups & Formations (Prioritize official lineups if available in matchData.lineups, otherwise predict them)",
+        "Team morale, objectives, and match significance"
+      ],
+      output_metrics_rules: {
+        expectedGoals: {
+          predicted: "Estimated number of goals, localized in Vietnamese (e.g., '1 bàn', '2 bàn')",
+          ouLine: "Bookmaker Over/Under line (e.g., '0.75', '1.5', '2.5')",
+          ouPick: "Over/Under pick recommendation direction, must be either 'Tài' or 'Xỉu' in Vietnamese"
+        },
+        expectedCards_expectedCorners: "Provide logically consistent values for half1, half2, and fullMatch (e.g., half1 + half2 = fullMatch)."
+      },
+      language_requirements: {
+        analysisHtml: "Must be written in detailed Vietnamese",
+        sources_titles: "Must be written in Vietnamese",
+        expectedGoals_predicted: "Must use 'bàn' unit in Vietnamese (e.g. '1 bàn')",
+        expectedGoals_ouPick: "Must use 'Tài' or 'Xỉu' in Vietnamese"
+      }
+    }, null, 2)}
     
-    [SPECIFIC ANALYSIS GUIDELINES]
-    1. SYNTHESIS: Gather and cross-reference analysis from elite sports networks (e.g., SofaScore, WhoScored, ESPN, The Athletic) and foreign betting markets to establish realistic expectations.
-    2. TACTICAL COUNTER-STRATEGIES: Detail how the formations and setups of both teams counteract or unlock spaces for each other (e.g., central midfield superiority, overload zones, low block solutions).
-    3. MATCH FLOW: Describe the in-play flow, pressing intensities, transitional phases, and possession tendencies.
-    4. PLAYER TENDENCIES: Highlight individual player movements and roles (e.g., inverted wingers cutting inside, box-to-box midfielders dictating play, full-back overlaps).
-    5. expectedGoals STRUCTURE: Predict Expected Goals (expectedGoals) using an object structure containing three string keys:
-       - "predicted": Estimated number of goals (e.g., "1 bàn", "2 bàn", "3 bàn").
-       - "ouLine": Bookmaker Over/Under line (e.g., "0.75", "1.5", "2.5").
-       - "ouPick": Recommendation direction ("Tài" or "Xịu").
-    6. expectedCards & expectedCorners: Ensure cards and corners are predicted for "half1", "half2", and "fullMatch" in a logically consistent manner (e.g., half1 + half2 = fullMatch).
-    7. LANGUAGE AND LOCALE: You MUST write the detailed 'analysisHtml' content and source names/titles in Vietnamese, and use 'bàn' for 'predicted' goals counts and 'Tài'/'Xịu' for O/U picks (ouPick) so it matches the Vietnamese localization of the application.
+    [ADDITIONAL DATA CONTEXT (JSON)]
+    ${JSON.stringify(additionalContextObj, null, 2)}
     
     [OUTPUT REQUIREMENT]
     Provide a valid JSON matching EXACTLY the structure below. Do not wrap the JSON output in markdown formatting (no json wrappers):
