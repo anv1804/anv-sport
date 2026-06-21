@@ -1052,24 +1052,36 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
                      <div className="mb-8">
                        <h4 className={`text-[11px] font-black uppercase tracking-widest text-slate-400 mb-3 border-b border-slate-100 pb-2 ${i === 0 ? 'text-left' : 'text-right'}`}>Dự bị</h4>
                        <div className="space-y-1">
-                         {lineup.substitutes.map((playerObj: any, idx: number) => {
-                           const posMap: Record<string, string> = { "G": "GK", "D": "Hậu vệ", "M": "Tiền vệ", "F": "Tiền đạo" };
-                           const summary = getPlayerEventsSummary(playerObj.player, matchInfo.events);
-                           return (
-                             <div key={idx} className={`flex items-center justify-between w-full py-1.5 border-b border-slate-50 last:border-0 ${i === 0 ? '' : 'flex-row-reverse'}`}>
-                               <div className={`flex items-center gap-3 ${i === 0 ? '' : 'flex-row-reverse'}`}>
-                                 <div className="w-6 h-6 rounded-full bg-slate-50 flex items-center justify-center text-[10px] font-bold text-slate-500 shrink-0 border border-slate-200">
-                                   {playerObj.player.number}
+                         {[...lineup.substitutes]
+                           .sort((a, b) => {
+                             const sumA = getPlayerEventsSummary(a.player, matchInfo.events);
+                             const sumB = getPlayerEventsSummary(b.player, matchInfo.events);
+                             if (sumA.subbedIn && !sumB.subbedIn) return -1;
+                             if (!sumA.subbedIn && sumB.subbedIn) return 1;
+                             if (sumA.subbedIn && sumB.subbedIn) {
+                               return (sumA.subMinute || 0) - (sumB.subMinute || 0);
+                             }
+                             return 0;
+                           })
+                           .map((playerObj: any, idx: number) => {
+                             const posMap: Record<string, string> = { "G": "GK", "D": "Hậu vệ", "M": "Tiền vệ", "F": "Tiền đạo" };
+                             const summary = getPlayerEventsSummary(playerObj.player, matchInfo.events);
+                             return (
+                               <div key={idx} className={`flex items-center justify-between w-full py-1.5 border-b border-slate-50 last:border-0 ${i === 0 ? '' : 'flex-row-reverse'}`}>
+                                 <div className={`flex items-center gap-3 ${i === 0 ? '' : 'flex-row-reverse'}`}>
+                                   <div className="w-6 h-6 rounded-full bg-slate-50 flex items-center justify-center text-[10px] font-bold text-slate-500 shrink-0 border border-slate-200">
+                                     {playerObj.player.number}
+                                   </div>
+                                   <div className={`flex flex-col ${i === 0 ? 'items-start' : 'items-end'}`}>
+                                     <span className="text-[13px] font-semibold text-slate-600">{playerObj.player.name}</span>
+                                     <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">{posMap[playerObj.player.pos] || playerObj.player.pos}</span>
+                                   </div>
                                  </div>
-                                 <div className={`flex flex-col ${i === 0 ? 'items-start' : 'items-end'}`}>
-                                   <span className="text-[13px] font-semibold text-slate-600">{playerObj.player.name}</span>
-                                   <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">{posMap[playerObj.player.pos] || playerObj.player.pos}</span>
-                                 </div>
+                                 <PlayerListIndicators summary={summary} isAlignRight={i === 1} />
                                </div>
-                               <PlayerListIndicators summary={summary} isAlignRight={i === 1} />
-                             </div>
-                           )
-                         })}
+                             );
+                           })
+                         }
                        </div>
                      </div>
                      
