@@ -9,6 +9,7 @@ export async function isArticleWithinDateLimit(url: string, daysLimit: number): 
   try {
     const response = await fetch(url, {
       headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
+      signal: AbortSignal.timeout(5000)
     });
     const html = await response.text();
     const $ = cheerio.load(html);
@@ -122,6 +123,7 @@ export async function executeAutoCrawl() {
 
       console.log(`[Auto Cloner] Extracted ${extractResult.links.length} links. Checking for new articles...`);
       let crawledCount = 0;
+      let consecutiveOldCount = 0;
 
       for (const link of extractResult.links) {
         // 1. Check duplicate
@@ -141,8 +143,18 @@ export async function executeAutoCrawl() {
         const withinLimit = await isArticleWithinDateLimit(link, source.daysLimit);
         if (!withinLimit) {
           console.log(`[Auto Cloner] Skipping link ${link} as it is older than ${source.daysLimit} days.`);
+          consecutiveOldCount++;
+          // Since links are listed in reverse chronological order, if we hit 3 old links consecutively,
+          // we can assume the rest of the list contains only older articles.
+          if (consecutiveOldCount >= 3) {
+            console.log(`[Auto Cloner] Reached 3 consecutive old articles. Stopping crawl for: ${source.url}`);
+            break;
+          }
           continue;
         }
+
+        // Reset consecutive count since we found a new article
+        consecutiveOldCount = 0;
 
         // 3. Crawl and save
         console.log(`[Auto Cloner] Crawling new article: ${link}`);
@@ -172,6 +184,15 @@ export async function executeAutoCrawl() {
 
 // Background scheduler checker loop
 export function initClonerScheduler() {
+  // Prevent running cloner scheduler during build phase
+  const isBuilding = typeof process !== 'undefined' && (
+    process.argv.includes('build') || 
+    process.env.NEXT_PHASE === 'phase-production-build'
+  );
+  if (isBuilding) {
+    return;
+  }
+
   // Prevent multiple schedulers in dev hot-reloads
   if ((globalThis as any).clonerSchedulerInitialized) {
     return;
@@ -180,13 +201,36 @@ export function initClonerScheduler() {
 
   console.log("[Auto Cloner] Background scheduler initialized.");
 
+  let activeInterval: NodeJS.Timeout | null = null;
+  let targetHours: number[] = Array.from({ length: 24 }, (_, i) => i);
+  let checkIntervalMinutes = 5;
+
   const runSchedulerTick = async () => {
     try {
       const now = new Date();
       const currentHour = now.getHours();
       
-      // Target hours: Run every hour (0 to 23)
-      const targetHours = Array.from({ length: 24 }, (_, i) => i);
+      // Load configuration dynamically
+      try {
+        const configSetting = await prisma.setting.findUnique({
+          where: { key: "AUTO_CLONER_CONFIG" }
+        });
+        if (configSetting && configSetting.value) {
+          const config = JSON.parse(configSetting.value);
+          if (Array.isArray(config.targetHours)) {
+            targetHours = config.targetHours;
+          }
+          if (typeof config.checkIntervalMinutes === 'number' && config.checkIntervalMinutes > 0) {
+            if (checkIntervalMinutes !== config.checkIntervalMinutes) {
+              checkIntervalMinutes = config.checkIntervalMinutes;
+              // Reset interval with new timing
+              startCheckInterval();
+            }
+          }
+        }
+      } catch (configErr) {
+        console.error("[Auto Cloner] Error loading scheduler config:", configErr);
+      }
       
       if (targetHours.includes(currentHour)) {
         // Format slot as YYYY-MM-DD-HH
@@ -229,9 +273,23 @@ export function initClonerScheduler() {
     }
   };
 
+  const startCheckInterval = () => {
+    if (activeInterval) {
+      clearInterval(activeInterval);
+    }
+    console.log(`[Auto Cloner] Starting scheduler interval check every ${checkIntervalMinutes} minute(s).`);
+    activeInterval = setInterval(runSchedulerTick, checkIntervalMinutes * 60 * 1000);
+  };
+
+  // Expose reload function to global context to enable instant UI-driven refreshes
+  (globalThis as any).reloadSchedulerConfig = async () => {
+    console.log("[Auto Cloner] Force reloading scheduler configuration...");
+    await runSchedulerTick();
+  };
+
   // Run immediately on start
   setTimeout(runSchedulerTick, 5000);
 
-  // Check every 5 minutes
-  setInterval(runSchedulerTick, 5 * 60 * 1000); // 5 minutes
+  // Initialize checking interval
+  startCheckInterval();
 }

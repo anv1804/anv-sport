@@ -106,6 +106,57 @@ export async function deleteClonerSource(id: string) {
   }
 }
 
+export async function getSchedulerSettings() {
+  try {
+    const configSetting = await prisma.setting.findUnique({
+      where: { key: "AUTO_CLONER_CONFIG" }
+    });
+
+    if (configSetting && configSetting.value) {
+      return { success: true, settings: JSON.parse(configSetting.value) };
+    }
+
+    // Default configuration: run hourly (0 to 23), interval check every 5 minutes
+    const defaultSettings = {
+      targetHours: Array.from({ length: 24 }, (_, i) => i),
+      checkIntervalMinutes: 5
+    };
+    return { success: true, settings: defaultSettings };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Lỗi khi lấy cấu hình scheduler" };
+  }
+}
+
+export async function updateSchedulerSettings(settings: {
+  targetHours: number[];
+  checkIntervalMinutes: number;
+}) {
+  try {
+    await prisma.setting.upsert({
+      where: { key: "AUTO_CLONER_CONFIG" },
+      update: {
+        value: JSON.stringify(settings),
+        updatedAt: new Date()
+      },
+      create: {
+        key: "AUTO_CLONER_CONFIG",
+        value: JSON.stringify(settings),
+        description: "Auto Cloner Scheduler Settings: Target hours and polling interval"
+      }
+    });
+
+    // Force scheduler to reload settings in background process
+    if ((globalThis as any).reloadSchedulerConfig) {
+      await (globalThis as any).reloadSchedulerConfig();
+    }
+
+    revalidatePath("/admin/auto-cloner");
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message || "Lỗi khi cập nhật cấu hình scheduler" };
+  }
+}
+
 export async function triggerManualCrawl() {
   try {
     console.log("[Auto Cloner Actions] Manually triggered crawl started.");
