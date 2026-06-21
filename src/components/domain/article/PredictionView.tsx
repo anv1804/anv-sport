@@ -79,18 +79,54 @@ export function PredictionView({ post, predictionData }: { post: any, prediction
                 <div>
                   <div className="text-slate-400 text-[11px] font-black uppercase tracking-wider mb-3">Bàn Thắng Kỳ Vọng (xG)</div>
                   {hasDetailed ? (
-                    <div className="space-y-2 text-xs text-slate-300">
-                      <div className="flex justify-between border-b border-white/5 pb-1.5">
+                    <div className="space-y-2.5 text-xs text-slate-300">
+                      <div className="flex justify-between border-b border-white/5 pb-1.5 items-center">
                         <span className="font-semibold text-slate-400">Hiệp 1:</span>
-                        <span className="font-bold text-yellow-400">{am.expectedGoals?.half1 || '—'}</span>
+                        {(() => {
+                          const val = am.expectedGoals?.half1;
+                          if (!val) return <span className="font-bold text-yellow-400">—</span>;
+                          if (typeof val === 'object') {
+                            return (
+                              <div className="flex flex-col items-end">
+                                <span className="font-black text-yellow-400 text-[13px]">{val.predicted || '—'}</span>
+                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Kèo O/U: {val.ouLine || '—'} ({val.ouPick || '—'})</span>
+                              </div>
+                            );
+                          }
+                          return <span className="font-bold text-yellow-400">{val}</span>;
+                        })()}
                       </div>
-                      <div className="flex justify-between border-b border-white/5 pb-1.5">
+                      <div className="flex justify-between border-b border-white/5 pb-1.5 items-center">
                         <span className="font-semibold text-slate-400">Hiệp 2:</span>
-                        <span className="font-bold text-yellow-400">{am.expectedGoals?.half2 || '—'}</span>
+                        {(() => {
+                          const val = am.expectedGoals?.half2;
+                          if (!val) return <span className="font-bold text-yellow-400">—</span>;
+                          if (typeof val === 'object') {
+                            return (
+                              <div className="flex flex-col items-end">
+                                <span className="font-black text-yellow-400 text-[13px]">{val.predicted || '—'}</span>
+                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Kèo O/U: {val.ouLine || '—'} ({val.ouPick || '—'})</span>
+                              </div>
+                            );
+                          }
+                          return <span className="font-bold text-yellow-400">{val}</span>;
+                        })()}
                       </div>
-                      <div className="flex justify-between pt-0.5">
+                      <div className="flex justify-between pt-0.5 items-center">
                         <span className="font-bold text-white">Cả trận:</span>
-                        <span className="font-extrabold text-yellow-400 text-sm">{am.expectedGoals?.fullMatch || '—'}</span>
+                        {(() => {
+                          const val = am.expectedGoals?.fullMatch;
+                          if (!val) return <span className="font-bold text-yellow-400">—</span>;
+                          if (typeof val === 'object') {
+                            return (
+                              <div className="flex flex-col items-end">
+                                <span className="font-extrabold text-yellow-400 text-sm">{val.predicted || '—'}</span>
+                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">Kèo O/U: {val.ouLine || '—'} ({val.ouPick || '—'})</span>
+                              </div>
+                            );
+                          }
+                          return <span className="font-extrabold text-yellow-400 text-sm">{val}</span>;
+                        })()}
                       </div>
                     </div>
                   ) : (

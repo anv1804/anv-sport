@@ -202,7 +202,8 @@ Dữ liệu tham khảo: ${JSON.stringify({
 Dựa vào tỷ số hiện tại, trạng thái trận đấu, các thống kê chi tiết, đội hình và sự kiện thực tế ở trên, hãy đưa ra nhận định bóng đá cực kỳ chuyên sâu bám sát thực tế.
 
 LƯU Ý VỀ CHỈ SỐ DỰ ĐOÁN CHUYÊN SÂU (advancedMetrics):
-Bạn phải phân tích và tính toán tỉ mỉ, cẩn thận để đưa ra dự đoán Bàn thắng kỳ vọng (expectedGoals), Số thẻ phạt (expectedCards), Số phạt góc (expectedCorners) chia tách chi tiết theo Hiệp 1 (half1), Hiệp 2 (half2) và Cả trận (fullMatch) dựa trên phong độ, lối chơi của 2 đội. Tuyệt đối không được điền bừa bãi hay để trống. Các giá trị phải logic (ví dụ: Tổng hiệp 1 + Hiệp 2 phải tương thích với cả trận).
+Bạn phải phân tích và tính toán tỉ mỉ, cẩn thận để đưa ra dự đoán Bàn thắng kỳ vọng (expectedGoals) theo cấu trúc đối tượng có 3 trường: "predicted" (số bàn thắng dự kiến, VD: "1 bàn", "2 bàn", "3 bàn"), "ouLine" (tỷ lệ kèo tài xỉu nhà cái, VD: "0.75", "1.5", "2.5"), và "ouPick" (lựa chọn Tài hoặc Xỉu, VD: "Tài", "Xỉu").
+Số thẻ phạt (expectedCards) và Số phạt góc (expectedCorners) chia tách chi tiết theo Hiệp 1 (half1), Hiệp 2 (half2) và Cả trận (fullMatch) dựa trên phong độ, lối chơi của 2 đội. Tuyệt đối không được điền bừa bãi hay để trống. Các giá trị phải logic (ví dụ: Tổng hiệp 1 + Hiệp 2 phải tương thích với cả trận).
 
 `;
 
@@ -259,9 +260,9 @@ VÍ DỤ: Tây Ban Nha (Spain) chưa bao giờ thua Ả Rập Xê Út (Saudi Ara
         },
         "advancedMetrics": {
           "expectedGoals": {
-            "half1": "1.0 (Xỉu)",
-            "half2": "1.5 (Tài)",
-            "fullMatch": "2.5 (Tài)"
+            "half1": { "predicted": "1 bàn", "ouLine": "0.75", "ouPick": "Tài" },
+            "half2": { "predicted": "2 bàn", "ouLine": "1.5", "ouPick": "Tài" },
+            "fullMatch": { "predicted": "3 bàn", "ouLine": "2.25", "ouPick": "Tài" }
           },
           "expectedCards": {
             "half1": { "team1": 0, "team2": 1, "total": 1 },
