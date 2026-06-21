@@ -460,7 +460,7 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
                 ? 'bg-red-100 text-red-700 animate-pulse font-extrabold' 
                 : 'bg-green-100 text-green-700'
           }`}>
-            {isFinished ? 'Kết thúc' : isLive ? (matchInfo.status || 'Đang đá') : 'Chưa đá'}
+            {isFinished ? 'Kết thúc' : isLive ? (matchInfo.livePeriod && matchInfo.liveClock ? `${matchInfo.livePeriod} - ${matchInfo.liveClock}` : (matchInfo.status || 'Đang đá')) : 'Chưa đá'}
           </span>
         </div>
 
@@ -504,6 +504,12 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
                     <span className="text-3xl text-slate-300 font-light">-</span>
                     <span className={`text-5xl md:text-6xl font-black ${isFinished && matchInfo.score2 > matchInfo.score1 ? 'text-green-600' : 'text-slate-800'}`}>{matchInfo.score2}</span>
                   </div>
+                  {isLive && matchInfo.liveClock && (
+                    <div className="mt-3 text-[12px] font-black text-red-600 bg-red-50 border border-red-100 rounded-full px-3.5 py-1 flex items-center gap-1.5 shadow-sm animate-pulse tracking-wide uppercase">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-ping shrink-0"></span>
+                      <span>{matchInfo.livePeriod} • {matchInfo.liveClock}</span>
+                    </div>
+                  )}
                   {matchInfo.penScore1 !== undefined && matchInfo.penScore1 !== null && matchInfo.penScore2 !== undefined && matchInfo.penScore2 !== null && (
                     <div className="mt-2 text-xs font-bold text-red-600 bg-red-50 px-3 py-1 rounded border border-red-200 uppercase tracking-widest">
                       Phạt luân lưu: {matchInfo.penScore1} - {matchInfo.penScore2}

@@ -315,7 +315,12 @@ export async function GET(request: Request) {
         }
         if (cachedFixture) {
           const diffMins = (new Date().getTime() - new Date(cachedFixture.lastUpdated).getTime()) / 60000;
-          if (diffMins < 5) return NextResponse.json({ success: true, data: cachedFixture.data });
+          const isLive = cachedFixture.data && (
+            (cachedFixture.data as any).status === "Đang đá" ||
+            !["FT", "PEN", "AWD", "PST", "CANC"].includes(cachedFixture.status)
+          );
+          const cacheLimit = isLive ? (10 / 60) : 5;
+          if (diffMins < cacheLimit) return NextResponse.json({ success: true, data: cachedFixture.data });
         }
 
         const res = await fetch(`https://v3.football.api-sports.io/fixtures?id=${matchId}`, { headers, next: { revalidate: 0 } });
@@ -328,6 +333,21 @@ export async function GET(request: Request) {
         const match = data.response[0];
         const isFinished = match.fixture.status.short === 'FT' || match.fixture.status.short === 'PEN';
 
+        const elapsed = match.fixture.status.elapsed;
+        const statusShort = match.fixture.status.short;
+        let liveClock = elapsed ? `${elapsed}'` : null;
+        let livePeriod = null;
+        if (statusShort === '1H') {
+          livePeriod = "Hiệp 1";
+        } else if (statusShort === '2H') {
+          livePeriod = "Hiệp 2";
+        } else if (statusShort === 'HT') {
+          liveClock = "HT";
+          livePeriod = "Nghỉ giữa hiệp";
+        } else if (statusShort === 'ET') {
+          livePeriod = "Hiệp phụ";
+        }
+
         const detail = {
           id: match.fixture.id.toString(),
           team1: { name: match.teams.home.name, logo: match.teams.home.logo },
@@ -338,6 +358,8 @@ export async function GET(request: Request) {
           status: isFinished ? "Kết thúc" : (match.fixture.status.short === 'NS' ? "Chưa đá" : "Đang đá"),
           score1: match.goals.home,
           score2: match.goals.away,
+          liveClock,
+          livePeriod,
           ground: match.fixture.venue.name || "Chưa xác định",
           goals: { home: "", away: "" },
           video: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
@@ -394,12 +416,17 @@ export async function GET(request: Request) {
 
       // --- DATABASE CACHING LAYER FOR DETAIL ---
       const cachedFixture = await prisma.fixtureCache.findUnique({ where: { id: matchId } });
-      if (cachedFixture && ["FT", "PEN", "AWD", "post", "STATUS_FULL_TIME"].includes(cachedFixture.status)) {
+      if (cachedFixture && ["FT", "PEN", "AWD", "post", "STATUS_FULL_TIME", "STATUS_FINAL"].includes(cachedFixture.status)) {
         return NextResponse.json({ success: true, data: cachedFixture.data });
       }
       if (cachedFixture) {
         const diffMins = (new Date().getTime() - new Date(cachedFixture.lastUpdated).getTime()) / 60000;
-        if (diffMins < 5) return NextResponse.json({ success: true, data: cachedFixture.data });
+        const isLive = cachedFixture.data && (
+          (cachedFixture.data as any).status === "Đang đá" ||
+          !["FT", "PEN", "AWD", "post", "STATUS_FULL_TIME", "STATUS_FINAL", "STATUS_POSTPONED", "STATUS_CANCELED"].includes(cachedFixture.status)
+        );
+        const cacheLimit = isLive ? (10 / 60) : 5; // 10 seconds cache for live matches, 5 minutes for others
+        if (diffMins < cacheLimit) return NextResponse.json({ success: true, data: cachedFixture.data });
       }
 
       let espnEventId = matchId;
@@ -476,6 +503,28 @@ export async function GET(request: Request) {
         roundText = stageTranslations[lastPart] || lastPart;
       }
 
+      const espnStatus = espnData.header.competitions[0].status;
+      const displayClock = espnStatus.displayClock || espnStatus.type?.detail || espnStatus.type?.shortDetail || "";
+      const period = espnStatus.period;
+      const description = espnStatus.type?.description || "";
+      
+      let liveClock = displayClock;
+      let livePeriod = "";
+      if (description.toLowerCase().includes("halftime") || description.toLowerCase().includes("half-time") || displayClock === "HT") {
+        liveClock = "HT";
+        livePeriod = "Nghỉ giữa hiệp";
+      } else if (period === 1) {
+        livePeriod = "Hiệp 1";
+      } else if (period === 2) {
+        livePeriod = "Hiệp 2";
+      } else if (period === 3) {
+        livePeriod = "Hiệp phụ 1";
+      } else if (period === 4) {
+        livePeriod = "Hiệp phụ 2";
+      } else if (description) {
+        livePeriod = description;
+      }
+
       const detail = {
         id: matchId, // Giữ nguyên ID gốc (wc2026-X) để frontend tương thích
         team1: { 
@@ -493,6 +542,8 @@ export async function GET(request: Request) {
         status: statusText,
         score1: homeComp.score || "0",
         score2: awayComp.score || "0",
+        liveClock: espnStatus.type?.state === 'in' ? liveClock : null,
+        livePeriod: espnStatus.type?.state === 'in' ? livePeriod : null,
         penScore1,
         penScore2,
         ground: espnData.gameInfo?.venue?.fullName || "Chưa xác định",

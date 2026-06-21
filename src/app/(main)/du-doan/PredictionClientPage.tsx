@@ -284,17 +284,18 @@ export default function PredictionClientPage() {
                   <div className="divide-y divide-slate-100">
                     {matches.map((match: any) => {
                        const isFinished = match.status === 'Kết thúc';
+                       const isLive = match.status === 'Đang đá';
                        const matchTimeStr = match.matchTime || '00:00';
-                       const score1Num = isFinished && match.score1 !== null ? parseInt(match.score1) : null;
-                       const score2Num = isFinished && match.score2 !== null ? parseInt(match.score2) : null;
+                       const score1Num = (isFinished || isLive) && match.score1 !== null && match.score1 !== undefined ? parseInt(match.score1) : null;
+                       const score2Num = (isFinished || isLive) && match.score2 !== null && match.score2 !== undefined ? parseInt(match.score2) : null;
 
                        return (
                           <div key={match.id} className="flex hover:bg-slate-50 transition-colors group">
                             
                             {/* Left Col: Time & Status */}
                             <div className="w-[80px] md:w-[100px] shrink-0 border-r border-slate-100 flex flex-col items-center justify-center py-4 px-2 gap-1 bg-slate-50/50">
-                              <span className={`text-[12px] md:text-[13px] font-black uppercase tracking-widest ${isFinished ? 'text-slate-400' : 'text-slate-900'}`}>
-                                {isFinished ? 'KT' : matchTimeStr}
+                              <span className={`text-[12px] md:text-[13px] font-black uppercase tracking-widest ${isFinished ? 'text-slate-400' : isLive ? 'text-red-600 animate-pulse' : 'text-slate-900'}`}>
+                                {isFinished ? 'KT' : isLive ? 'LIVE' : matchTimeStr}
                               </span>
                               <span className="text-[9px] md:text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded text-center leading-tight truncate w-full" title={match.category}>
                                 {match.category.replace('FIFA World Cup 2026 - ', '')}
