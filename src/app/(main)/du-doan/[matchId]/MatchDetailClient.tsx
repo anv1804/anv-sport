@@ -319,6 +319,7 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
   const [historyLoaded, setHistoryLoaded] = useState(false);
   
   const [activeTab, setActiveTab] = useState<'dienbien' | 'doihinh' | 'thongke'>('thongke');
+  const [attemptedMilestones, setAttemptedMilestones] = useState<Record<string, boolean>>({});
   const [showAllStats, setShowAllStats] = useState(false);
 
   useEffect(() => {
@@ -390,7 +391,8 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
       const hasHalfTime = predictionHistory.some(hist => hist.milestone === 'HALF_TIME');
 
       // Milestone 1: Trước trận (PRE_MATCH) - Trước khi trận đấu diễn ra (luôn tự động tạo nếu chưa có)
-      if (!hasPreMatch) {
+      if (!hasPreMatch && !attemptedMilestones.PRE_MATCH) {
+        setAttemptedMilestones(prev => ({ ...prev, PRE_MATCH: true }));
         setLoadingText("Siêu máy tính đang tạo nhận định Trước trận...");
         await handleGenerateInternal(false, 'PRE_MATCH');
         return;
@@ -398,7 +400,8 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
 
       // Milestone 2: Đầu trận (START_MATCH) - Khi trận đấu đã bắt đầu hiệp 1 hoặc đã kết thúc
       if (isLive || isFinished) {
-        if (!hasStartMatch) {
+        if (!hasStartMatch && !attemptedMilestones.START_MATCH) {
+          setAttemptedMilestones(prev => ({ ...prev, START_MATCH: true }));
           setLoadingText("Siêu máy tính đang tạo nhận định Đầu trận...");
           await handleGenerateInternal(false, 'START_MATCH');
           return;
@@ -409,7 +412,8 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
       const livePeriodLower = (matchInfo.livePeriod || '').toLowerCase();
       const isSecondHalfOrFinished = isFinished || statusLower.includes('2nd half') || statusLower.includes('hiệp 2') || livePeriodLower.includes('2nd') || livePeriodLower.includes('hiệp 2');
       if (isSecondHalfOrFinished) {
-        if (!hasHalfTime) {
+        if (!hasHalfTime && !attemptedMilestones.HALF_TIME) {
+          setAttemptedMilestones(prev => ({ ...prev, HALF_TIME: true }));
           setLoadingText("Siêu máy tính đang tạo nhận định Giữa trận...");
           await handleGenerateInternal(false, 'HALF_TIME');
           return;
@@ -417,7 +421,8 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
       }
 
       // Fallback: Nếu hoàn toàn chưa có dự đoán nào, tạo bản xem thử thời gian thực (không lưu)
-      if (predictionHistory.length === 0) {
+      if (predictionHistory.length === 0 && !attemptedMilestones.fallback) {
+        setAttemptedMilestones(prev => ({ ...prev, fallback: true }));
         setLoadingText("Siêu máy tính đang tự động phân tích diễn biến trận đấu trực tiếp...");
         await handleGenerateInternal(true);
       }

@@ -227,7 +227,33 @@ export async function POST(req: Request) {
     if (matchId && !isLive) {
       const cached = await prisma.fixtureCache.findUnique({ where: { id: matchId } });
       if (cached && (cached.data as any).prediction) {
-        return NextResponse.json({ predictionData: (cached.data as any).prediction });
+        const cachedPrediction = (cached.data as any).prediction;
+        
+        const requestedMilestone = body.milestone;
+        if (requestedMilestone) {
+          const exists = await prisma.predictionHistory.findFirst({
+            where: { matchId, milestone: requestedMilestone }
+          });
+          if (!exists) {
+            await prisma.predictionHistory.create({
+              data: {
+                matchId,
+                milestone: requestedMilestone,
+                prediction: cachedPrediction,
+                scoreState: (matchData?.score1 !== null && matchData?.score2 !== null) ? `${matchData.score1}-${matchData.score2}` : "0-0",
+                liveTime: null,
+                status: matchData?.status || "Chưa diễn ra"
+              }
+            });
+          }
+        }
+
+        const history = await prisma.predictionHistory.findMany({
+          where: { matchId },
+          orderBy: { predictedAt: 'desc' }
+        });
+
+        return NextResponse.json({ predictionData: cachedPrediction, history });
       }
     }
 
