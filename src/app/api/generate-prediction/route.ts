@@ -200,6 +200,7 @@ export async function POST(req: Request) {
     let playerTendenciesReference = null;
     let matchDynamicsReference = null;
     let externalFactorsReference = null;
+    let aiTacticalTrainingGuide = "";
     try {
       const tacticsPath = path.join(process.cwd(), 'src/lib/tactics/formations_and_playstyles.json');
       if (fs.existsSync(tacticsPath)) {
@@ -216,6 +217,10 @@ export async function POST(req: Request) {
       const externalPath = path.join(process.cwd(), 'src/lib/tactics/external_factors_and_key_events.json');
       if (fs.existsSync(externalPath)) {
         externalFactorsReference = JSON.parse(fs.readFileSync(externalPath, 'utf-8'));
+      }
+      const guidePath = path.join(process.cwd(), 'src/lib/tactics/AI_TACTICAL_TRAINING_GUIDE.md');
+      if (fs.existsSync(guidePath)) {
+        aiTacticalTrainingGuide = fs.readFileSync(guidePath, 'utf-8');
       }
     } catch (err) {
       console.error("Lỗi khi đọc file chiến thuật tham khảo:", err);
@@ -255,6 +260,7 @@ export async function POST(req: Request) {
     [TASK CONFIGURATION (JSON)]
     ${JSON.stringify({
       task: `Analyze the football match: "${title}" in extreme detail.`,
+      ai_tactical_training_guide: aiTacticalTrainingGuide,
       tactics_reference_database: tacticsReference,
       player_roles_and_tendencies_database: playerTendenciesReference,
       match_dynamics_and_psychology_database: matchDynamicsReference,
