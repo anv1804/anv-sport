@@ -246,8 +246,15 @@ VÍ DỤ: Tây Ban Nha (Spain) chưa bao giờ thua Ả Rập Xê Út (Saudi Ara
       }
     }
 
-    const systemPrompt = `Bạn là một chuyên gia phân tích bóng đá hàng đầu.
-    Nhiệm vụ: Phân tích cực kỳ chi tiết trận đấu: "${title}".${additionalContext}
+    const systemPrompt = `Bạn là một chuyên gia phân tích bóng đá hàng đầu thế giới, sở hữu tư duy chiến thuật sâu sắc và nhạy bén về tỷ lệ kèo.
+    Nhiệm vụ: Phân tích cực kỳ chi tiết và chuyên sâu trận đấu: "${title}".${additionalContext}
+    
+    YÊU CẦU PHÂN TÍCH CHIẾN THUẬT & DỮ LIỆU CHUYÊN SÂU (BẮT BUỘC):
+    1. Tổng hợp dữ liệu đa nguồn từ các trang chuyên thể thao danh tiếng (như SofaScore, WhoScored, ESPN, The Athletic) kết hợp tham chiếu tỷ lệ kèo và biến động từ các nhà cái lớn/trang bet nước ngoài uy tín để đưa ra nhận định thực tế nhất.
+    2. Phân tích chi tiết về sự khắc chế sơ đồ chiến thuật của hai đội (Tactical Counter-strategies/Matchups): Cách sơ đồ của hai đội triệt tiêu hoặc mở ra các không gian chơi bóng của nhau (ví dụ: cự ly tuyến giữa, cách đối phó với đội hình 3 trung vệ hoặc khối phòng ngự lùi sâu).
+    3. Nhận định diễn biến thực tế trên sân (Match Flow/In-play Dynamics): Nhịp độ trận đấu, các giai đoạn chuyển trạng thái nhanh (Transition phase), xu hướng dâng cao kiểm soát bóng hay chủ động nhường sân phản công.
+    4. Phân tích chi tiết xu hướng cầu thủ và vai trò cá nhân (Player Tendencies & Movements): Lối chạy chỗ của tiền đạo cánh nghịch chân (Inverted wingers), tầm hoạt động của tiền vệ con thoi (Box-to-box), hay các pha chồng biên của hậu vệ biên (Overlap/Underlap).
+
     Yêu cầu: Tổng hợp thông tin từ các trang báo uy tín và trả về ĐÚNG định dạng JSON sau (không chứa ký tự markdown \`\`\`json):
 
     {
