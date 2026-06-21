@@ -154,9 +154,47 @@ function parseRealForm(lastFiveGames: any, tName: string) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { title, matchData, historyOnly, previewOnly } = body;
+    const { title, matchData, historyOnly, previewOnly, action, predictionData } = body;
 
     const matchId = matchData?.id || body.matchId;
+
+    if (action === 'pin' && matchId && predictionData) {
+      const existingPinned = await prisma.predictionHistory.findFirst({
+        where: { matchId, milestone: 'PINNED' }
+      });
+
+      let pinnedRecord;
+      if (existingPinned) {
+        pinnedRecord = await prisma.predictionHistory.update({
+          where: { id: existingPinned.id },
+          data: {
+            prediction: predictionData,
+            predictedAt: new Date(),
+            scoreState: (matchData?.score1 !== null && matchData?.score2 !== null) ? `${matchData.score1}-${matchData.score2}` : "0-0",
+            liveTime: matchData?.liveClock || null,
+            status: matchData?.status || "Đang đá"
+          }
+        });
+      } else {
+        pinnedRecord = await prisma.predictionHistory.create({
+          data: {
+            matchId,
+            milestone: 'PINNED',
+            prediction: predictionData,
+            scoreState: (matchData?.score1 !== null && matchData?.score2 !== null) ? `${matchData.score1}-${matchData.score2}` : "0-0",
+            liveTime: matchData?.liveClock || null,
+            status: matchData?.status || "Đang đá"
+          }
+        });
+      }
+
+      const history = await prisma.predictionHistory.findMany({
+        where: { matchId },
+        orderBy: { predictedAt: 'desc' }
+      });
+
+      return NextResponse.json({ success: true, pinned: pinnedRecord, history });
+    }
 
     if (historyOnly && matchId) {
       const history = await prisma.predictionHistory.findMany({
@@ -414,7 +452,7 @@ export async function POST(req: Request) {
 
         // 4. Save this checkpoint into PredictionHistory
         if (matchId) {
-          const milestone = isLive ? "LIVE" : "PRE_MATCH";
+          const milestone = body.milestone || (isLive ? "LIVE" : "PRE_MATCH");
           const scoreState = (matchData?.score1 !== null && matchData?.score2 !== null)
             ? `${matchData.score1}-${matchData.score2}`
             : "0-0";
