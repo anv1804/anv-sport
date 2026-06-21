@@ -59,6 +59,7 @@ export async function generateWithFallback(
         model: modelName,
         messages: messages,
         temperature: 0.7,
+        max_tokens: 8192, // Tăng lượng token đầu ra tối đa để AI thoải mái tư duy sâu và viết chi tiết
       };
 
       if (isJson) {

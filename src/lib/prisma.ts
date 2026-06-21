@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { initClonerScheduler } from "./clonerScheduler";
+import { initSupercomputerScheduler } from "./supercomputerScheduler";
 
 const prismaClientSingleton = () => {
   return new PrismaClient({
@@ -24,9 +25,10 @@ if (process.env.NODE_ENV !== 'production') {
   globalThis.prismaGlobal = prisma;
 }
 
-// Initialize Background Auto Cloner Scheduler
+// Initialize Background Auto Cloner Scheduler & Supercomputer
 try {
   initClonerScheduler();
+  initSupercomputerScheduler();
 } catch (error) {
   console.error("[Scheduler Init Error]:", error);
 }

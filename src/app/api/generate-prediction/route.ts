@@ -63,7 +63,15 @@ function parseRealH2H(headToHeadGames: any, t1Name: string, t2Name: string) {
   if (!headToHeadGames || headToHeadGames.length === 0) return null;
   
   const events = headToHeadGames[0]?.events || [];
-  if (events.length === 0) return null;
+  if (events.length === 0) {
+    return {
+      total: 0,
+      team1Wins: 0,
+      draws: 0,
+      team2Wins: 0,
+      recentMatches: []
+    };
+  }
 
   let team1Wins = 0;
   let draws = 0;
@@ -212,10 +220,15 @@ export async function POST(req: Request) {
     const t2 = matchData?.team2?.name || "Đội khách";
     const statusLower = (matchData?.status || '').toLowerCase();
     
+    const hasRealForm = matchData?.lastFiveGames && matchData.lastFiveGames.length > 0;
+    const hasRealH2H = matchData?.headToHeadGames && matchData.headToHeadGames.length > 0;
+    
     const isLive = statusLower !== 'chưa diễn ra' && 
                    statusLower !== 'upcoming' && 
                    statusLower !== 'ns' && 
                    statusLower !== 'tbd' &&
+                   statusLower !== 'chưa đá' &&
+                   !statusLower.includes('chưa đá') &&
                    !statusLower.includes('scheduled') &&
                    !statusLower.includes('chưa bắt đầu') &&
                    !statusLower.includes('chưa diễn ra') &&
@@ -294,9 +307,28 @@ export async function POST(req: Request) {
     }
 
     if (matchData) {
+      const getEnglishStatus = (status: string) => {
+        const s = (status || '').toLowerCase();
+        if (s.includes('chưa đá') || s.includes('chưa diễn ra') || s.includes('chưa bắt đầu') || s.includes('upcoming') || s.includes('ns')) return 'Upcoming';
+        if (s.includes('đang đá') || s.includes('live') || s.includes('in-progress') || s.includes('trực tiếp')) return 'Live';
+        if (s.includes('kết thúc') || s.includes('đã kết thúc') || s === 'ft' || s === 'finished' || s === 'post') return 'Finished';
+        return status;
+      };
+
+      const getEnglishPeriod = (period: string) => {
+        const p = (period || '').toLowerCase();
+        if (p.includes('hiệp 1') || p.includes('1st')) return '1st Half';
+        if (p.includes('hiệp 2') || p.includes('2nd')) return '2nd Half';
+        if (p.includes('nghỉ giữa hiệp') || p.includes('halftime') || p === 'ht') return 'Halftime';
+        if (p.includes('hiệp phụ')) return 'Extra Time';
+        return period;
+      };
+
       additionalContextObj = {
         current_match_situation: {
-          status: matchData.status,
+          status: getEnglishStatus(matchData.status),
+          live_period: matchData.livePeriod ? getEnglishPeriod(matchData.livePeriod) : null,
+          live_clock: matchData.liveClock,
           current_score: `${t1} ${matchData.score1} - ${matchData.score2} ${t2}`,
           live_statistics: matchData.statistics,
           lineups: matchData.lineups,
@@ -314,15 +346,33 @@ export async function POST(req: Request) {
           team_2_form: realT2Form,
           historical_h2h: realH2H
         };
-      } else {
-        additionalContextObj.historical_accuracy_rules = [
-          "Use your real-world soccer database knowledge to accurately populate the 'formAndH2h' fields.",
-          "Spain has never lost to Saudi Arabia in real-world history, so Spain wins/draws distribution must align with this reality. No fake historical outcomes."
-        ];
       }
+      
+      additionalContextObj.historical_accuracy_rules = [
+        "Use your real-world soccer database knowledge to accurately populate the 'formAndH2h' fields.",
+        "Spain has never lost to Saudi Arabia in real-world history, so Spain wins/draws distribution must align with this reality. No fake historical outcomes.",
+        "CRITICAL FOR H2H (HEAD-TO-HEAD): For national team matches, head-to-head history MUST include ALL historical matches at the senior national team level, across all tournaments (World Cup, Qualifiers, Continental Cups, Nations League, etc.) and friendlies. DO NOT include youth or U teams (e.g. U23, U21, Olympic teams). Rely on your database to return the correct historical results, dates, and scores.",
+        "If the two teams have never faced each other in history, set total: 0, team1Wins: 0, draws: 0, team2Wins: 0, and recentMatches: [] (empty array)."
+      ];
     }
 
     const systemPrompt = `You are a world-class football analyst, tactical editor, and mathematical modeler.
+    
+    CRITICAL INSTRUCTION:
+    You must strictly read and execute the 4-step tactical thinking process defined in the AI_TACTICAL_TRAINING_GUIDE:
+    - Step 1: Contextual Analysis (using external_factors_and_key_events).
+    - Step 2: Tactical Matchup (using formations_and_playstyles).
+    - Step 3: Player Roles & Matchups (using player_roles_and_tendencies).
+    - Step 4: Psychological & Live Scenarios (using match_dynamics_and_psychology).
+    
+    You must synthesize information from at least these 5 reputable football analytics sources:
+    1. SofaScore (detailed stats and player ratings)
+    2. WhoScored (tactical characteristics & player strengths/weaknesses)
+    3. ESPN / ESPN FC (match previews and team news)
+    4. The Athletic (tactical breakdowns and long-form analysis)
+    5. Foreign betting market odds (Asian Handicap movements, Over/Under lines, and market shifts)
+    
+    Deliver a highly professional, comprehensive sports editorial analysis.
     
     [TASK CONFIGURATION (JSON)]
     ${JSON.stringify({
@@ -344,6 +394,13 @@ export async function POST(req: Request) {
         match_flow_dynamics: "Detail the transition phases (Defending to Attacking, Attacking to Defending), pressing block height (high press, mid-block, compact low block), and possession tempo (slow build-up vs rapid verticality).",
         player_tendencies: "Highlight individual movements, key player roles (e.g., Carrilero, Regista, Mezzala, Raumdeuter, Inverted Wing-back), and player-to-player duels.",
         live_match_tactics: "If the match is live, analyze how the current score and live statistics (shots on target, possession, cards, momentum) affect the tactical approach of both managers for the rest of the match."
+      },
+      probabilistic_modeling_rules: {
+        guidelines: [
+          "Compare relative squads' value, international rankings, FIFA ranking gap, and player quality.",
+          "Analyze continental playstyle differences (e.g., European tactical possession vs Asian low-block discipline).",
+          "If head-to-head matches are empty (0 games played), base probability distribution strictly on recent form trends against similar-tier opponents and overall tournament stakes."
+        ]
       },
       live_match_rules: {
         is_live_match: isLive,
@@ -370,7 +427,7 @@ export async function POST(req: Request) {
         expectedCards_expectedCorners: "Provide logically consistent values for half1, half2, and fullMatch (e.g., half1 + half2 = fullMatch)."
       },
       language_requirements: {
-        analysisHtml: "Must be written in detailed Vietnamese, using highly professional sports terminology. Break the analysis into clear, structured HTML sections with headings, subheadings, and bold text. Avoid superficial commentary; write like a professional sports editor.",
+        analysisHtml: "Must be written in detailed Vietnamese, using highly professional sports terminology. Break the analysis into clear, structured HTML sections with headings, subheadings, and bold text. Deliver deep, professional tactical breakdowns comparable to elite journals like The Athletic. Avoid generic filler text.",
         sources_titles: "Must be written in Vietnamese",
         expectedGoals_predicted: "Must use 'bàn' unit in Vietnamese (e.g. '1 bàn')",
         expectedGoals_ouPick: "Must use 'Tài' or 'Xỉu' in Vietnamese"
@@ -459,8 +516,24 @@ export async function POST(req: Request) {
         result.predictionData.formAndH2h.team2Form = parseRealForm(matchData.lastFiveGames, t2) || getDeterministicForm(t2);
       }
       
+      const categoryLower = (matchData?.category || '').toLowerCase();
+      const isNationalTeamMatch = categoryLower.includes('world cup') || 
+                                  categoryLower.includes('euro') || 
+                                  categoryLower.includes('copa') || 
+                                  categoryLower.includes('nations league') || 
+                                  categoryLower.includes('friendly') ||
+                                  categoryLower.includes('fifa') ||
+                                  categoryLower.includes('concacaf') ||
+                                  categoryLower.includes('afcon') ||
+                                  categoryLower.includes('asian cup') ||
+                                  categoryLower.includes('vòng loại');
+      
       if (hasRealH2H) {
-        result.predictionData.formAndH2h.h2hData = parseRealH2H(matchData.headToHeadGames, t1, t2) || getDeterministicH2H(t1, t2);
+        const aiHasH2H = result.predictionData.formAndH2h?.h2hData && 
+                         Array.isArray(result.predictionData.formAndH2h.h2hData.recentMatches);
+        if (!isNationalTeamMatch || !aiHasH2H) {
+          result.predictionData.formAndH2h.h2hData = parseRealH2H(matchData.headToHeadGames, t1, t2) || getDeterministicH2H(t1, t2);
+        }
       }
 
       if (!previewOnly) {

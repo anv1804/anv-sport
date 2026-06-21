@@ -301,12 +301,13 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
 
   useEffect(() => {
     fetch('/api/formations')
-      .then(res => res.json())
+      .then(res => res.ok && res.headers.get("content-type")?.includes("application/json") ? res.json() : { success: false })
       .then(data => {
         if (data.success) {
           setFormationsData(data.data);
         }
-      });
+      })
+      .catch(err => console.error("Error fetching formations:", err));
   }, []);
   
   const [isGenerating, setIsGenerating] = useState(false);
@@ -321,6 +322,7 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
   const [activeTab, setActiveTab] = useState<'dienbien' | 'doihinh' | 'thongke'>('thongke');
   const [attemptedMilestones, setAttemptedMilestones] = useState<Record<string, boolean>>({});
   const [showAllStats, setShowAllStats] = useState(false);
+  const [selectedMilestone, setSelectedMilestone] = useState<'PRE_MATCH' | 'START_MATCH' | 'HALF_TIME' | 'LIVE'>('PRE_MATCH');
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -330,11 +332,23 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ historyOnly: true, matchId })
         });
+        if (!res.ok) {
+          console.error("Non-ok status from generate-prediction:", res.status);
+          return;
+        }
+        if (!res.headers.get("content-type")?.includes("application/json")) {
+          console.error("Non-JSON response from generate-prediction history query");
+          return;
+        }
         const data = await res.json();
         if (data.success && data.history) {
           setPredictionHistory(data.history);
           if (data.history.length > 0) {
             setPredictionData(data.history[0].prediction);
+            const latestMilestone = data.history[0].milestone;
+            if (['PRE_MATCH', 'START_MATCH', 'HALF_TIME'].includes(latestMilestone)) {
+              setSelectedMilestone(latestMilestone as any);
+            }
           }
         }
       } catch (err) {
@@ -349,12 +363,47 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
   }, [matchId]);
 
   useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+    
     const fetchMatch = async () => {
       try {
         const res = await fetch(`/api/fixtures?id=${matchId}`);
+        if (!res.ok) {
+          setError(`Lỗi kết nối máy chủ API lịch thi đấu (Mã lỗi: ${res.status})`);
+          setLoadingMatch(false);
+          return;
+        }
+        if (!res.headers.get("content-type")?.includes("application/json")) {
+          setError("Không tải được dữ liệu trận đấu (Phản hồi không phải JSON)");
+          setLoadingMatch(false);
+          return;
+        }
         const data = await res.json();
         if (data.success) {
           setMatchInfo(data.data);
+          
+          // If match is live, start polling every 10 seconds
+          const statusLower = (data.data?.status || '').toLowerCase();
+          const isFinished = statusLower === 'ft' || 
+                             statusLower === 'aet' || 
+                             statusLower === 'pen' || 
+                             statusLower === 'finished' || 
+                             statusLower.includes('kết thúc') ||
+                             statusLower.includes('đã kết thúc');
+          const isLive = !isFinished && 
+                         statusLower !== 'chưa diễn ra' && 
+                         statusLower !== 'upcoming' && 
+                         statusLower !== 'ns' && 
+                         statusLower !== 'tbd' &&
+                         statusLower !== 'chưa đá' &&
+                         !statusLower.includes('chưa đá') &&
+                         !statusLower.includes('scheduled') &&
+                         !statusLower.includes('chưa bắt đầu') &&
+                         !statusLower.includes('chưa diễn ra');
+
+          if (isLive && !intervalId) {
+            intervalId = setInterval(fetchMatch, 10000);
+          }
         } else {
           setError(data.error || "Không tìm thấy thông tin trận đấu này.");
         }
@@ -365,8 +414,80 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
         setLoadingMatch(false);
       }
     };
+    
     fetchMatch();
+    
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
   }, [matchId]);
+
+  // Ensure selected milestone is available based on match state
+  useEffect(() => {
+    if (!matchInfo) return;
+    const statusLower = (matchInfo.status || '').toLowerCase();
+    const isFinished = statusLower === 'ft' || 
+                       statusLower === 'aet' || 
+                       statusLower === 'pen' || 
+                       statusLower === 'finished' || 
+                       statusLower.includes('kết thúc') ||
+                       statusLower.includes('đã kết thúc');
+
+    const isLive = !isFinished && 
+                   statusLower !== 'chưa diễn ra' && 
+                   statusLower !== 'upcoming' && 
+                   statusLower !== 'ns' && 
+                   statusLower !== 'tbd' &&
+                   statusLower !== 'chưa đá' &&
+                   !statusLower.includes('chưa đá') &&
+                   !statusLower.includes('scheduled') &&
+                   !statusLower.includes('chưa bắt đầu') &&
+                   !statusLower.includes('chưa diễn ra');
+
+    const livePeriodLower = (matchInfo.livePeriod || '').toLowerCase();
+    const isSecondHalf = isLive && (
+      statusLower.includes('2nd half') || 
+      statusLower.includes('hiệp 2') || 
+      livePeriodLower.includes('2nd') || 
+      livePeriodLower.includes('hiệp 2')
+    );
+
+    let isPastStartTime = false;
+    if (matchInfo.matchDate && matchInfo.matchTime) {
+      try {
+        let datePart = matchInfo.matchDate;
+        if (datePart.includes('/')) {
+          const parts = datePart.split('/');
+          datePart = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+        const scheduledDate = new Date(`${datePart}T${matchInfo.matchTime}:00`);
+        if (!isNaN(scheduledDate.getTime()) && Date.now() >= scheduledDate.getTime()) {
+          isPastStartTime = true;
+        }
+      } catch (e) {}
+    }
+
+    let isAvailable = false;
+    if (selectedMilestone === 'PRE_MATCH') {
+      isAvailable = true;
+    } else if (selectedMilestone === 'START_MATCH') {
+      isAvailable = isLive || isFinished || isPastStartTime;
+    } else if (selectedMilestone === 'HALF_TIME') {
+      isAvailable = isSecondHalf || isFinished;
+    } else if (selectedMilestone === 'LIVE') {
+      isAvailable = isLive || isFinished || isPastStartTime;
+    }
+
+    if (!isAvailable) {
+      setSelectedMilestone('PRE_MATCH');
+      const preMatchHist = predictionHistory.find(h => h.milestone === 'PRE_MATCH');
+      if (preMatchHist) {
+        setPredictionData(preMatchHist.prediction);
+      } else {
+        setPredictionData(null);
+      }
+    }
+  }, [matchInfo, selectedMilestone, predictionHistory]);
 
   // Hook for background auto-generation based on match state (3 default milestones: PRE_MATCH, START_MATCH, HALF_TIME)
   useEffect(() => {
@@ -384,6 +505,8 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
                    statusLower !== 'upcoming' && 
                    statusLower !== 'ns' && 
                    statusLower !== 'tbd' &&
+                   statusLower !== 'chưa đá' &&
+                   !statusLower.includes('chưa đá') &&
                    !statusLower.includes('scheduled') &&
                    !statusLower.includes('chưa bắt đầu') &&
                    !statusLower.includes('chưa diễn ra');
@@ -401,8 +524,24 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
         return;
       }
 
-      // Milestone 2: Đầu trận (START_MATCH) - Khi trận đấu đã bắt đầu hiệp 1 hoặc đã kết thúc
-      if (isLive || isFinished) {
+      // Milestone 2: Đầu trận (START_MATCH) - Khi trận đấu đã bắt đầu hiệp 1 hoặc đã kết thúc hoặc đã đến/qua giờ đá
+      let isPastStartTime = false;
+      if (matchInfo.matchDate && matchInfo.matchTime) {
+        try {
+          // matchDate format can be DD/MM/YYYY or YYYY-MM-DD
+          let datePart = matchInfo.matchDate;
+          if (datePart.includes('/')) {
+            const parts = datePart.split('/');
+            datePart = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+          }
+          const scheduledDate = new Date(`${datePart}T${matchInfo.matchTime}:00`);
+          if (!isNaN(scheduledDate.getTime()) && Date.now() >= scheduledDate.getTime()) {
+            isPastStartTime = true;
+          }
+        } catch (e) {}
+      }
+
+      if (isLive || isFinished || isPastStartTime) {
         if (!hasStartMatch && !attemptedMilestones.START_MATCH) {
           setAttemptedMilestones(prev => ({ ...prev, START_MATCH: true }));
           setLoadingText("Siêu máy tính đang tạo nhận định Đầu trận...");
@@ -497,9 +636,23 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: query, matchData: matchInfo, previewOnly, milestone })
       });
+      if (!res.ok) {
+        let errorMsg = "Lỗi khi tạo nhận định";
+        try {
+          const contentType = res.headers.get("content-type");
+          if (contentType && contentType.includes("application/json")) {
+            const errData = await res.json();
+            errorMsg = errData.error || errorMsg;
+          } else {
+            errorMsg = `${errorMsg} (Mã lỗi: ${res.status})`;
+          }
+        } catch (e) {}
+        throw new Error(errorMsg);
+      }
+      if (!res.headers.get("content-type")?.includes("application/json")) {
+        throw new Error("Phản hồi từ máy chủ không hợp lệ (Không phải định dạng JSON)");
+      }
       const data = await res.json();
-
-      if (!res.ok) throw new Error(data.error || "Lỗi khi tạo nhận định");
 
       if (data.predictionData) {
         setPredictionData(data.predictionData);
@@ -575,7 +728,12 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
                  statusLower !== 'chưa diễn ra' && 
                  statusLower !== 'upcoming' && 
                  statusLower !== 'ns' && 
-                 statusLower !== 'tbd';
+                 statusLower !== 'tbd' &&
+                 statusLower !== 'chưa đá' &&
+                 !statusLower.includes('chưa đá') &&
+                 !statusLower.includes('scheduled') &&
+                 !statusLower.includes('chưa bắt đầu') &&
+                 !statusLower.includes('chưa diễn ra');
 
   const parseMatchDate = (dateStr: string) => {
     if (!dateStr) return new Date();
@@ -877,7 +1035,7 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
                  </div>
               </div>
 
-            {matchInfo.statistics && matchInfo.statistics.length === 2 ? (() => {
+            {(isLive || isFinished) && matchInfo.statistics && matchInfo.statistics.length === 2 ? (() => {
               const statTranslations: Record<string, string> = {
                 "Ball Possession": "Kiểm soát bóng",
                 "Total Shots": "Tổng cú sút",
@@ -1316,81 +1474,166 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
         )}
 
         {/* AI PREDICTION RESULTS */}
-        {predictionData && !isGenerating && (
+        {matchInfo && !loadingMatch && (
            <div className="border-t-4 border-green-600 bg-white">
              {/* History selector */}
-             {(predictionHistory.length > 1 || (predictionHistory.length > 0 && isDataPreview)) && (
-               <div className="bg-slate-50 border-b border-slate-100 px-6 py-4">
-                 <div className="flex items-center gap-2 mb-3">
-                   <div className="w-1.5 h-3.5 bg-green-600 rounded-sm"></div>
-                   <span className="text-[12px] font-black text-slate-700 uppercase tracking-wider">Lịch sử nhận định AI qua các mốc thời gian</span>
-                 </div>
-                 <div className="flex flex-wrap gap-2">
-                   {isDataPreview && (
-                     <div className="px-3 py-1.5 rounded text-[11px] font-bold border border-green-500 bg-green-50 text-green-700 shadow-sm flex flex-col items-start gap-0.5">
-                       <span>Bản xem trực tiếp (Chưa lưu)</span>
-                       <span className="text-[9px] text-green-600 font-medium">Đang cập nhật thời gian thực</span>
-                     </div>
-                   )}
-                   {predictionHistory
-                      .filter(hist => ['PRE_MATCH', 'START_MATCH', 'HALF_TIME', 'PINNED'].includes(hist.milestone))
-                      .map((hist) => {
-                     const isSelected = !isDataPreview && JSON.stringify(hist.prediction) === JSON.stringify(predictionData);
-                     const dateText = new Date(hist.predictedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + new Date(hist.predictedAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
-                     let label = `Mốc khác (${hist.scoreState})`;
-                      if (hist.milestone === 'PRE_MATCH') {
-                        label = `Trước trận đấu (${hist.scoreState})`;
-                      } else if (hist.milestone === 'START_MATCH') {
-                        label = `Bắt đầu trận (${hist.scoreState})`;
-                      } else if (hist.milestone === 'HALF_TIME') {
-                        label = `Giữa trận (${hist.scoreState})`;
-                      } else if (hist.milestone === 'PINNED') {
-                        label = `📌 Đã ghim (${hist.scoreState})`;
-                      } else if (hist.milestone === 'LIVE') {
-                        label = `Trực tiếp (${hist.liveTime || 'Đang đá'} • ${hist.scoreState})`;
-                      }
-                     
-                     return (
-                       <button
-                         key={hist.id}
-                         onClick={() => {
-                           setPredictionData(hist.prediction);
-                           setIsDataPreview(false);
-                         }}
-                         className={`px-3 py-1.5 rounded text-[11px] font-bold border transition-all flex flex-col items-start gap-0.5 shadow-sm
-                           ${isSelected 
-                             ? 'bg-green-600 border-green-600 text-white' 
-                             : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                       >
-                         <span>{label}</span>
-                         <span className={`text-[9px] ${isSelected ? 'text-green-200' : 'text-slate-400'}`}>{dateText}</span>
-                       </button>
-                     );
-                   })}
-                 </div>
+             <div className="bg-slate-50 border-b border-slate-100 px-6 py-4">
+               <div className="flex items-center gap-2 mb-3">
+                 <div className="w-1.5 h-3.5 bg-green-600 rounded-sm"></div>
+                 <span className="text-[12px] font-black text-slate-700 uppercase tracking-wider">Mốc thời gian nhận định AI</span>
                </div>
-             )}
+               <div className="flex flex-wrap gap-2">
+                 {[
+                    { key: 'PRE_MATCH', label: 'Trước trận đấu' },
+                    { key: 'START_MATCH', label: 'Bắt đầu trận' },
+                    { key: 'HALF_TIME', label: 'Giữa trận' },
+                    { key: 'LIVE', label: 'Nhận định Real-time' }
+                  ].map((tab) => {
+                    const statusLower = (matchInfo.status || '').toLowerCase();
+                    const isFinished = statusLower === 'ft' || 
+                                       statusLower === 'aet' || 
+                                       statusLower === 'pen' || 
+                                       statusLower === 'finished' || 
+                                       statusLower.includes('kết thúc') ||
+                                       statusLower.includes('đã kết thúc');
 
-             <div className="bg-green-50/50 border-b border-green-100 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 px-6">
-               <p className="text-green-800 font-black uppercase tracking-widest text-[11px] flex items-center gap-2">
-                 <Bot className="w-4 h-4" /> Báo cáo phân tích AI đã sẵn sàng
-               </p>
-               {predictionData && (
-                 <Button
-                   onClick={handlePin}
-                   disabled={isPinning}
-                   className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] uppercase tracking-wider py-1.5 px-4 rounded shadow-sm flex items-center gap-1.5 transition-colors shrink-0"
-                 >
-                   📌 {isPinning ? "Đang ghim..." : "Ghim nhận định này"}
-                 </Button>
-               )}
+                    const isLive = !isFinished && 
+                                   statusLower !== 'chưa diễn ra' && 
+                                   statusLower !== 'upcoming' && 
+                                   statusLower !== 'ns' && 
+                                   statusLower !== 'tbd' &&
+                                   statusLower !== 'chưa đá' &&
+                                   !statusLower.includes('chưa đá') &&
+                                   !statusLower.includes('scheduled') &&
+                                   !statusLower.includes('chưa bắt đầu') &&
+                                   !statusLower.includes('chưa diễn ra');
+
+                    const livePeriodLower = (matchInfo.livePeriod || '').toLowerCase();
+                    const isSecondHalf = isLive && (
+                      statusLower.includes('2nd half') || 
+                      statusLower.includes('hiệp 2') || 
+                      livePeriodLower.includes('2nd') || 
+                      livePeriodLower.includes('hiệp 2')
+                    );
+
+                    let isPastStartTime = false;
+                    if (matchInfo.matchDate && matchInfo.matchTime) {
+                      try {
+                        let datePart = matchInfo.matchDate;
+                        if (datePart.includes('/')) {
+                          const parts = datePart.split('/');
+                          datePart = parts[2] + '-' + parts[1].padStart(2, '0') + '-' + parts[0].padStart(2, '0');
+                        }
+                        const scheduledDate = new Date(datePart + 'T' + matchInfo.matchTime + ':00');
+                        if (!isNaN(scheduledDate.getTime()) && Date.now() >= scheduledDate.getTime()) {
+                          isPastStartTime = true;
+                        }
+                      } catch (e) {}
+                    }
+
+                    let isAvailable = false;
+                    if (tab.key === 'PRE_MATCH') {
+                      isAvailable = true;
+                    } else if (tab.key === 'START_MATCH') {
+                      isAvailable = isLive || isFinished || isPastStartTime;
+                    } else if (tab.key === 'HALF_TIME') {
+                      isAvailable = isSecondHalf || isFinished;
+                    } else if (tab.key === 'LIVE') {
+                      isAvailable = isLive || isFinished || isPastStartTime;
+                    }
+
+                    const isSelected = selectedMilestone === tab.key;
+                    const histItem = tab.key === 'LIVE' ? null : predictionHistory.find(h => h.milestone === tab.key);
+                    const hasData = isAvailable && (!!histItem || (tab.key === 'LIVE' && isDataPreview && predictionData));
+
+                    return (
+                      <button
+                        key={tab.key}
+                        disabled={!isAvailable}
+                        onClick={() => {
+                          if (!isAvailable) return;
+                          setSelectedMilestone(tab.key as any);
+                          if (tab.key === 'LIVE' && isDataPreview && predictionData) {
+                            // Keep showing preview
+                          } else if (histItem) {
+                            setPredictionData(histItem.prediction);
+                            setIsDataPreview(false);
+                          } else {
+                            // Reset preview if no data
+                          }
+                        }}
+                        className={`px-4 py-2 rounded text-[11px] font-bold border transition-all flex items-center gap-1.5 shadow-sm
+                          ${isSelected 
+                            ? 'bg-green-600 border-green-600 text-white' 
+                            : isAvailable 
+                              ? 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50' 
+                              : 'bg-slate-50 border-slate-200 text-slate-300 cursor-not-allowed'}
+                          ${!hasData ? 'opacity-60' : ''}`}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full bg-current shrink-0"></span>
+                        <span>{tab.label}</span>
+                        {!hasData && <span className="text-[9px] text-slate-400 font-semibold italic">(Chưa có)</span>}
+                      </button>
+                    );
+                  })}
+               </div>
              </div>
-             <div className="p-4 md:p-8">
-               <PredictionView post={mockPost} predictionData={predictionData} />
-             </div>
+
+             {(() => {
+               const histItem = predictionHistory.find(h => h.milestone === selectedMilestone);
+               const showPreview = isDataPreview && selectedMilestone === 'LIVE';
+               const activePrediction = showPreview ? predictionData : (histItem?.prediction || null);
+
+               if (isGenerating) {
+                 return (
+                   <div className="bg-slate-50 p-12 flex flex-col items-center justify-center text-center">
+                     <div className="w-8 h-8 rounded-full border-[3px] border-green-500 border-t-transparent animate-spin mb-4"></div>
+                     <p className="text-green-600 text-[13px] font-bold uppercase tracking-wider">{loadingText}</p>
+                   </div>
+                 );
+               }
+
+               return (
+                  <>
+                    <div className="bg-green-50/50 border-b border-green-100 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 px-6">
+                      <p className="text-green-800 font-black uppercase tracking-widest text-[11px] flex items-center gap-2">
+                        <Bot className="w-4 h-4" /> Báo cáo phân tích AI đã sẵn sàng
+                      </p>
+                      {activePrediction && (
+                        <Button
+                          onClick={handlePin}
+                          disabled={isPinning}
+                          className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] uppercase tracking-wider py-1.5 px-4 rounded shadow-sm flex items-center gap-1.5 transition-colors shrink-0"
+                        >
+                          📌 {isPinning ? "Đang ghim..." : "Ghim nhận định này"}
+                        </Button>
+                      )}
+                    </div>
+                    
+                    {activePrediction ? (
+                      <div className="p-4 md:p-8">
+                        <PredictionView post={mockPost} predictionData={activePrediction} />
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-20 text-slate-400 border border-dashed border-slate-200 rounded-xl bg-slate-50/50 m-6">
+                         <Bot className="w-12 h-12 mb-4 text-slate-300 animate-bounce" />
+                         <h4 className="text-base font-bold text-slate-800 mb-2 uppercase tracking-wide">Chưa có dữ liệu nhận định</h4>
+                         <p className="text-xs text-slate-500 max-w-sm text-center font-medium leading-relaxed">
+                           {selectedMilestone === 'START_MATCH' 
+                             ? 'Nhận định Đầu trận sẽ tự động cập nhật khi trận đấu bắt đầu diễn ra (Trọng tài thổi còi khai cuộc Hiệp 1).' 
+                             : selectedMilestone === 'HALF_TIME'
+                               ? 'Nhận định Giữa trận sẽ tự động cập nhật khi trận đấu bắt đầu Hiệp 2.'
+                               : selectedMilestone === 'LIVE'
+                                 ? 'Nhận định Real-time chưa được tạo. Hãy nhấn nút "Xem nhận định Real-time mới nhất" phía trên để tạo phân tích trực tiếp mới nhất.'
+                                 : 'Chưa có dữ liệu nhận định từ hệ thống cho mốc thời gian này.'}
+                         </p>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
            </div>
         )}
-
       </main>
 
       {/* Pitch Modal */}

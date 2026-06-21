@@ -425,7 +425,7 @@ export async function GET(request: Request) {
           (cachedFixture.data as any).status === "Đang đá" ||
           !["FT", "PEN", "AWD", "post", "STATUS_FULL_TIME", "STATUS_FINAL", "STATUS_POSTPONED", "STATUS_CANCELED"].includes(cachedFixture.status)
         );
-        const cacheLimit = isLive ? (10 / 60) : 5; // 10 seconds cache for live matches, 5 minutes for others
+        const cacheLimit = isLive ? (1 / 60) : (10 / 60); // 1 second cache for live matches, 10 seconds for others
         if (diffMins < cacheLimit) return NextResponse.json({ success: true, data: cachedFixture.data });
       }
 
@@ -447,7 +447,7 @@ export async function GET(request: Request) {
       }
 
       // Lấy chi tiết trận đấu từ ESPN Summary API (Dùng eng.1 làm đường dẫn chung vì ESPN tự định tuyến bằng eventId)
-      const espnRes = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=${espnEventId}`, { next: { revalidate: 60 } });
+      const espnRes = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/summary?event=${espnEventId}`, { next: { revalidate: 0 } });
       const espnData = await espnRes.json();
 
       if (!espnData || !espnData.header) {
@@ -748,7 +748,7 @@ export async function GET(request: Request) {
       // B. Kéo các giải đấu quốc tế & quốc gia khác từ ESPN Scoreboard (Trực tiếp ngày hôm nay)
       const fetchPromises = LEAGUES.map(async (league) => {
         try {
-          const espnRes = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${league.id}/scoreboard`, { next: { revalidate: 60 } });
+          const espnRes = await fetch(`https://site.api.espn.com/apis/site/v2/sports/soccer/${league.id}/scoreboard`, { next: { revalidate: 0 } });
           if (!espnRes.ok) return [];
           const espnData = await espnRes.json();
           if (!espnData.events) return [];

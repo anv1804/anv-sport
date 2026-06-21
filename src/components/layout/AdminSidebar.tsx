@@ -14,6 +14,7 @@ const MENU_ITEMS = [
     { name: 'Danh Mục', href: '/admin/categories', icon: FolderTree },
     { name: 'Quảng Cáo', href: '/admin/ads', icon: MonitorPlay },
     { name: 'Auto Cloner', href: '/admin/auto-cloner', icon: RefreshCw },
+    { name: 'Siêu Máy Tính', href: '/admin/supercomputer', icon: Cpu },
   ]},
   { group: 'Kho Dữ Liệu', items: [
     { name: 'Dữ liệu chung', href: '/admin/general-data', icon: Database },
