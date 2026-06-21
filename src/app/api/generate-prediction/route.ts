@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { generateWithFallback } from '@/lib/aiBox';
 import prisma from '@/lib/prisma';
 
-// Helper function to generate deterministic Head-to-Head history based on team names
+// Helper function to generate deterministic Head-to-Head history based on team names (Fallback only)
 function getDeterministicH2H(team1: string, team2: string) {
   const combined = [team1, team2].sort().join('-');
   let hash = 0;
@@ -40,7 +40,7 @@ function getDeterministicH2H(team1: string, team2: string) {
   };
 }
 
-// Helper function to generate deterministic form based on team name
+// Helper function to generate deterministic form based on team name (Fallback only)
 function getDeterministicForm(team: string) {
   let hash = 0;
   for (let i = 0; i < team.length; i++) {
@@ -181,21 +181,8 @@ export async function POST(req: Request) {
       }
     }
 
-    // 2. Generate H2H and form (Use real ESPN data if available, fallback to deterministic)
-    let deterministicT1Form = parseRealForm(matchData?.lastFiveGames, t1);
-    if (!deterministicT1Form || deterministicT1Form.length === 0) {
-      deterministicT1Form = getDeterministicForm(t1);
-    }
-    
-    let deterministicT2Form = parseRealForm(matchData?.lastFiveGames, t2);
-    if (!deterministicT2Form || deterministicT2Form.length === 0) {
-      deterministicT2Form = getDeterministicForm(t2);
-    }
-    
-    let deterministicH2H = parseRealH2H(matchData?.headToHeadGames, t1, t2);
-    if (!deterministicH2H) {
-      deterministicH2H = getDeterministicH2H(t1, t2);
-    }
+    const hasRealH2H = matchData?.headToHeadGames && matchData.headToHeadGames.length > 0;
+    const hasRealForm = matchData?.lastFiveGames && matchData.lastFiveGames.length === 2;
 
     let additionalContext = "";
     if (matchData) {
@@ -213,12 +200,26 @@ Dữ liệu tham khảo: ${JSON.stringify({
         events: matchData.events
       })}.
 Dựa vào tỷ số hiện tại, trạng thái trận đấu, các thống kê chi tiết, đội hình và sự kiện thực tế ở trên, hãy đưa ra nhận định bóng đá cực kỳ chuyên sâu bám sát thực tế.
-
-BẮT BUỘC điền phần "formAndH2h" khớp chính xác với dữ liệu sau:
-- Phong độ Đội nhà (team1Form): ${JSON.stringify(deterministicT1Form)}
-- Phong độ Đội khách (team2Form): ${JSON.stringify(deterministicT2Form)}
-- Lịch sử đối đầu H2H (h2hData): ${JSON.stringify(deterministicH2H)}
 `;
+
+      if (hasRealForm || hasRealH2H) {
+        const realT1Form = parseRealForm(matchData.lastFiveGames, t1);
+        const realT2Form = parseRealForm(matchData.lastFiveGames, t2);
+        const realH2H = parseRealH2H(matchData.headToHeadGames, t1, t2);
+        
+        additionalContext += `
+BẮT BUỘC điền phần "formAndH2h" khớp chính xác với dữ liệu thực tế sau:
+${realT1Form ? `- Phong độ Đội nhà (team1Form): ${JSON.stringify(realT1Form)}` : ''}
+${realT2Form ? `- Phong độ Đội khách (team2Form): ${JSON.stringify(realT2Form)}` : ''}
+${realH2H ? `- Lịch sử đối đầu H2H (h2hData): ${JSON.stringify(realH2H)}` : ''}
+`;
+      } else {
+        additionalContext += `
+LƯU Ý VỀ ĐỘI BÓNG THỰC TẾ: Đây là trận đấu giữa các đội tuyển/câu lạc bộ thực tế (${t1} vs ${t2}). 
+Bạn BẮT BUỘC phải dựa vào kiến thức lịch sử bóng đá thực tế của mình để điền thông số "formAndH2h" (phong độ gần đây và lịch sử đối đầu H2H) sao cho CHÍNH XÁC nhất theo lịch sử thực tế ngoài đời.
+VÍ DỤ: Tây Ban Nha (Spain) chưa bao giờ thua Ả Rập Xê Út (Saudi Arabia) trong lịch sử bóng đá thực tế, nên phần H2H phải thể hiện đúng Tây Ban Nha thắng áp đảo hoặc hòa, Ả Rập Xê Út thắng 0. Tuyệt đối không được bịa thông số sai lệch lịch sử.
+`;
+      }
     }
 
     const systemPrompt = `Bạn là một chuyên gia phân tích bóng đá hàng đầu.
@@ -278,14 +279,20 @@ BẮT BUỘC điền phần "formAndH2h" khớp chính xác với dữ liệu sa
 
     const result = JSON.parse(contentText);
 
-    // Force override deterministic H2H and form values to guarantee 100% consistency across predictions
+    // Apply real API data override if available, otherwise let the AI's knowledgeable response stand
     if (result.predictionData) {
       if (!result.predictionData.formAndH2h) {
         result.predictionData.formAndH2h = {};
       }
-      result.predictionData.formAndH2h.team1Form = deterministicT1Form;
-      result.predictionData.formAndH2h.team2Form = deterministicT2Form;
-      result.predictionData.formAndH2h.h2hData = deterministicH2H;
+      
+      if (hasRealForm) {
+        result.predictionData.formAndH2h.team1Form = parseRealForm(matchData.lastFiveGames, t1) || getDeterministicForm(t1);
+        result.predictionData.formAndH2h.team2Form = parseRealForm(matchData.lastFiveGames, t2) || getDeterministicForm(t2);
+      }
+      
+      if (hasRealH2H) {
+        result.predictionData.formAndH2h.h2hData = parseRealH2H(matchData.headToHeadGames, t1, t2) || getDeterministicH2H(t1, t2);
+      }
 
       // 3. Cache the generated prediction in the Database (Only for upcoming or finished matches)
       if (matchId && !isLive) {
