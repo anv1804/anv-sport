@@ -1168,42 +1168,42 @@ export function AutoClonerClient({ sources, categories }: AutoClonerClientProps)
 
       {/* History Dialog Modal */}
       {showHistoryModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[900] flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-[24px] border border-slate-200 shadow-2xl w-full max-w-5xl my-8 animate-in zoom-in-95 duration-200 flex flex-col max-h-[85vh]">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[900] flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-[24px] border border-slate-200 shadow-2xl w-full max-w-5xl my-4 sm:my-8 animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh] overflow-hidden">
             {/* Modal Header */}
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+            <div className="p-4 sm:p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
-                <History className="w-6 h-6 text-emerald-600" />
-                <h3 className="text-xl font-black text-slate-850 tracking-tight">Lịch Sử Đồng Bộ Bài Viết (Cloner)</h3>
+                <History className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600 shrink-0" />
+                <h3 className="text-base sm:text-xl font-black text-slate-855 tracking-tight truncate">Lịch Sử Đồng Bộ Bài Viết</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setShowHistoryModal(false)}
-                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-50 rounded-xl transition-all"
+                className="p-1.5 sm:p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-50 rounded-xl transition-all"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Modal Filters */}
-            <div className="p-6 bg-slate-50 border-b border-slate-100 grid grid-cols-1 md:grid-cols-4 gap-3">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Từ khóa / ID bài</label>
+            <div className="p-4 sm:p-6 bg-slate-50 border-b border-slate-100 grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 shrink-0">
+              <div className="space-y-1 col-span-2 sm:col-span-1">
+                <label className="text-[9px] sm:text-[10px] font-bold text-slate-450 uppercase tracking-wider">Từ khóa / ID bài</label>
                 <input
                   type="text"
                   placeholder="Nhập tên bài hoặc ID..."
                   value={historyFilters.search}
                   onChange={(e) => setHistoryFilters(prev => ({ ...prev, search: e.target.value, page: 1 }))}
-                  className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-500 font-semibold"
+                  className="w-full px-3 py-1.5 sm:py-2 text-xs sm:text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-500 font-semibold"
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Danh mục</label>
+              <div className="space-y-1 col-span-2 sm:col-span-1">
+                <label className="text-[9px] sm:text-[10px] font-bold text-slate-450 uppercase tracking-wider">Danh mục</label>
                 <select
                   value={historyFilters.categoryId}
                   onChange={(e) => setHistoryFilters(prev => ({ ...prev, categoryId: e.target.value, page: 1 }))}
-                  className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-500 font-semibold text-slate-700"
+                  className="w-full px-3 py-1.5 sm:py-2 text-xs sm:text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-500 font-semibold text-slate-700"
                 >
                   <option value="">-- Tất Cả --</option>
                   {flattenedCategories.map(cat => (
@@ -1215,28 +1215,28 @@ export function AutoClonerClient({ sources, categories }: AutoClonerClientProps)
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Từ ngày</label>
+                <label className="text-[9px] sm:text-[10px] font-bold text-slate-450 uppercase tracking-wider">Từ ngày</label>
                 <input
                   type="date"
                   value={historyFilters.startDate}
                   onChange={(e) => setHistoryFilters(prev => ({ ...prev, startDate: e.target.value, page: 1 }))}
-                  className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-500 font-semibold"
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-500 font-semibold"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Đến ngày</label>
+                <label className="text-[9px] sm:text-[10px] font-bold text-slate-450 uppercase tracking-wider">Đến ngày</label>
                 <input
                   type="date"
                   value={historyFilters.endDate}
                   onChange={(e) => setHistoryFilters(prev => ({ ...prev, endDate: e.target.value, page: 1 }))}
-                  className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-500 font-semibold"
+                  className="w-full px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-500 font-semibold"
                 />
               </div>
             </div>
 
             {/* Modal Content / Table */}
-            <div className="flex-1 overflow-y-auto p-3 sm:p-6 min-h-[300px]">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-6 min-h-[250px]">
               {loadingHistory ? (
                 <div className="h-48 flex items-center justify-center flex-col gap-2">
                   <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
@@ -1248,14 +1248,14 @@ export function AutoClonerClient({ sources, categories }: AutoClonerClientProps)
                   <p className="text-sm font-semibold">Không tìm thấy bài viết nào trong lịch sử quét</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto border border-slate-200/80 rounded-2xl">
-                  <table className="w-full text-left border-collapse min-w-[700px] sm:min-w-0">
+                <div className="overflow-x-auto border border-slate-200/80 rounded-2xl w-full">
+                  <table className="w-full text-left border-collapse min-w-[500px] table-fixed">
                     <thead>
-                      <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-450 uppercase tracking-wider">
-                        <th className="py-3.5 px-4 w-[80px] text-center hidden sm:table-cell">ID</th>
-                        <th className="py-3.5 px-4">Tên bài viết</th>
-                        <th className="py-3.5 px-4 hidden md:table-cell">Nguồn cào (URL)</th>
-                        <th className="py-3.5 px-4 w-[130px]">Danh mục đích</th>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-450 uppercase tracking-wider text-slate-400">
+                        <th className="py-3.5 px-4 w-[60px] text-center hidden sm:table-cell">ID</th>
+                        <th className="py-3.5 px-4 w-[60%] sm:w-[50%]">Tên bài viết</th>
+                        <th className="py-3.5 px-4 hidden md:table-cell w-[25%]">Nguồn cào (URL)</th>
+                        <th className="py-3.5 px-4 w-[25%] sm:w-[150px]">Danh mục đích</th>
                         <th className="py-3.5 px-4 w-[160px] hidden sm:table-cell">Ngày cào</th>
                       </tr>
                     </thead>
@@ -1263,7 +1263,7 @@ export function AutoClonerClient({ sources, categories }: AutoClonerClientProps)
                       {historyData.posts.map((post: any) => (
                         <tr key={post.id} className="hover:bg-slate-50/50 transition-colors text-sm">
                           <td className="py-3.5 px-4 text-center font-mono font-bold text-slate-400 text-xs hidden sm:table-cell">{post.id}</td>
-                          <td className="py-3.5 px-4 max-w-sm">
+                          <td className="py-3.5 px-4 max-w-0">
                             <a
                               href={`/admin/posts/edit/${post.id}`}
                               target="_blank"
@@ -1290,7 +1290,7 @@ export function AutoClonerClient({ sources, categories }: AutoClonerClientProps)
                               </span>
                             </div>
                           </td>
-                          <td className="py-3.5 px-4 max-w-xs hidden md:table-cell">
+                          <td className="py-3.5 px-4 max-w-0 hidden md:table-cell">
                             {post.aiUrl ? (
                               <a
                                 href={post.aiUrl}
@@ -1306,7 +1306,7 @@ export function AutoClonerClient({ sources, categories }: AutoClonerClientProps)
                             )}
                           </td>
                           <td className="py-3.5 px-4">
-                            <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg text-xs font-bold whitespace-nowrap block w-max">
+                            <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg text-xs font-bold whitespace-nowrap block w-max truncate max-w-full">
                               {post.categories}
                             </span>
                           </td>
