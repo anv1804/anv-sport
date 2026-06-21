@@ -1,0 +1,427 @@
+{
+  "formations": {
+    "4-3-3": {
+      "style": "Possession-based, high pressing, and expansive wing play (Juego de Posición).",
+      "variants": {
+        "4-3-3 Attacking (4-3-3 Atk)": {
+          "description": "Features a single defensive midfielder (DM) shielding the backline, and two highly advanced attacking midfielders (free 8s/Mezzalas) who push into the opponent's box. Full-backs overlap aggressively to provide width.",
+          "key_roles": ["Single Pivot (DM)", "Dual Mezzalas (Attacking No. 8s)", "Overlapping Full-backs", "High Inside Forwards"],
+          "attacking_structure": "2-3-5 in possession, with both Mezzalas occupying the half-spaces and full-backs/wingers stretching the width.",
+          "defensive_structure": "Aggressive 4-3-3 high-press. Focuses on immediate Gegenpress upon losing possession.",
+          "strengths": ["Extreme central attacking threat", "Overloads the opponent's defensive line", "Excellent central-to-wide passing options."],
+          "weaknesses": ["Vulnerable to counter-attacks in spaces behind attacking full-backs", "Single pivot can get isolated on transitions."]
+        },
+        "4-3-3 Defending (4-3-3 Def)": {
+          "description": "Uses a double pivot (two defensive midfielders) sitting in front of the back four, with one central/attacking midfielder. Focuses on defensive solidity, mid-to-low block containment, and quick counter-attacks.",
+          "key_roles": ["Double Pivot (Dual DMs)", "Box-to-Box Midfielder", "Direct/Pacey Wingers", "Counter-attacking Striker"],
+          "attacking_structure": "4-2-3-1-like transition where the wingers run directly into spaces behind the opposition defensive line.",
+          "defensive_structure": "Compact 4-5-1 low-to-mid block, closing down all central corridors and forcing plays wide.",
+          "strengths": ["High defensive stability", "Extremely resistant to central penetration", "Secure rest defense."],
+          "weaknesses": ["Lack of numbers in opponent box during transitions", "Striker can become isolated."]
+        },
+        "4-3-3 False Nine (4-3-3 F9)": {
+          "description": "The central striker drops deep into midfield to draw out opponent center-backs and create a diamond overload in midfield, while the two wingers cut inside diagonally to exploit the central space vacated by the striker.",
+          "key_roles": ["False Nine (Striker)", "Inverted Wingers / Inside Forwards", "Dynamic Box-to-Box Midfielders", "Inverted Full-backs"],
+          "attacking_structure": "Transforms into a 3-4-3 or diamond midfield in possession. Wingers act as the main goal scorers.",
+          "defensive_structure": "Compact mid-block pressing, trapping the opponent in central areas where numbers are high.",
+          "strengths": ["Disrupts traditional center-back marking", "Creates massive central numerical superiorities", "Highly fluid possession."],
+          "weaknesses": ["Requires elite tactical intelligence", "Lacks a physical focal point in the box for crosses."]
+        }
+      },
+      "build_up_phase": "Center-backs split wide. The Single Pivot drops between or just ahead of center-backs (La Volpe build-up). Full-backs push higher or tuck inside. The goalkeeper acts as the 11th outfield player to create a 3+2 or 4+2 build-up block to bypass opposition's front-line press.",
+      "attacking_phase": "Creating passing triangles on the flanks (Fullback-Mezzala-Winger). The central striker often drops deep (False Nine) to drag opposing center-backs out of line, opening space for inside runs from inverted wingers. Focus on overloading the wide areas then switching play rapidly.",
+      "defensive_phase": "Employs high-intensity pressing (Gegenpress) in the opponent's final third. The front three block passing lanes to central pivots, forcing the opponent to play long direct clearances or wide into pressing traps.",
+      "strengths": [
+        "Natural triangles and diamonds facilitate high-tempo possession play.",
+        "Creates central numerical superiority (3v2) against flat 2-midfielder shapes (e.g., 4-4-2).",
+        "Highly threatening wing overloads and isolations for creative wingers."
+      ],
+      "weaknesses": [
+        "Highly vulnerable to counter-attacks in spaces behind advanced overlapping fullbacks.",
+        "If the single pivot is aggressively marked or physically overrun, the transition structure collapses.",
+        "Susceptible to rapid vertical transitions if the initial counter-press fails."
+      ],
+      "counters": {
+        "4-4-2": "Overruns the two-midfielder block, creating a 3v2 central advantage and isolating their central defenders.",
+        "3-5-2": "Exploits space behind their advanced wing-backs using the wide wingers in 1v1 situations."
+      },
+      "countered_by": {
+        "4-2-3-1": "The opposing double pivot neutralizes the two attacking No. 8s, while their central attacking midfielder (CAM) targets the space around the single pivot.",
+        "5-3-2": "Deep compact defensive lines with wing-backs block wide spaces, preventing 1v1 wing isolations."
+      }
+    },
+    "4-2-3-1": {
+      "style": "Modern, balanced transition-focused system with double defensive pivots (Double Pivot).",
+      "variants": {
+        "4-2-3-1 Attacking": {
+          "description": "One deep playmaker paired with an active box-to-box midfielder. Wingers push high, acting as inside forwards, while full-backs overlap aggressively to act as additional wingers.",
+          "key_roles": ["Deep Lying Playmaker", "Box-to-Box Midfielder", "Creative No. 10 (CAM)", "Overlapping Fullbacks"],
+          "attacking_structure": "2-4-4 or 2-3-5 structure, with the CAM, inside forwards, and overlapping full-backs occupying the attacking line.",
+          "defensive_structure": "High mid-block pressing, shifting to 4-4-2 with the CAM pressing alongside the striker."
+        },
+        "4-2-3-1 Holding (4-2-3-1 Hold)": {
+          "description": "Two highly disciplined defensive midfielders sit strictly in front of the center-backs. Wingers stay wider and help full-backs defensively, focusing on stability.",
+          "key_roles": ["Dual Defensive Anchors", "Disciplined Full-backs", "Pacey Counter-attacking Wingers"],
+          "attacking_structure": "4-2-3-1 structure relying on rapid vertical counter-attacks with minimal players committed forward.",
+          "defensive_structure": "Extremely solid 4-4-1-1 low-block, suffocating space in front of the box."
+        }
+      },
+      "build_up_phase": "The double pivot sits in front of the center-backs, forming a secure 4+2 base. If the opponent presses high, one pivot drops deeper or wide to form a 3-man build-up line, making the team highly resistant to pressing.",
+      "attacking_phase": "Rapid vertical transitions. The CAM distributes wide to overlapping full-backs or plays diagonal balls to inside runs by wingers. The single striker holds up play or runs channels to create space.",
+      "defensive_phase": "Transitions into a 4-4-2 or 4-5-1 mid-block. The CAM steps up alongside the striker to lead the first line of defense, while the wide players drop back to protect the flanks.",
+      "strengths": [
+        "Extreme tactical balance; highly secure during defensive transitions due to the double pivot.",
+        "Allows the CAM creative freedom in the half-spaces and between the lines.",
+        "Excellent spatial coverage of wide zones defensively."
+      ],
+      "weaknesses": [
+        "Relies heavily on the single striker's physical ability to hold up the ball and engage center-backs.",
+        "If the CAM is marked out of the game, the attacking phase can become stagnant and disjointed.",
+        "Vulnerable in midfield if the double pivot splits too wide during build-up."
+      ],
+      "counters": {
+        "4-3-3": "The double pivot blocks the passing lanes to the Mezzalas, and the CAM exploits the space behind the opponent's single pivot.",
+        "3-5-2": "Wingers and fullbacks double up on the isolated wing-backs of the 3-5-2."
+      },
+      "countered_by": {
+        "3-4-2-1": "The opponent's dual CAMs overload the double pivot, creating a 3v2 situation in central zones.",
+        "5-4-1": "An ultra-dense defensive block completely closes the space between the lines for the CAM."
+      }
+    },
+    "4-4-2": {
+      "style": "Classic, structured, flat defensive banks, direct attacks and transitions.",
+      "variants": {
+        "4-4-2 Flat": {
+          "description": "Standard flat banks of four. Traditional wingers cross to two central strikers. Flat central midfielders cover central corridors.",
+          "key_roles": ["Traditional Wingers", "Target Man Striker", "Hard-working Box-to-Box midfielders"],
+          "attacking_structure": "4-4-2 with wingers providing wide crosses.",
+          "defensive_structure": "Highly compact 4-4-2 low-to-mid block, defending narrow."
+        },
+        "4-4-2 Diamond (Narrow)": {
+          "description": "Matches the 4-1-2-1-2 structure. Midfield diamond controls the center, while fullbacks provide the sole width.",
+          "key_roles": ["Regista (Deep DM)", "Attacking Midfielder (CAM)", "Overlapping Full-backs", "Striker Duo"],
+          "attacking_structure": "Narrow central triangles creating quick one-two passing patterns.",
+          "defensive_structure": "Diamond mid-block, trapping the opponent in central zones."
+        },
+        "4-4-2 Holding (4-4-2 Hold)": {
+          "description": "Features two defensive midfielders instead of flat central midfielders, offering extra cover to the defense, with two wide midfielders playing more conservatively.",
+          "key_roles": ["Dual DMs", "Pacey Strikers", "Hard-working Wide Midfielders"],
+          "attacking_structure": "Direct long balls to the channels for the two strikers.",
+          "defensive_structure": "Extremely rigid 4-4-2 low block."
+        }
+      },
+      "build_up_phase": "Low-risk, direct build-up. Often plays direct balls to the strikers or feeds the wingers along the touchline to bypass opposition high press.",
+      "attacking_phase": "Direct wing play. Wingers beat fullbacks on the outside and cross to strikers. Full-backs overlap occasionally but prioritize safety. Strikers work in tandem to create knock-downs and quick combinations.",
+      "defensive_phase": "Two extremely compact banks of four. The team defends in a narrow low/medium block, denying central passing lanes and forcing the opponent to play wide.",
+      "strengths": [
+        "Solid, predictable, and structurally stable defensive shape that is easy to organize.",
+        "Double presence up front keeps opposition defenders under constant threat and prevents them from building up easily.",
+        "Highly effective and simple transition channels."
+      ],
+      "weaknesses": [
+        "Easily overrun in central midfield by 3-midfielder systems (creating a 3v2 numerical disadvantage).",
+        "Spaces between midfield and defense can be exploited by creative CAMs (No. 10s).",
+        "Can become too passive and predictable if the opponent has technical midfield superiority."
+      ],
+      "counters": {
+        "3-4-3": "Exploits the space behind the 3-4-3's two-man midfield by playing quick direct balls to the strikers.",
+        "5-4-1": "Strikers pin their central defenders, allowing wingers to overload the wide areas."
+      },
+      "countered_by": {
+        "4-3-3": "The opponent's central midfield trio easily dominates possession against the two-midfielder block.",
+        "4-2-3-1": "The opposing CAM operates freely between the lines while the double pivot controls the center."
+      }
+    },
+    "3-5-2": {
+      "style": "Direct attacking, high central presence, wing-back reliant system.",
+      "variants": {
+        "3-5-2 Attacking (3-1-4-2)": {
+          "description": "Features a single defensive midfielder (DM) and two attacking No. 8s (Mezzalas) who make advanced runs into the penalty area alongside the strikers. Wing-backs push very high.",
+          "key_roles": ["Single DM Pivot", "Attacking No. 8s", "Striker Duo", "High Wing-backs"],
+          "attacking_structure": "3-1-4-2 / 3-1-6, overloading the opponent box with 4 to 6 runners.",
+          "defensive_structure": "Aggressive counter-pressing, turning into 5-3-2 when pushed deep."
+        },
+        "3-5-2 Defensive (5-3-2)": {
+          "description": "Three compact central midfielders prioritize defensive screening. Wing-backs stay deeper and only join the attack on secure transitions.",
+          "key_roles": ["Three Defensive Midfielders", "Deep Wing-backs", "Counter-attacking Striker Duo"],
+          "attacking_structure": "Direct vertical counters using the striker duo.",
+          "defensive_structure": "Ultra-compact 5-3-2 low block."
+        }
+      },
+      "build_up_phase": "The three center-backs circulate the ball. The wing-backs push high. One of the central midfielders drops to receive the ball, forming a diamond/box passing structure with the backline.",
+      "attacking_phase": "Direct balls to the striker duo. Wing-backs cross into a heavily populated penalty box consisting of the two strikers and late-running central midfielders. Central midfielders also exploit edge-of-the-box shoot zones.",
+      "defensive_phase": "Transitions into a 5-3-2 low block. The wing-backs drop deep to form a 5-man defense. The three central midfielders remain compact to deny space in central areas.",
+      "strengths": [
+        "Overloads central areas with 3 center-backs and 3 central midfielders.",
+        "Two strikers put maximum physical pressure on standard 2-center-back defensive systems.",
+        "Exceptional defensive stability inside the box against crosses."
+      ],
+      "weaknesses": [
+        "Flanks are highly exposed if wing-backs are caught high up the pitch during transitions.",
+        "Highly vulnerable to rapid, wide counter-attacks (especially against 4-3-3 or 3-4-3 wingers).",
+        "Overly dependent on wing-backs' individual quality and fitness."
+      ],
+      "counters": {
+        "4-4-2": "Outnumbers their central midfield (3v2) and overpowers their two center-backs with two strikers.",
+        "4-1-2-1-2": "Matches their central diamond while maintaining a three-man defense to handle their two strikers."
+      },
+      "countered_by": {
+        "4-3-3": "The opposing wingers exploit the spaces behind the wing-backs, pinning the back-three and isolating the wide center-backs.",
+        "3-4-3": "Matches the backline but overloads the flanks with wingers and wingbacks."
+      }
+    },
+    "3-4-3": {
+      "style": "High-intensity pressing, aggressive wing-overloads, attacking shape.",
+      "variants": {
+        "3-4-3 Flat": {
+          "description": "Three flat forwards (left/right wingers + striker) and a flat four-man midfield. Emphasizes wide combinations, overlaps, and direct wing dribbling.",
+          "key_roles": ["Traditional Wingers", "High Pressing Wing-backs", "Hard-working Double Pivot"],
+          "attacking_structure": "3-2-5 or 3-4-3 wide stretching.",
+          "defensive_structure": "High pressing 3-4-3 block, turning into 5-4-1 deep block."
+        },
+        "3-4-2-1 (Narrow 3-4-3)": {
+          "description": "Two narrow attacking midfielders (No. 10s) sit in the half-spaces behind the single striker, while wing-backs provide the width.",
+          "key_roles": ["Dual CAMs (No. 10s)", "Lone Striker", "High Wing-backs"],
+          "attacking_structure": "Creates central box overloads (pivots + No. 10s), combining short passes through the center.",
+          "defensive_structure": "Compact 5-4-1 mid-block defensively."
+        },
+        "3-4-3 Diamond (Cruyff Style)": {
+          "description": "Features a midfield diamond: one DM (holding), two wide midfielders, and one CAM (playmaker) behind a front three. Focuses on high technical dominance and positional rotation.",
+          "key_roles": ["Regista (DM)", "Playmaker (CAM)", "Wide Midfielders", "Front Three"],
+          "attacking_structure": "Fluid 3-4-3 diamond, dominating central and wide zones with constant triangles.",
+          "defensive_structure": "Aggressive, high pressing, and high risk defensive line."
+        }
+      },
+      "build_up_phase": "The three center-backs circulate possession with the two central midfielders forming a box, creating passing lanes out of defense.",
+      "attacking_phase": "Massive overloads in the final third. Five players (two wing-backs + three forwards) flood the opponent's backline.",
+      "defensive_phase": "Employs an aggressive high press to win the ball immediately. If bypassed, transitions to a 5-4-1 low-block.",
+      "strengths": [
+        "Puts immense pressure on opposition backlines with high overloads.",
+        "Excellent for aggressive, front-foot defensive pressing.",
+        "Flexible backline transitions."
+      ],
+      "weaknesses": [
+        "Vulnerable to long balls in channels behind advanced wing-backs.",
+        "Midfield double pivot can get easily overrun if not supported by wide forwards.",
+        "Physically exhausting for center-backs and wing-backs."
+      ],
+      "counters": {
+        "5-4-1": "Stretches their low block defense and breaks it down through wing-back overloads.",
+        "3-5-2": "Wingers isolate the wide center-backs, breaking down the 3-man backline."
+      },
+      "countered_by": {
+        "4-3-3": "Opponent exploits wide channels behind advanced wing-backs rapidly.",
+        "4-2-3-1": "Double pivot holds the center, and the CAM exploits spaces behind the two central midfielders."
+      }
+    }
+  },
+  "playstyles": {
+    "possession_tiki_taka": {
+      "description": "Short, rapid passing, high possession, patient build-up, and high defensive line to suffocate opponents in their half (Juego de Posición).",
+      "tactical_requirements": [
+        "High technical capability and passing accuracy of all players including Goalkeeper.",
+        "Elite spatial awareness and constant movement to create passing lines.",
+        "Intense, immediate counter-pressing (6-second rule) to win the ball back."
+      ],
+      "tactical_attributes": {
+        "defensive_line": "High",
+        "pressing_intensity": "Aggressive",
+        "tempo": "Patient / Slow build-up",
+        "passing_style": "Short / Short combinations"
+      },
+      "effective_against": [
+        "Low block defensive teams lacking counter-attack speed.",
+        "Slow transition systems with low stamina."
+      ],
+      "weakness": [
+        "Lightning-fast vertical counter-attacks exploiting the space behind the high line.",
+        "Highly disciplined low blocks with physical strikers."
+      ],
+      "tactical_countermeasures": {
+        "Facing Gegenpressing": "Rotate positions rapidly, drop the pivots deeper to draw out the press, and play quick third-man runs.",
+        "Facing Deep Low Block": "Keep maximum width, utilize rapid diagonal switches, and exploit half-spaces with underlapping runs."
+      }
+    },
+    "direct_counter_attack": {
+      "description": "Sitting deep in a low/medium block to absorb pressure, winning the ball, and launching rapid vertical passes to quick forwards behind the opponent's defensive line.",
+      "tactical_requirements": [
+        "Fast-paced wingers/strikers with elite acceleration.",
+        "Deep-lying playmakers with precise long-ball distribution.",
+        "Highly disciplined, compact defensive coordination."
+      ],
+      "tactical_attributes": {
+        "defensive_line": "Low / Medium",
+        "pressing_intensity": "Medium / Tactical triggers",
+        "tempo": "Extremely fast transition",
+        "passing_style": "Direct / Long vertical balls"
+      },
+      "effective_against": [
+        "High-line possession teams.",
+        "Aggressive pressing teams that commit too many players forward."
+      ],
+      "weakness": [
+        "Highly disciplined low blocks that refuse to leave space behind their defensive line."
+      ],
+      "tactical_countermeasures": {
+        "Facing Tiki-Taka": "Maintain a highly compact low block, deny central space, and exploit the space behind their high-line fullbacks immediately on transition.",
+        "Facing Wing Play": "Double up on wide areas, block crosses, and launch counters through the vacated wide spaces."
+      }
+    },
+    "gegenpressing": {
+      "description": "Pressing the opponent immediately after losing the ball to force turnovers high up the pitch when they are transitioning and disorganized.",
+      "tactical_requirements": [
+        "Elite physical stamina and speed.",
+        "Coordinated team pressing triggers (e.g., bad touch, back-pass).",
+        "Highly aggressive, synchronized line movements."
+      ],
+      "tactical_attributes": {
+        "defensive_line": "Very High",
+        "pressing_intensity": "Ultra-Aggressive",
+        "tempo": "High-intensity",
+        "passing_style": "Direct / Fast combination"
+      },
+      "effective_against": [
+        "Teams trying to play out slowly from the back.",
+        "Technical build-up teams that struggle under physical pressure."
+      ],
+      "weakness": [
+        "Direct long-ball teams who bypass the midfield press entirely by playing route-one football."
+      ],
+      "tactical_countermeasures": {
+        "Facing Deep Low Block": "Press high to win the ball near their box, preventing them from starting any transition.",
+        "Facing Long Ball": "Ensure the center-backs drop early to win aerial duels, while midfielders sweep second balls."
+      }
+    },
+    "park_the_bus_low_block": {
+      "description": "Defending deep inside own penalty box, prioritizing structural shape over ball recovery, and leaving no space behind.",
+      "tactical_requirements": [
+        "Tall, physically dominant center-backs for aerial control.",
+        "High concentration levels and positional discipline.",
+        "Compact horizontal and vertical lines."
+      ],
+      "tactical_attributes": {
+        "defensive_line": "Very Low",
+        "pressing_intensity": "Low / Inside own third",
+        "tempo": "Very slow transitions",
+        "passing_style": "Clearance / Route-one"
+      },
+      "effective_against": [
+        "Impatient attacking teams that overcommit.",
+        "Slow, predictable possession teams."
+      ],
+      "weakness": [
+        "Elite individual dribblers inside the box.",
+        "Set-pieces.",
+        "Precise long-range shooting."
+      ],
+      "tactical_countermeasures": {
+        "Facing Tiki-Taka": "Block the half-spaces, keep the box congested, and restrict passing lanes to the central striker.",
+        "Facing Wing Play": "Deploy wide midfielders to assist fullbacks, ensuring 2v1 coverage on the flanks."
+      }
+    },
+    "vertical_tiki_taka": {
+      "description": "Combining short, rapid passing combinations with direct vertical progression to break lines as quickly as possible.",
+      "tactical_requirements": [
+        "Creative central pivot players with elite vision.",
+        "High-velocity vertical runs from wide players and strikers.",
+        "Fluid player rotations in midfield."
+      ],
+      "tactical_attributes": {
+        "defensive_line": "Medium-High",
+        "pressing_intensity": "Aggressive",
+        "tempo": "Fast-paced combinations",
+        "passing_style": "Short-to-Medium vertical passes"
+      },
+      "effective_against": [
+        "Mid-block defensive lines.",
+        "Man-marking systems (rotations break the marking)."
+      ],
+      "weakness": [
+        "Compact low-blocks.",
+        "Highly physical double-pivot blocks."
+      ],
+      "tactical_countermeasures": {
+        "Facing High Press": "Use quick wall-passes and third-man combinations to bypass the initial pressing line.",
+        "Facing Low Block": "Use quick central combinations to pull defenders out, then exploit the space behind them."
+      }
+    },
+    "wing_play": {
+      "description": "Overloading the wide areas to create crossing opportunities for physically dominant strikers.",
+      "tactical_requirements": [
+        "Overlapping fullbacks/wingbacks.",
+        "Elite crossing capability from wingers.",
+        "Strikers with superior heading and physical attributes."
+      ],
+      "tactical_attributes": {
+        "defensive_line": "Medium",
+        "pressing_intensity": "Medium",
+        "tempo": "Medium-Fast",
+        "passing_style": "Wide combinations / Crosses"
+      },
+      "effective_against": [
+        "Narrow defensive systems.",
+        "Three-back formations lacking wide support."
+      ],
+      "weakness": [
+        "Five-back defensive systems with wide cover.",
+        "Rapid counter-attacks on the flanks."
+      ],
+      "tactical_countermeasures": {
+        "Facing Narrow Blocks": "Quickly switch play from one side to another to create 1v1 situations for wingers.",
+        "Facing Counter-attacks": "Ensure defensive pivots stay deep to cover the spaces vacated by overlapping fullbacks (Rest Defense)."
+      }
+    },
+    "long_ball_target_man": {
+      "description": "Bypassing the midfield entirely by playing direct long balls to a physically imposing striker who wins aerial duels and knocks the ball down for supporting runs.",
+      "tactical_requirements": [
+        "Target Man striker with elite physical strength.",
+        "Aggressive second-ball midfielders.",
+        "Accurate long-ball distributors (Goalkeeper or Center-backs)."
+      ],
+      "tactical_attributes": {
+        "defensive_line": "Low-Medium",
+        "pressing_intensity": "Low-Medium",
+        "tempo": "Fast / Direct",
+        "passing_style": "Long direct balls"
+      },
+      "effective_against": [
+        "High-pressing teams.",
+        "Lightweight, technical center-backs."
+      ],
+      "weakness": [
+        "Highly physical, tall center-backs.",
+        "Coordinated offside traps."
+      ],
+      "tactical_countermeasures": {
+        "Facing High Press": "Play direct to the target man immediately, completely neutralizing the opponent's press.",
+        "Facing Low Block": "Use the target man to draw defenders, knock down balls for late runners, or secure set-pieces."
+      }
+    },
+    "fluid_counter_attack": {
+      "description": "Flexible transition style where players swap positions dynamically during counters to pull defenders out of position.",
+      "tactical_requirements": [
+        "Highly versatile attackers.",
+        "Elite transition speed and decision making.",
+        "Fluid position rotation."
+      ],
+      "tactical_attributes": {
+        "defensive_line": "Medium",
+        "pressing_intensity": "Medium-High",
+        "tempo": "Extremely fast",
+        "passing_style": "Short-to-medium rapid passes"
+      },
+      "effective_against": [
+        "Aggressive high-line defenses.",
+        "Rigid man-marking defenses."
+      ],
+      "weakness": [
+        "Highly disciplined zonal defenses.",
+        "Teams with quick defensive transition recovery."
+      ],
+      "tactical_countermeasures": {
+        "Facing Possession Teams": "Allow them possession, wait for pressing triggers in the mid-block, then transition with rapid, rotating runs.",
+        "Facing High Press": "Play wide to the wingbacks/fullbacks to stretch the press, then combine centrally."
+      }
+    }
+  }
+}

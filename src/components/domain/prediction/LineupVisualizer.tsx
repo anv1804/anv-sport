@@ -2,7 +2,8 @@ import React from 'react';
 
 function parseFormation(formation: string): number[] {
   if (!formation) return [4, 4, 2];
-  const clean = formation.replace(/\s+/g, '');
+  // Extract only numbers and hyphens (e.g. "4-3-3 Atk" -> "4-3-3", "4-2-3-1" -> "4-2-3-1")
+  const clean = formation.replace(/[^0-9-]/g, '');
   const parts = clean.split('-').map(Number);
   const isValid = parts.length >= 2 && parts.every(num => !isNaN(num) && num > 0);
   return isValid ? parts : [4, 4, 2];

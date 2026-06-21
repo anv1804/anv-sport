@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { generateWithFallback } from '@/lib/aiBox';
 import prisma from '@/lib/prisma';
+import fs from 'fs';
+import path from 'path';
 
 // Helper function to generate deterministic Head-to-Head history based on team names (Fallback only)
 function getDeterministicH2H(team1: string, team2: string) {
@@ -192,6 +194,18 @@ export async function POST(req: Request) {
     }
 
     let additionalContextObj: any = {};
+    
+    // Load tactical reference database
+    let tacticsReference = null;
+    try {
+      const filePath = path.join(process.cwd(), 'src/lib/tactics/formations_and_playstyles.json');
+      if (fs.existsSync(filePath)) {
+        tacticsReference = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+      }
+    } catch (err) {
+      console.error("Lỗi khi đọc file chiến thuật tham khảo:", err);
+    }
+
     if (matchData) {
       additionalContextObj = {
         current_match_situation: {
@@ -221,48 +235,51 @@ export async function POST(req: Request) {
       }
     }
 
-    const systemPrompt = `You are a world-class football analyst and tactical expert.
+    const systemPrompt = `You are a world-class football analyst, tactical editor, and mathematical modeler.
     
     [TASK CONFIGURATION (JSON)]
     ${JSON.stringify({
       task: `Analyze the football match: "${title}" in extreme detail.`,
+      tactics_reference_database: tacticsReference,
       sources_to_synthesize: [
-        "SofaScore",
-        "WhoScored",
-        "ESPN",
-        "The Athletic",
-        "Foreign betting market odds & line movements"
+        "SofaScore detailed match stats and player ratings",
+        "WhoScored tactical characteristics & player strengths/weaknesses",
+        "ESPN ESPN FC match previews and team news",
+        "The Athletic tactical breakdowns and long-form analysis",
+        "Foreign betting market odds, Asian Handicap movements, and Over/Under line shifts"
       ],
       tactical_analysis_requirements: {
-        formation_counter_strategies: "Explain how formations counteract/unlock spaces for each team (e.g. midfield superiority, low block solutions).",
-        match_flow_dynamics: "Describe match tempo, transition phases, pressing block levels, and possession tendencies.",
-        player_tendencies: "Highlight individual movements (e.g. Inverted Wingers, Box-to-Box midfielders, overlap patterns)."
+        formation_counter_strategies: "Compare the two systems (e.g., 4-3-3 vs 4-2-3-1). Explain exactly how they counter each other. Who has the central numerical overload? Which spaces (flanks, half-spaces, behind the defensive line) are vulnerable? Explain how one team can bypass the other's pressing block (e.g., inverting fullbacks, dropping pivots, direct long balls).",
+        match_flow_dynamics: "Detail the transition phases (Defending to Attacking, Attacking to Defending), pressing block height (high press, mid-block, compact low block), and possession tempo (slow build-up vs rapid verticality).",
+        player_tendencies: "Highlight individual movements, key player roles (e.g., Carrilero, Regista, Mezzala, Raumdeuter, Inverted Wing-back), and player-to-player duels.",
+        live_match_tactics: "If the match is live, analyze how the current score and live statistics (shots on target, possession, cards, momentum) affect the tactical approach of both managers for the rest of the match."
       },
       live_match_rules: {
         is_live_match: isLive,
         score_state: isLive ? `${matchData?.score1} - ${matchData?.score2}` : "N/A",
         rules: [
           "CRITICAL: Adapt predictions and tactical blocks to the live score state in real-time.",
-          "PROBABILITIES: Probabilities must reflect the live score. If a team leads by 3+ goals, win probability must be 95%-99%. Draw/loss probabilities must be 1%-5%. Never output pre-match probabilities for live matches."
+          "PROBABILITIES: Probabilities must reflect the live score. If a team leads by 3+ goals, win probability must be 95%-99%. Draw/loss probabilities must be 1%-5%. Never output pre-match probabilities for live matches.",
+          "IN-PLAY ANALYSIS: Address changes in tactics during half-time, player fatigue, manager adjustments, and risk-taking behaviors (e.g., committing more players forward if trailing)."
         ]
       },
       analytical_factors: [
-        "H2H history and current table standings",
-        "Recent team form & individual star player forms",
-        "Squad value differences",
-        "Lineups & Formations (Prioritize official lineups if available in matchData.lineups, otherwise predict them)",
-        "Team morale, objectives, and match significance"
+        "Historical Head-to-Head (H2H) results and current tournament standings",
+        "Recent form (last 5 matches) and individual player fitness/morale",
+        "Squad market value differences and overall squad depth",
+        "Lineups & Formations (Prioritize official lineups if available in matchData.lineups, otherwise predict them using the tactics database)",
+        "Team morale, objectives (relegation battle, title race, local derby), and match significance"
       ],
       output_metrics_rules: {
         expectedGoals: {
-          predicted: "Estimated number of goals, localized in Vietnamese (e.g., '1 bàn', '2 bàn')",
+          predicted: "Estimated number of goals, localized in Vietnamese (e.g., '1 bàn', '2 bàn', '3 bàn')",
           ouLine: "Bookmaker Over/Under line (e.g., '0.75', '1.5', '2.5')",
           ouPick: "Over/Under pick recommendation direction, must be either 'Tài' or 'Xỉu' in Vietnamese"
         },
         expectedCards_expectedCorners: "Provide logically consistent values for half1, half2, and fullMatch (e.g., half1 + half2 = fullMatch)."
       },
       language_requirements: {
-        analysisHtml: "Must be written in detailed Vietnamese",
+        analysisHtml: "Must be written in detailed Vietnamese, using highly professional sports terminology. Break the analysis into clear, structured HTML sections with headings, subheadings, and bold text. Avoid superficial commentary; write like a professional sports editor.",
         sources_titles: "Must be written in Vietnamese",
         expectedGoals_predicted: "Must use 'bàn' unit in Vietnamese (e.g. '1 bàn')",
         expectedGoals_ouPick: "Must use 'Tài' or 'Xỉu' in Vietnamese"
