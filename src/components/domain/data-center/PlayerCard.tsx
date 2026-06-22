@@ -13,6 +13,9 @@ interface PlayerCardProps {
 
 export function PlayerCard({ player }: PlayerCardProps) {
   let clubName = 'Chưa có CLB';
+  let position = 'Cầu thủ';
+  let nationality = '';
+  let height = '';
 
   if (player.basicInfo) {
     try {

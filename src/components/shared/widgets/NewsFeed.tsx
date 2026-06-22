@@ -3,6 +3,7 @@ import { HorizontalPost } from "@/components/domain/article/HorizontalPost";
 import prisma from "@/lib/prisma";
 import Link from "next/link";
 import { Bot } from "lucide-react";
+import { createArticleUrl } from "@/lib/helpers/url";
 
 export async function NewsFeed({ zoneId }: { zoneId?: string }) {
   let posts = [];
@@ -46,7 +47,7 @@ export async function NewsFeed({ zoneId }: { zoneId?: string }) {
       {posts.map((article, index) => (
         <div key={article.id} className={`border-b border-[#e5e5e5] pb-5 mb-5 ${index === posts.length - 1 ? 'border-0 pb-0 mb-0' : ''}`}>
           <HorizontalPost 
-            href={`/${article.slug}`}
+            href={createArticleUrl(article.title, article.id)}
             title={article.title}
             excerpt={article.excerpt || ""}
             imageUrl={article.imageUrl || "/placeholder-news.jpg"}

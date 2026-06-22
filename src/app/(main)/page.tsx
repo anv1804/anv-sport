@@ -73,7 +73,7 @@ export default async function Home() {
       </a>
 
       {/* NỘI DUNG CHÍNH (Nổi trên nền Quảng cáo) */}
-      <main className="max-w-[1160px] mx-auto px-4 py-4 md:px-6 md:py-4 md:py-6 font-sans bg-white relative z-20 shadow-[0_0_20px_rgba(0,0,0,0.15)] min-h-screen">
+      <main className="w-full max-w-[1160px] mx-auto px-4 py-4 md:px-6 md:py-4 md:py-6 font-sans bg-white relative z-20 shadow-[0_0_20px_rgba(0,0,0,0.15)] min-h-screen">
         <h1 className="sr-only">ANV SPORT - Chuyên trang thể thao hàng đầu Việt Nam</h1>
 
         <HeroSection

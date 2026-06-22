@@ -96,7 +96,7 @@ async function ArticleContent({ id }: { id: number }) {
   }
 
   return (
-    <main className="max-w-[1160px] mx-auto px-4 py-6 md:px-6 md:py-8 font-sans bg-white min-h-screen shadow-[0_0_20px_rgba(0,0,0,0.15)] relative z-20">
+    <main className="w-full max-w-[1160px] mx-auto px-4 pt-10 pb-6 md:px-6 md:py-8 font-sans bg-white min-h-screen shadow-[0_0_20px_rgba(0,0,0,0.15)] relative z-20">
       {/* TOP AD BANNER */}
       <div className="mb-6">
         <AdBanner type="leaderboard" adSlot="Article_Top" className="w-full h-[90px] md:h-[120px] bg-slate-100 rounded-lg overflow-hidden" imageUrl="/ad-horizontal.png" />
@@ -205,19 +205,21 @@ async function ArticleContent({ id }: { id: number }) {
                 </div>
 
                 {/* Right Side: Google News & Shares */}
-                <div className="flex items-center gap-3 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
-                  <a href="#" className="px-4 h-10 rounded-full border border-slate-200 text-[13px] text-slate-600 hover:bg-slate-50 transition-colors flex items-center whitespace-nowrap">
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto pb-2 sm:pb-0">
+                  <a href="#" className="px-3 sm:px-4 h-10 rounded-full border border-slate-200 text-[12px] sm:text-[13px] text-slate-600 hover:bg-slate-50 transition-colors flex items-center">
                     Theo dõi ANV Sport trên <span className="font-bold text-blue-500 ml-1">G</span><span className="font-bold text-red-500">o</span><span className="font-bold text-yellow-500">o</span><span className="font-bold text-blue-500">g</span><span className="font-bold text-green-500">l</span><span className="font-bold text-red-500">e</span> News
                   </a>
-                  <button className="w-10 h-10 rounded-full border border-slate-200 flex shrink-0 items-center justify-center text-slate-500 hover:bg-slate-50 hover:text-emerald-600 transition-colors">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
-                  </button>
-                  <button className="w-10 h-10 rounded-full border border-slate-200 flex shrink-0 items-center justify-center text-slate-500 hover:bg-slate-50 hover:text-emerald-600 transition-colors">
-                    <Mail size={16} />
-                  </button>
-                  <button className="w-10 h-10 rounded-full border border-slate-200 flex shrink-0 items-center justify-center text-slate-500 hover:bg-slate-50 hover:text-emerald-600 transition-colors">
-                    <LinkIcon size={16} />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button className="w-10 h-10 rounded-full border border-slate-200 flex shrink-0 items-center justify-center text-slate-500 hover:bg-slate-50 hover:text-emerald-600 transition-colors">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
+                    </button>
+                    <button className="w-10 h-10 rounded-full border border-slate-200 flex shrink-0 items-center justify-center text-slate-500 hover:bg-slate-50 hover:text-emerald-600 transition-colors">
+                      <Mail size={16} />
+                    </button>
+                    <button className="w-10 h-10 rounded-full border border-slate-200 flex shrink-0 items-center justify-center text-slate-500 hover:bg-slate-50 hover:text-emerald-600 transition-colors">
+                      <LinkIcon size={16} />
+                    </button>
+                  </div>
                 </div>
               </div>
 

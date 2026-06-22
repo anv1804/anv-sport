@@ -120,7 +120,7 @@ async function CategoryContent({ categorySlug, page }: { categorySlug: string, p
 
   return (
     <div className="w-full bg-[#111111] bg-no-repeat relative pt-0 md:pt-[20px]" style={{ backgroundImage: "url('/bg-ads-full.png')", backgroundSize: "cover", backgroundPosition: "top center", backgroundAttachment: "fixed" }}>
-      <main className="max-w-[1160px] mx-auto px-4 py-4 md:px-6 md:py-4 md:py-6 font-sans bg-white relative z-20 shadow-[0_0_20px_rgba(0,0,0,0.15)] min-h-screen">
+      <main className="w-full max-w-[1160px] mx-auto px-4 py-4 md:px-6 md:py-4 md:py-6 font-sans bg-white relative z-20 shadow-[0_0_20px_rgba(0,0,0,0.15)] min-h-screen">
         
         {/* Lịch thi đấu giả lập (Phần trên cùng của VNE) */}
         <div className="mb-4 text-center">

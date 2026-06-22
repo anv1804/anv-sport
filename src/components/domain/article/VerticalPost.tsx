@@ -14,6 +14,7 @@ interface VerticalPostProps {
   isLive?: boolean;
   category?: string;
   author?: { name: string; avatar?: string };
+  commentsCount?: number;
   className?: string;
   isLoading?: boolean;
   titleLines?: number;

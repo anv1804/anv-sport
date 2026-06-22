@@ -36,6 +36,7 @@ export function MainContentSection({ newsFeedZoneId, categoryBlocks = [], adInFe
         {/* CATEGORY BLOCKS DYNAMIC */}
         {Array.isArray(categoryBlocks) && categoryBlocks.filter(Boolean).map((block, idx) => {
           const zoneId = typeof block === 'object' ? (block as CategoryBlockConfig).id : block;
+          if (!zoneId) return null;
           const isSticky = typeof block === 'object' ? (block as CategoryBlockConfig).isSticky : false;
           const layoutType = typeof block === 'object' && (block as CategoryBlockConfig).layout !== undefined
             ? (block as CategoryBlockConfig).layout!

@@ -31,7 +31,7 @@ export function PredictionView({ post, predictionData }: { post: any, prediction
   });
 
   return (
-    <div className="w-full font-client-ui bg-white px-4 md:px-6 py-6">
+    <div className="w-full font-client-ui bg-white px-4 pt-10 pb-6 md:px-6 md:py-8">
       
       <div className="flex items-center text-[12px] uppercase tracking-wider border-b border-[#e5e5e5] pb-3 mb-6 font-bold">
         <Link href="/" className="text-[#16A34A] hover:text-[#15803D] transition-colors">THỂ THAO</Link>

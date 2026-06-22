@@ -817,10 +817,10 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
 
     Object.entries(playerGoals).forEach(([player, minutes]) => {
       items.push(
-        <span key={`goal-${player}`} className="flex items-center gap-1.5 text-[13px] leading-tight text-slate-700">
+        <span key={`goal-${player}`} className="flex items-center gap-1.5 text-[12px] leading-tight text-slate-300">
           {!isAlignRight && <span className="text-[10px]">⚽</span>}
           <span className="font-bold">{player}</span>
-          <span className="text-slate-500 font-semibold">{minutes.join(', ')}</span>
+          <span className="text-slate-400 font-semibold">{minutes.join(', ')}</span>
           {isAlignRight && <span className="text-[10px]">⚽</span>}
         </span>
       );
@@ -828,10 +828,10 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
 
     Object.entries(playerRedCards).forEach(([player, minutes]) => {
       items.push(
-        <span key={`red-${player}`} className="flex items-center gap-1.5 text-[13px] leading-tight text-slate-700">
+        <span key={`red-${player}`} className="flex items-center gap-1.5 text-[12px] leading-tight text-slate-300">
           {!isAlignRight && <span className="text-[10px] flex items-center justify-center w-2 h-2.5 bg-red-500 rounded-[1px] border border-red-600 shadow-[0_1px_1px_rgba(0,0,0,0.15)] flex-shrink-0"></span>}
-          <span className="font-bold text-red-600">{player}</span>
-          <span className="text-red-500 font-semibold">{minutes.join(', ')}</span>
+          <span className="font-bold text-red-400">{player}</span>
+          <span className="text-red-400 font-semibold">{minutes.join(', ')}</span>
           {isAlignRight && <span className="text-[10px] flex items-center justify-center w-2 h-2.5 bg-red-500 rounded-[1px] border border-red-600 shadow-[0_1px_1px_rgba(0,0,0,0.15)] flex-shrink-0"></span>}
         </span>
       );
@@ -859,10 +859,10 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
         backgroundAttachment: "fixed"
       }}
     >
-      <main className="max-w-[1000px] mx-auto bg-white shadow-[0_10px_40px_rgba(0,0,0,0.1)] overflow-hidden font-client-ui relative z-20">
+      <main className="w-full max-w-[1000px] mx-auto bg-white shadow-[0_10px_40px_rgba(0,0,0,0.1)] overflow-hidden font-client-ui relative z-20">
         
         {/* TOP NAVIGATION / HEADER (ANV Sport White Style) */}
-        <div className="px-6 py-4 flex items-center justify-between text-slate-500 text-[13px] border-b border-slate-100 bg-slate-50/50">
+        <div className="px-4 md:px-6 py-3 md:py-4 flex items-center justify-between text-slate-500 text-[13px] border-b border-slate-100 bg-slate-50/50">
           <div className="flex items-center gap-2">
             <Link href="/du-doan" className="hover:text-green-600 transition-colors flex items-center gap-1.5 font-bold uppercase tracking-widest text-[11px]">
               <ArrowLeft className="w-4 h-4" /> Quay lại
@@ -890,7 +890,7 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
         </div>
 
         {/* MATCH INFO STRIP */}
-        <div className="bg-white border-b border-slate-100 px-6 py-3 flex flex-wrap items-center justify-center gap-4 md:gap-8 text-[12px] font-bold text-slate-500 uppercase tracking-widest shadow-sm relative z-10">
+        <div className="bg-white border-b border-slate-100 px-4 md:px-6 py-2 md:py-3 flex flex-wrap items-center justify-center gap-4 md:gap-8 text-[12px] font-bold text-slate-500 uppercase tracking-widest shadow-sm relative z-10">
            <span className="flex items-center gap-1.5 text-slate-700">
              <Calendar className="w-4 h-4 text-green-600"/> 
              {parseMatchDate(matchInfo.matchDate).toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}
@@ -908,52 +908,54 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
         </div>
 
         {/* MAIN SCOREBOARD - HORIZONTAL ANV SPORT STYLE */}
-        <div className="px-6 py-8 flex flex-col md:flex-row items-center justify-between border-b border-slate-100 bg-white">
+        <div className="px-4 md:px-6 py-6 md:py-8 grid grid-cols-3 items-center justify-between border-b border-slate-800 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-white gap-2 relative overflow-hidden">
+          {/* Subtle background glow */}
+          <div className="absolute top-0 left-1/4 right-1/4 h-[1px] bg-gradient-to-r from-transparent via-green-500/50 to-transparent"></div>
           {/* Team 1 */}
-          <div className="flex flex-col items-center flex-1 w-full md:w-auto mb-6 md:mb-0">
-            <div className="w-20 h-20 md:w-24 md:h-24 flex items-center justify-center mb-3">
+          <div className="flex flex-col items-center text-center min-w-0">
+            <div className="w-14 h-14 md:w-20 md:h-20 flex items-center justify-center mb-2 filter drop-shadow-[0_2px_8px_rgba(255,255,255,0.1)]">
               <img src={matchInfo.team1.logo} alt={matchInfo.team1.name} className="w-full h-full object-contain" />
             </div>
-            <h2 className="text-xl md:text-2xl font-black text-slate-900 mb-1">{matchInfo.team1.name}</h2>
+            <h2 className="text-[13px] md:text-xl font-black text-white mb-1 leading-tight truncate w-full" title={matchInfo.team1.name}>{matchInfo.team1.name}</h2>
             {!isNeutral && (
-              <span className="text-slate-400 text-[12px] font-bold uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-full border border-slate-100">Đội nhà</span>
+              <span className="text-slate-400 text-[8px] md:text-[10px] font-bold uppercase tracking-widest bg-slate-800/85 px-2.5 py-0.5 rounded-full border border-slate-700/50">Đội nhà</span>
             )}
           </div>
           
           {/* Score */}
-          <div className="flex flex-col items-center justify-center mx-4 mb-6 md:mb-0 w-full md:w-auto">
+          <div className="flex flex-col items-center justify-center min-w-0">
              {matchInfo.score1 !== null && matchInfo.score1 !== undefined ? (
-                <div className="flex flex-col items-center justify-center">
-                  <div className="flex items-center justify-center gap-6 md:gap-10">
-                    <span className={`text-5xl md:text-6xl font-black ${isFinished && matchInfo.score1 > matchInfo.score2 ? 'text-green-600' : 'text-slate-800'}`}>{matchInfo.score1}</span>
-                    <span className="text-3xl text-slate-300 font-light">-</span>
-                    <span className={`text-5xl md:text-6xl font-black ${isFinished && matchInfo.score2 > matchInfo.score1 ? 'text-green-600' : 'text-slate-800'}`}>{matchInfo.score2}</span>
+                <div className="flex flex-col items-center justify-center w-full">
+                  <div className="flex items-center justify-center gap-3 md:gap-8">
+                    <span className={`text-3xl md:text-5xl font-black tracking-tight ${isFinished && matchInfo.score1 > matchInfo.score2 ? 'text-green-400' : 'text-white'}`}>{matchInfo.score1}</span>
+                    <span className="text-xl md:text-3xl text-slate-600 font-light">-</span>
+                    <span className={`text-3xl md:text-5xl font-black tracking-tight ${isFinished && matchInfo.score2 > matchInfo.score1 ? 'text-green-400' : 'text-white'}`}>{matchInfo.score2}</span>
                   </div>
                   {isLive && matchInfo.liveClock && (
-                    <div className="mt-3 text-[12px] font-black text-red-600 bg-red-50 border border-red-100 rounded-full px-3.5 py-1 flex items-center gap-1.5 shadow-sm animate-pulse tracking-wide uppercase">
-                      <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-ping shrink-0"></span>
-                      <span>{matchInfo.livePeriod} • {matchInfo.liveClock}</span>
+                    <div className="mt-2.5 text-[8px] md:text-[11px] font-black text-red-500 bg-red-950/40 border border-red-500/20 rounded-full px-2 py-0.5 md:px-3 md:py-1 flex items-center gap-1 shadow-sm animate-pulse tracking-wide uppercase">
+                      <span className="w-1 h-1 rounded-full bg-red-500 animate-ping shrink-0"></span>
+                      <span className="truncate">{matchInfo.livePeriod} {matchInfo.liveClock}</span>
                     </div>
                   )}
                   {matchInfo.penScore1 !== undefined && matchInfo.penScore1 !== null && matchInfo.penScore2 !== undefined && matchInfo.penScore2 !== null && (
-                    <div className="mt-2 text-xs font-bold text-red-600 bg-red-50 px-3 py-1 rounded border border-red-200 uppercase tracking-widest">
-                      Phạt luân lưu: {matchInfo.penScore1} - {matchInfo.penScore2}
+                    <div className="mt-1.5 text-[8px] md:text-[10px] font-bold text-red-400 bg-red-950/30 px-2 py-0.5 rounded border border-red-900/30 uppercase tracking-wider text-center">
+                      Luân lưu: {matchInfo.penScore1}-{matchInfo.penScore2}
                     </div>
                   )}
                 </div>
              ) : (
-                <div className="text-3xl md:text-4xl text-slate-300 font-black px-8 py-2 italic">VS</div>
+                <div className="text-2xl md:text-4xl text-slate-600 font-black px-4 py-2 italic text-center">VS</div>
              )}
           </div>
           
           {/* Team 2 */}
-          <div className="flex flex-col items-center flex-1 w-full md:w-auto">
-            <div className="w-20 h-20 md:w-24 md:h-24 flex items-center justify-center mb-3">
+          <div className="flex flex-col items-center text-center min-w-0">
+            <div className="w-14 h-14 md:w-20 md:h-20 flex items-center justify-center mb-2 filter drop-shadow-[0_2px_8px_rgba(255,255,255,0.1)]">
               <img src={matchInfo.team2.logo} alt={matchInfo.team2.name} className="w-full h-full object-contain" />
             </div>
-            <h2 className="text-xl md:text-2xl font-black text-slate-900 mb-1">{matchInfo.team2.name}</h2>
+            <h2 className="text-[13px] md:text-xl font-black text-white mb-1 leading-tight truncate w-full" title={matchInfo.team2.name}>{matchInfo.team2.name}</h2>
             {!isNeutral && (
-              <span className="text-slate-400 text-[12px] font-bold uppercase tracking-widest bg-slate-50 px-3 py-1 rounded-full border border-slate-100">Đội khách</span>
+              <span className="text-slate-400 text-[8px] md:text-[10px] font-bold uppercase tracking-widest bg-slate-800/85 px-2.5 py-0.5 rounded-full border border-slate-700/50">Đội khách</span>
             )}
           </div>
         </div>
@@ -973,7 +975,7 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
 
         {/* VIDEO HIGHLIGHTS CAROUSEL (White Theme) */}
         {matchInfo.video && (
-          <div className="p-6 bg-white overflow-x-auto flex gap-4 no-scrollbar border-b border-slate-100">
+          <div className="p-4 md:p-6 bg-white overflow-x-auto flex gap-4 no-scrollbar border-b border-slate-100">
              <a href={matchInfo.video} target="_blank" rel="noopener noreferrer" className="relative shrink-0 w-[240px] h-[135px] rounded border border-slate-200 overflow-hidden group shadow-sm">
                <img src={matchInfo.team1.logo} className="absolute inset-0 w-full h-full object-cover opacity-20 blur-sm scale-110" />
                <div className="absolute inset-0 bg-slate-900/60 group-hover:bg-slate-900/40 transition-colors"></div>
@@ -1023,7 +1025,7 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
 
         {/* TAB CONTENT - THỐNG KÊ (ANV Sport Light Layout) */}
         {activeTab === 'thongke' && (
-          <div className="p-6 md:p-10 bg-white min-h-[300px] border-b border-slate-100">
+          <div className="p-4 md:p-6 bg-white min-h-[300px] border-b border-slate-100">
             <div className="max-w-3xl mx-auto">
               <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100">
                  <div className="w-12">
@@ -1180,7 +1182,7 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
 
         {/* TAB CONTENT - ĐỘI HÌNH (LINEUPS) */}
         {activeTab === 'doihinh' && (
-          <div className="p-6 md:p-10 bg-white min-h-[300px] border-b border-slate-100">
+          <div className="p-4 md:p-6 bg-white min-h-[300px] border-b border-slate-100">
             <div className="max-w-3xl mx-auto">
               <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100">
                  <div className="w-12">
@@ -1397,7 +1399,7 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
 
         {/* TAB CONTENT - DIỄN BIẾN (EVENTS) */}
         {activeTab === 'dienbien' && (
-          <div className="p-6 md:p-10 bg-white min-h-[300px] border-b border-slate-100">
+          <div className="p-4 md:p-6 bg-white min-h-[300px] border-b border-slate-100">
             <div className="max-w-3xl mx-auto">
               <div className="flex items-center justify-between mb-10 pb-4 border-b border-slate-100">
                  <div className="w-12">
@@ -1477,7 +1479,7 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
         )}
         {/* AI BUTTON */}
         {!isFinished && (
-          <div className="p-8 md:p-12 bg-white text-center">
+          <div className="p-4 md:p-6 bg-white text-center">
             <h3 className="text-slate-900 font-black mb-2 text-xl uppercase tracking-tighter">Báo Cáo Phân Tích Chuyên Sâu</h3>
             <p className="text-slate-500 text-[13px] font-medium mb-6 max-w-md mx-auto">
               Hệ thống tự động phân tích và đưa ra nhận định chuyên sâu theo thời gian thực.
@@ -1641,7 +1643,7 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
                     </div>
                     
                     {activePrediction ? (
-                      <div className="p-4 md:p-8">
+                      <div className="p-4 md:p-6">
                         <PredictionView post={mockPost} predictionData={activePrediction} />
                       </div>
                     ) : (

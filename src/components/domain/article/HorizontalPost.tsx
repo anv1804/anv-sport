@@ -12,6 +12,7 @@ interface HorizontalPostProps {
   hideImage?: boolean;
   hideExcerpt?: boolean;
   isLive?: boolean;
+  category?: string;
   className?: string;
   isLoading?: boolean;
   titleLines?: number;

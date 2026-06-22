@@ -88,6 +88,26 @@ export default function PredictionClientPage() {
       return acc;
     }, {} as Record<string, any[]>);
 
+    // Sort matches within each date group
+    Object.keys(grouped).forEach(dateKey => {
+      grouped[dateKey].sort((a, b) => {
+        // Status priority: Live ('Đang đá') -> 1, Upcoming ('Chưa đá' / others) -> 2, Finished ('Kết thúc') -> 3
+        const getStatusPriority = (status: string) => {
+          if (status === 'Đang đá') return 1;
+          if (status === 'Kết thúc') return 3;
+          return 2;
+        };
+        const prioA = getStatusPriority(a.status);
+        const prioB = getStatusPriority(b.status);
+        if (prioA !== prioB) return prioA - prioB;
+
+        // Sort chronologically by matchTime string
+        const timeA = a.matchTime || '00:00';
+        const timeB = b.matchTime || '00:00';
+        return timeA.localeCompare(timeB);
+      });
+    });
+
     // Sort dates prioritizing upcoming matches
     const sortedGrouped: Record<string, any[]> = {};
     
@@ -120,92 +140,92 @@ export default function PredictionClientPage() {
   return (
     <div className="w-full font-client-ui bg-[#f3f4f6]">
       {/* HEADER HERO SECTION */}
-      <div className="bg-white border-b border-slate-200">
-        <div className="max-w-[1160px] mx-auto px-4 py-8 md:py-10 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <span className="bg-green-600 text-white px-2 py-0.5 rounded text-[10px] font-black tracking-widest flex items-center gap-1.5 uppercase shadow-sm">
+      <div className="bg-gradient-to-b from-white to-slate-50 border-b border-slate-200">
+        <div className="max-w-[1160px] mx-auto px-4 py-6 md:py-8 flex flex-col md:flex-row items-center md:items-start justify-between gap-4 md:gap-6">
+          <div className="text-center md:text-left flex flex-col items-center md:items-start w-full md:w-auto">
+            <div className="flex flex-col sm:flex-row items-center gap-2 mb-3">
+              <span className="bg-green-600 text-white px-3 py-1 rounded-full text-[9px] font-black tracking-widest flex items-center gap-1.5 uppercase shadow-sm w-fit">
                 <Cpu className="w-3 h-3" /> ANV AI Center
               </span>
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Hệ thống phân tích & nhận định</span>
+              <span className="text-[9px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-widest">Hệ thống phân tích & nhận định</span>
             </div>
-            <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tighter uppercase flex items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl md:text-5xl font-black text-slate-900 tracking-tight uppercase leading-none">
               Trung Tâm <span className="text-green-600">Dữ Liệu Thể Thao</span>
             </h1>
           </div>
-          <div className="shrink-0 flex items-center gap-2 bg-slate-50 border border-slate-200 px-4 py-2 rounded-lg shadow-sm">
-            <span className="relative flex h-2.5 w-2.5">
+          <div className="shrink-0 flex items-center gap-2 bg-white border border-slate-200/80 px-4 py-2 rounded-full shadow-sm mt-1">
+            <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
             </span>
-            <span className="text-[11px] font-black text-slate-600 uppercase tracking-widest">Live Data Feed</span>
+            <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest">Live Data Feed</span>
           </div>
         </div>
       </div>
 
-      <div className="max-w-[1160px] mx-auto px-4 py-8 flex flex-col lg:flex-row gap-8">
+      <div className="max-w-[1160px] mx-auto px-4 py-4 md:py-6 flex flex-col lg:flex-row gap-4 md:gap-6">
         
         {/* MAIN CONTENT AREA */}
         <div className="flex-1 min-w-0">
           
-          {/* SPORTS TABS */}
-          <div className="flex items-center gap-3 mb-8">
+          {/* SPORTS TABS (Segmented Control) */}
+          <div className="flex bg-slate-200/50 p-1 rounded-full w-full max-w-[280px] mb-4 md:mb-6 shadow-inner border border-slate-300/30 mx-auto md:mx-0">
             <button 
               onClick={() => setActiveSport('bongda')}
-              className={`flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-black uppercase tracking-widest text-[12px] transition-all duration-300 shadow-sm
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-full font-black uppercase tracking-wider text-[11px] transition-all duration-300
                 ${activeSport === 'bongda' 
-                  ? 'bg-slate-900 text-white border border-slate-900 scale-[1.02]' 
-                  : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50 hover:text-slate-700'}`}
+                  ? 'bg-slate-900 text-white shadow-md scale-[1.01]' 
+                  : 'text-slate-500 hover:text-slate-800'}`}
             >
-              <Trophy className="w-4 h-4" /> Bóng Đá
+              <Trophy className="w-3.5 h-3.5" /> Bóng Đá
             </button>
             <button 
               onClick={() => setActiveSport('vothuat')}
-              className={`flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-black uppercase tracking-widest text-[12px] transition-all duration-300 shadow-sm
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-full font-black uppercase tracking-wider text-[11px] transition-all duration-300
                 ${activeSport === 'vothuat' 
-                  ? 'bg-slate-900 text-white border border-slate-900 scale-[1.02]' 
-                  : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-50 hover:text-slate-700'}`}
+                  ? 'bg-slate-900 text-white shadow-md scale-[1.01]' 
+                  : 'text-slate-500 hover:text-slate-800'}`}
             >
-              <Activity className="w-4 h-4" /> Võ Thuật
+              <Activity className="w-3.5 h-3.5" /> Võ Thuật
             </button>
           </div>
 
           {/* FILTERS & SEARCH */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5 mb-8 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-center relative z-10">
-            <div className="flex items-center w-full md:w-auto flex-1 gap-4">
-              <div className="relative w-full max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <div className="bg-white border border-slate-200 rounded-xl p-4 md:p-6 mb-4 md:mb-6 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-center relative z-10">
+            <div className="flex flex-col sm:flex-row items-center w-full md:w-auto flex-1 gap-3 w-full">
+              <div className="relative w-full sm:max-w-xs">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input 
                   type="text" 
                   placeholder="Tìm kiếm đội bóng, giải đấu..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-all font-medium"
+                  className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-full text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-all font-medium bg-slate-50/50"
                 />
               </div>
-              <div className="relative w-full max-w-[200px] hidden md:block">
-                <Trophy className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <div className="relative w-full sm:max-w-[220px] hidden md:block">
+                <Trophy className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <select 
                   value={selectedCategory}
                   onChange={(e) => {
                     setSelectedCategory(e.target.value);
                     setSelectedGroup('all');
                   }}
-                  className="w-full pl-9 pr-8 py-2 border border-slate-200 rounded text-sm text-slate-700 appearance-none bg-white focus:outline-none focus:border-green-500 font-bold"
+                  className="w-full pl-10 pr-8 py-2.5 border border-slate-200 rounded-full text-sm text-slate-700 appearance-none bg-slate-50/50 focus:outline-none focus:border-green-500 font-bold"
                 >
                   <option value="all">Tất cả các giải ({categories.length})</option>
                   {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                 </select>
-                <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 rotate-90 pointer-events-none" />
+                <ChevronRight className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 rotate-90 pointer-events-none" />
               </div>
 
               {selectedCategory === 'FIFA World Cup 2026' && (
-                <div className="relative w-full max-w-[180px] hidden md:block">
-                  <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <div className="relative w-full sm:max-w-[180px] hidden md:block">
+                  <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <select 
                     value={selectedGroup}
                     onChange={(e) => setSelectedGroup(e.target.value)}
-                    className="w-full pl-9 pr-8 py-2 border border-slate-200 rounded text-sm text-slate-700 appearance-none bg-white focus:outline-none focus:border-green-500 font-bold"
+                    className="w-full pl-10 pr-8 py-2.5 border border-slate-200 rounded-full text-sm text-slate-700 appearance-none bg-slate-50/50 focus:outline-none focus:border-green-500 font-bold"
                   >
                     <option value="all">Tất cả các bảng</option>
                     <option value="Group A">Bảng A</option>
@@ -221,26 +241,26 @@ export default function PredictionClientPage() {
                     <option value="Group K">Bảng K</option>
                     <option value="Group L">Bảng L</option>
                   </select>
-                  <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 rotate-90 pointer-events-none" />
+                  <ChevronRight className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 rotate-90 pointer-events-none" />
                 </div>
               )}
             </div>
 
-            <div className="flex items-center gap-2 w-full md:w-auto">
+            <div className="flex items-center gap-2 w-full md:w-auto shrink-0">
               <Filter className="w-4 h-4 text-slate-400 hidden md:block" />
               <span className="text-slate-400 text-xs font-bold uppercase mr-2 hidden md:block">Lọc:</span>
-              <div className="flex bg-slate-100 p-1 rounded w-full md:w-auto">
+              <div className="flex bg-slate-100 p-1 rounded-full w-full md:w-auto shadow-inner">
                 <button 
                   onClick={() => setFilterType('all')}
-                  className={`flex-1 md:flex-none px-4 py-1.5 rounded text-[11px] font-black uppercase tracking-wider transition-colors ${filterType === 'all' ? 'bg-white text-green-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`flex-1 md:flex-none px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-wider transition-all duration-200 ${filterType === 'all' ? 'bg-white text-green-600 shadow-sm font-black' : 'text-slate-500 hover:text-slate-700 font-bold'}`}
                 >Tất cả</button>
                 <button 
                   onClick={() => setFilterType('upcoming')}
-                  className={`flex-1 md:flex-none px-4 py-1.5 rounded text-[11px] font-black uppercase tracking-wider transition-colors ${filterType === 'upcoming' ? 'bg-white text-green-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`flex-1 md:flex-none px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-wider transition-all duration-200 ${filterType === 'upcoming' ? 'bg-white text-green-600 shadow-sm font-black' : 'text-slate-500 hover:text-slate-700 font-bold'}`}
                 >Chưa đá</button>
                 <button 
                   onClick={() => setFilterType('finished')}
-                  className={`flex-1 md:flex-none px-4 py-1.5 rounded text-[11px] font-black uppercase tracking-wider transition-colors ${filterType === 'finished' ? 'bg-white text-green-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`flex-1 md:flex-none px-4 py-2 rounded-full text-[11px] font-black uppercase tracking-wider transition-all duration-200 ${filterType === 'finished' ? 'bg-white text-green-600 shadow-sm font-black' : 'text-slate-500 hover:text-slate-700 font-bold'}`}
                 >Đã kết thúc</button>
               </div>
             </div>
@@ -264,7 +284,7 @@ export default function PredictionClientPage() {
                <p className="text-slate-600 font-bold text-[14px]">Không tìm thấy trận đấu nào phù hợp với bộ lọc.</p>
              </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-4 md:space-y-6">
               {Object.entries(groupedFixtures).map(([dateStr, matches]) => {
                 const dateObj = new Date(dateStr);
                 const formattedDate = isNaN(dateObj.getTime()) ? dateStr : dateObj.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -273,12 +293,12 @@ export default function PredictionClientPage() {
                 <div key={dateStr} className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
                   
                   {/* Date Header */}
-                  <div className="bg-slate-900 border-b-4 border-green-600 px-5 py-3 flex items-center justify-between">
+                  <div className="bg-slate-900 border-b-4 border-green-600 px-4 md:px-6 py-3 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <Calendar className="w-5 h-5 text-green-500" />
-                      <h3 className="text-white font-black uppercase tracking-wider text-[14px] md:text-[15px]">{formattedDate}</h3>
+                      <Calendar className="w-4 h-4 text-green-500" />
+                      <h3 className="text-white font-black uppercase tracking-wider text-[13px] md:text-[15px]">{formattedDate}</h3>
                     </div>
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest bg-slate-800 px-3 py-1 rounded">{matches.length} trận</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-800 px-3 py-1 rounded">{matches.length} trận</span>
                   </div>
 
                   <div className="divide-y divide-slate-100">
@@ -290,71 +310,128 @@ export default function PredictionClientPage() {
                        const score2Num = (isFinished || isLive) && match.score2 !== null && match.score2 !== undefined ? parseInt(match.score2) : null;
 
                        return (
-                          <div key={match.id} className="flex hover:bg-slate-50 transition-colors group">
-                            
-                            {/* Left Col: Time & Status */}
-                            <div className="w-[80px] md:w-[100px] shrink-0 border-r border-slate-100 flex flex-col items-center justify-center py-4 px-2 gap-1 bg-slate-50/50">
-                              <span className={`text-[12px] md:text-[13px] font-black uppercase tracking-widest ${isFinished ? 'text-slate-400' : isLive ? 'text-red-600 animate-pulse' : 'text-slate-900'}`}>
-                                {isFinished ? 'KT' : isLive ? 'LIVE' : matchTimeStr}
-                              </span>
-                              <span className="text-[9px] md:text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded text-center leading-tight truncate w-full" title={match.category}>
-                                {match.category.replace('FIFA World Cup 2026 - ', '')}
-                              </span>
-                              {match.ground && match.ground !== "Chưa xác định" && (
-                                <span className="text-[8px] md:text-[9px] font-medium text-slate-500 text-center leading-tight mt-0.5 px-1 truncate w-full" title={match.ground}>
-                                  🏟 {match.ground}
+                          <>
+                            {/* DESKTOP LAYOUT */}
+                            <div className="hidden sm:flex hover:bg-slate-50 transition-colors group">
+                              
+                              {/* Left Col: Time & Status */}
+                              <div className="w-[85px] md:w-[100px] shrink-0 border-r border-slate-100 flex flex-col items-center justify-center py-3 px-2 gap-1 bg-slate-50/50">
+                                <span className={`text-[12px] md:text-[13px] font-black uppercase tracking-widest ${isFinished ? 'text-slate-400' : isLive ? 'text-red-600 animate-pulse' : 'text-slate-900'}`}>
+                                  {isFinished ? 'KT' : isLive ? 'LIVE' : matchTimeStr}
                                 </span>
-                              )}
+                                <span className="text-[9px] md:text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded text-center leading-tight truncate w-full" title={match.category}>
+                                  {match.category.replace('FIFA World Cup 2026 - ', '')}
+                                </span>
+                                {match.ground && match.ground !== "Chưa xác định" && (
+                                  <span className="text-[8px] md:text-[9px] font-medium text-slate-500 text-center leading-tight mt-0.5 px-1 truncate w-full" title={match.ground}>
+                                    🏟 {match.ground}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Middle Col: PERFECT HORIZONTAL ALIGNMENT */}
+                              <div className="flex-1 flex items-center justify-center py-2 px-2 md:px-4">
+                                <div className="w-full max-w-[500px] flex items-center justify-center relative">
+                                  
+                                  {/* Team 1 */}
+                                  <div className="flex-1 flex items-center justify-end gap-3 min-w-0 pr-4">
+                                    <span className={`text-[13px] md:text-[15px] truncate text-right ${isFinished && score1Num !== null && score2Num !== null && score1Num > score2Num ? 'font-black text-slate-900' : 'font-bold text-slate-700'}`}>
+                                      {match.team1.name}
+                                    </span>
+                                    <img src={match.team1.logo} alt={match.team1.name} className="w-7 h-7 object-contain shrink-0" />
+                                  </div>
+                                  
+                                  {/* Score / VS */}
+                                  <div className="w-[70px] md:w-[80px] shrink-0 flex items-center justify-center border-x border-slate-100/50 bg-slate-50 py-2 rounded">
+                                    {score1Num !== null && score2Num !== null ? (
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-[18px] md:text-[20px] font-black text-slate-900">{match.score1}</span>
+                                        <span className="text-[13px] font-bold text-slate-300">-</span>
+                                        <span className="text-[18px] md:text-[20px] font-black text-slate-900">{match.score2}</span>
+                                      </div>
+                                    ) : (
+                                      <span className="text-[13px] font-black text-slate-300 italic">VS</span>
+                                    )}
+                                  </div>
+
+                                  {/* Team 2 */}
+                                  <div className="flex-1 flex items-center justify-start gap-3 min-w-0 pl-4">
+                                    <img src={match.team2.logo} alt={match.team2.name} className="w-7 h-7 object-contain shrink-0" />
+                                    <span className={`text-[13px] md:text-[15px] truncate text-left ${isFinished && score1Num !== null && score2Num !== null && score2Num > score1Num ? 'font-black text-slate-900' : 'font-bold text-slate-700'}`}>
+                                      {match.team2.name}
+                                    </span>
+                                  </div>
+
+                                </div>
+                              </div>
+
+                              {/* Right Col: Clean Premium Button */}
+                              <div className="w-[80px] md:w-[110px] shrink-0 border-l border-slate-100 flex items-center justify-center px-2 md:px-3 py-2">
+                                <Link 
+                                  href={`/du-doan/${match.id}`} 
+                                  className="w-full flex flex-col items-center justify-center py-1.5 px-0.5 rounded-md border border-slate-200 text-slate-500 hover:border-green-600 hover:text-green-600 hover:bg-green-50 transition-all duration-200 group/btn bg-white"
+                                >
+                                  <Bot className="w-4 h-4 mb-1 group-hover/btn:scale-110 transition-transform" />
+                                  <span className="text-[9px] font-black uppercase tracking-widest text-center leading-tight">Phân<br/>Tích</span>
+                                </Link>
+                              </div>
+
                             </div>
 
-                            {/* Middle Col: PERFECT HORIZONTAL ALIGNMENT */}
-                            <div className="flex-1 flex items-center justify-center py-3 px-2 md:px-4">
-                              <div className="w-full max-w-[500px] flex items-center justify-center relative">
-                                
+                            {/* MOBILE LAYOUT (Clean, Stacked & Wrap-Free) */}
+                            <div className="sm:hidden flex items-center justify-between p-4 hover:bg-slate-50/50 transition-colors border-b border-slate-100 group">
+                              {/* Left: Time & Category */}
+                              <div className="flex flex-col justify-center gap-1.5 shrink-0 w-[60px]">
+                                <span className={`text-[13px] font-black uppercase tracking-wider ${isFinished ? 'text-slate-400' : isLive ? 'text-red-600 animate-pulse' : 'text-slate-900'}`}>
+                                  {isFinished ? 'KT' : isLive ? 'LIVE' : matchTimeStr}
+                                </span>
+                                <span className="text-[9px] font-bold text-slate-400 tracking-tight truncate bg-slate-50 border border-slate-200/60 px-1.5 py-0.5 rounded w-fit">
+                                  {match.category.replace('FIFA World Cup 2026 - ', '')}
+                                </span>
+                              </div>
+
+                              {/* Center: Teams (stacked layout like Sofascore) */}
+                              <div className="flex-grow flex flex-col gap-2 px-3.5 min-w-0">
                                 {/* Team 1 */}
-                                <div className="flex-1 flex items-center justify-end gap-3 min-w-0 pr-4">
-                                  <span className={`text-[13px] md:text-[15px] truncate text-right ${isFinished && score1Num !== null && score2Num !== null && score1Num > score2Num ? 'font-black text-slate-900' : 'font-bold text-slate-700'}`}>
-                                    {match.team1.name}
-                                  </span>
-                                  <img src={match.team1.logo} alt={match.team1.name} className="w-7 h-7 object-contain shrink-0" />
-                                </div>
-                                
-                                {/* Score / VS */}
-                                <div className="w-[80px] shrink-0 flex items-center justify-center border-x border-slate-100/50 bg-slate-50 py-2 rounded">
-                                  {score1Num !== null && score2Num !== null ? (
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-[20px] font-black text-slate-900">{match.score1}</span>
-                                      <span className="text-[13px] font-bold text-slate-300">-</span>
-                                      <span className="text-[20px] font-black text-slate-900">{match.score2}</span>
-                                    </div>
-                                  ) : (
-                                    <span className="text-[13px] font-black text-slate-300 italic">VS</span>
+                                <div className="flex items-center justify-between w-full">
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <img src={match.team1.logo} alt={match.team1.name} className="w-5 h-5 object-contain shrink-0" />
+                                    <span className={`text-[13px] truncate ${isFinished && score1Num !== null && score2Num !== null && score1Num > score2Num ? 'font-black text-slate-900' : 'font-semibold text-slate-700'}`}>
+                                      {match.team1.name}
+                                    </span>
+                                  </div>
+                                  {score1Num !== null && (
+                                    <span className="text-[14px] font-black text-slate-900 pr-1">{match.score1}</span>
                                   )}
                                 </div>
 
                                 {/* Team 2 */}
-                                <div className="flex-1 flex items-center justify-start gap-3 min-w-0 pl-4">
-                                  <img src={match.team2.logo} alt={match.team2.name} className="w-7 h-7 object-contain shrink-0" />
-                                  <span className={`text-[13px] md:text-[15px] truncate text-left ${isFinished && score1Num !== null && score2Num !== null && score2Num > score1Num ? 'font-black text-slate-900' : 'font-bold text-slate-700'}`}>
-                                    {match.team2.name}
-                                  </span>
+                                <div className="flex items-center justify-between w-full">
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <img src={match.team2.logo} alt={match.team2.name} className="w-5 h-5 object-contain shrink-0" />
+                                    <span className={`text-[13px] truncate ${isFinished && score1Num !== null && score2Num !== null && score2Num > score1Num ? 'font-black text-slate-900' : 'font-semibold text-slate-700'}`}>
+                                      {match.team2.name}
+                                    </span>
+                                  </div>
+                                  {score2Num !== null && (
+                                    <span className="text-[14px] font-black text-slate-900 pr-1">{match.score2}</span>
+                                  )}
                                 </div>
+                              </div>
 
+                              {/* Right: Circle Analysis Button */}
+                              <div className="shrink-0 pl-1">
+                                <Link 
+                                  href={`/du-doan/${match.id}`} 
+                                  className="px-3 py-1.5 rounded-full bg-slate-900 text-white hover:bg-green-600 text-[10px] font-black uppercase tracking-wider flex items-center gap-1 active:scale-95 transition-all shadow-sm border border-slate-900"
+                                  title="Phân tích"
+                                >
+                                  <Cpu className="w-3 h-3 text-green-400" />
+                                  <span>Xem AI</span>
+                                </Link>
                               </div>
                             </div>
-
-                            {/* Right Col: Clean Premium Button */}
-                            <div className="w-[80px] md:w-[110px] shrink-0 border-l border-slate-100 flex items-center justify-center px-3 py-3">
-                              <Link 
-                                href={`/du-doan/${match.id}`} 
-                                className="w-full flex flex-col items-center justify-center py-2 px-1 rounded-md border border-slate-200 text-slate-500 hover:border-green-600 hover:text-green-600 hover:bg-green-50 transition-all duration-200 group/btn bg-white"
-                              >
-                                <Bot className="w-4 h-4 mb-1 group-hover/btn:scale-110 transition-transform" />
-                                <span className="text-[9px] font-black uppercase tracking-widest text-center leading-tight">Phân<br/>Tích</span>
-                              </Link>
-                            </div>
-
-                          </div>
+                          </>
                        )
                     })}
                   </div>
@@ -365,10 +442,10 @@ export default function PredictionClientPage() {
         </div>
         
         {/* RIGHT SIDEBAR (Widgets) */}
-        <div className="w-full lg:w-[320px] shrink-0 space-y-6">
+        <div className="w-full lg:w-[320px] shrink-0 space-y-4 md:space-y-6">
           
           {/* AI Banner Widget */}
-          <div className="bg-slate-900 rounded-xl p-6 relative overflow-hidden shadow-lg border border-slate-800">
+          <div className="bg-slate-900 rounded-xl p-4 md:p-6 relative overflow-hidden shadow-lg border border-slate-800">
             <div className="absolute -right-10 -bottom-10 opacity-10">
               <Activity className="w-48 h-48 text-white" />
             </div>
@@ -388,7 +465,7 @@ export default function PredictionClientPage() {
           </div>
 
           {/* Warning Widget */}
-          <div className="bg-yellow-50 rounded-xl p-5 border border-yellow-200 shadow-sm relative overflow-hidden">
+          <div className="bg-yellow-50 rounded-xl p-4 md:p-6 border border-yellow-200 shadow-sm relative overflow-hidden">
             <div className="flex items-center gap-2 mb-3 text-yellow-800">
               <AlertCircle className="w-4 h-4" />
               <span className="text-[12px] font-black uppercase tracking-widest">Khuyến Cáo Vận Hành</span>

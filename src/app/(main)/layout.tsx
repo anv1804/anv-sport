@@ -1,5 +1,7 @@
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import BackToTop from "@/components/layout/BackToTop";
+import MobileQuickMenu from "@/components/layout/MobileQuickMenu";
 import { getSetting } from "@/app/admin/(dashboard)/settings/actions";
 import { DEFAULT_HEADER_SETTINGS, DEFAULT_MENU_SETTINGS, DEFAULT_FOOTER_SETTINGS, DEFAULT_HAMBURGER_SETTINGS } from "@/types/settings";
 
@@ -81,7 +83,7 @@ export default async function MainLayout({
   ];
 
   return (
-    <div className="min-h-screen flex flex-col pt-[112px] font-client-ui">
+    <div className="min-h-screen flex flex-col pt-[128px] md:pt-[112px] font-client-ui">
       <Header 
         headerData={headerData} 
         menuData={menuData} 
@@ -91,6 +93,8 @@ export default async function MainLayout({
       />
       <div className="flex-grow flex flex-col">{children}</div>
       <Footer footerData={footerData} />
+      <BackToTop />
+      <MobileQuickMenu />
     </div>
   );
 }
