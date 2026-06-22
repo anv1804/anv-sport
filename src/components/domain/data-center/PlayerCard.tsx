@@ -12,9 +12,7 @@ interface PlayerCardProps {
 }
 
 export function PlayerCard({ player }: PlayerCardProps) {
-  let position = 'Cầu thủ';
-  let nationality = '';
-  let height = '';
+  let clubName = 'Chưa có CLB';
 
   if (player.basicInfo) {
     try {
@@ -22,7 +20,13 @@ export function PlayerCard({ player }: PlayerCardProps) {
       position = info.position || 'Cầu thủ';
       nationality = info.nationality || '';
       height = info.height || '';
+      if (info.currentClub) clubName = info.currentClub;
+      else if (info.clubName) clubName = info.clubName;
     } catch (e) {}
+  }
+
+  if (player.club) {
+    clubName = player.club.name;
   }
 
   return (
@@ -43,7 +47,7 @@ export function PlayerCard({ player }: PlayerCardProps) {
             {player.name}
           </h3>
           <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-1 truncate">
-            {player.club ? player.club.name : 'Chưa có CLB'}
+            {clubName}
           </p>
 
           <div className="mt-3 flex gap-4">

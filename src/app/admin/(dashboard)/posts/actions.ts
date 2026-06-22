@@ -259,16 +259,21 @@ export async function generateArticleWithAI(title: string, url: string, isForeig
         const customCaption = $(el).closest("table, div, figure").find(".Image, .fig, .caption, .description, p:last-child").text().trim();
         const description = (figcaption || customCaption || alt).replace(/\n/g, " ").replace(/\s+/g, " ").trim();
         
-        // Lọc kỹ các ảnh rác, logo, banner, tracking pixel
+        // Lọc kỹ các ảnh rác, logo, banner, tracking pixel và 18+/Ads
+        const srcLower = src.toLowerCase();
+        const altLower = description.toLowerCase();
+        const isUnsafe = /nsfw|porn|sex|nude|naked|adult|xxx|onlyfans|xvideos|escort|hookup|babes|bikini|model|girl|hot|sexy|boobs|ass|tits|scandal|nguc|vu|mong|18\+|gai|bikini|noi-y|do-lot|casino|betting|gamble|loto|ads|adserving|taboola|outbrain|mgid|admicro|eclick|adbox/i.test(srcLower) || /nsfw|porn|sex|nude|naked|adult|xxx|onlyfans|xvideos|escort|hookup|babes|bikini|model|girl|hot|sexy|boobs|ass|tits|scandal|nguc|vu|mong|18\+|gai|bikini|noi-y|do-lot|casino/i.test(altLower);
+
         if (
           src.startsWith("http") && 
-          !src.includes("pixel") && 
-          !src.includes("icon") && 
-          !src.includes("graphics") && 
-          !src.includes("logo") && 
-          !src.includes("banner") && 
-          !src.toLowerCase().endsWith(".svg") &&
-          src.length > 20
+          !srcLower.includes("pixel") && 
+          !srcLower.includes("icon") && 
+          !srcLower.includes("graphics") && 
+          !srcLower.includes("logo") && 
+          !srcLower.includes("banner") && 
+          !srcLower.endsWith(".svg") &&
+          src.length > 20 &&
+          !isUnsafe
         ) {
           // Bọc qua weserv.nl proxy để lách luật chống hotlink (403 Forbidden)
           const urlWithoutProtocol = src.replace(/^https?:\/\//, "");
@@ -279,8 +284,6 @@ export async function generateArticleWithAI(title: string, url: string, isForeig
           }
         }
       });
-
-      extractedImages = extractedImages.slice(0, 5);
       $("script, style, nav, header, footer, iframe, noscript, aside, .author, .author-name, .tac-gia, .nguoi-viet, .related-news, .tin-lien-quan, .tags, .box-tags, .comments, .sidebar, .share, .social, [class*='author'], [class*='related']").remove();
       
       // Xoá thẻ p cuối cùng nếu nó ngắn (dưới 15 từ) vì thường đó là chữ ký tác giả/nguồn báo
@@ -305,52 +308,9 @@ export async function generateArticleWithAI(title: string, url: string, isForeig
     if (queryForSearch) {
       console.log(`[AI Research] Đang tìm kiếm thông tin mở rộng cho: ${queryForSearch}...`);
       
-      // Dùng AI Box để trích xuất keyword tiếng Anh chuẩn xác cho việc tìm ảnh
-      const aiKey = process.env.AI_BOX_API_KEY;
-      const aiBaseUrl = process.env.AI_BOX_BASE_URL || 'https://api.ai-box.vn';
-      let imgQuery = queryForSearch;
-      try {
-        if (aiKey) {
-          const openai = new OpenAI({
-            apiKey: aiKey,
-            baseURL: aiBaseUrl.endsWith('/v1') ? aiBaseUrl : `${aiBaseUrl}/v1`
-          });
-          
-          const keywordPrompt = `You are an expert at finding images for news articles.
-Based on the following article context, extract the most accurate 2-3 word English search query for Bing Images. 
-CRITICAL RULE: Target ONLY the main SPORTS subject (e.g. specific player names, team names, or match). The query MUST BE strictly related to sports and absolutely safe for work. Do not include vague words.
-
-Title: ${queryForSearch}
-Excerpt: ${sourceContent.substring(0, 400)}
-Image Captions: ${extractedImages.map(img => img.description).join(" | ")}
-
-Reply with ONLY the search query, no quotes, no explanation.`;
-
-          const fetchPromise = openai.chat.completions.create({
-            model: 'deepseek-v4-flash', // Dùng model nhẹ, rẻ và cực nhanh cho tác vụ trích xuất keyword đơn giản
-            messages: [{ role: 'user', content: keywordPrompt }],
-            temperature: 0.3
-          });
-          
-          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout AI Research")), 15000));
-          const keywordRes: any = await Promise.race([fetchPromise, timeoutPromise]);
-          
-          if (keywordRes && keywordRes.choices && keywordRes.choices.length > 0) {
-            imgQuery = keywordRes.choices[0].message.content.trim();
-            console.log(`[AI Research] Extracted Image Query (AI Box): ${imgQuery}`);
-          }
-        }
-      } catch (e) {
-        console.error("Lỗi trích xuất keyword:", e);
-      }
-
-      const [info, images] = await Promise.all([
-        searchWebForInfo(queryForSearch), // Vẫn dùng tiếng Việt để tìm info
-        searchWebForImages(imgQuery)      // Dùng tiếng Anh chuẩn xác để tìm ảnh
-      ]);
+      const info = await searchWebForInfo(queryForSearch);
       researchInfo = info;
-      externalImages = images;
-      console.log(`[AI Research] Đã lấy được ${info.split('\n').length - 1} nguồn thông tin và ${images.length} hình ảnh.`);
+      console.log(`[AI Research] Đã lấy được ${info.split('\n').length - 1} nguồn thông tin.`);
     }
 
     // Xác định ảnh Thumbnail trước để loại trừ khỏi bài viết (tránh lặp)
@@ -367,20 +327,7 @@ Reply with ONLY the search query, no quotes, no explanation.`;
       seenUrls.add(img.url);
       return true;
     });
-    let finalImages = uniqueImages.slice(0, 3); // Max 3 images to prevent repetition
-    
-    // Fallback: Nếu không đủ 2 ảnh, tìm kiếm thêm hình ảnh dựa trên tiêu đề gốc
-    if (finalImages.length < 2 && queryForSearch) {
-      console.log("[AI Research] Không đủ 2 ảnh, tiến hành tìm kiếm mở rộng thêm...");
-      const fallbackImages = await searchWebForImages(queryForSearch + " sport football");
-      for (const img of fallbackImages) {
-        if (!seenUrls.has(img.url)) {
-          seenUrls.add(img.url);
-          finalImages.push(img);
-        }
-      }
-      finalImages = finalImages.slice(0, 3); // Cắt lại tối đa 3 ảnh
-    }
+    let finalImages = uniqueImages;
     
     // Ánh xạ URL dài thành ID ngắn để tiết kiệm Token đầu vào và đầu ra
     const imageMap: Record<string, string> = {};

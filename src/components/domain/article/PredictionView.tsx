@@ -55,9 +55,7 @@ export function PredictionView({ post, predictionData }: { post: any, prediction
 
       {/* PREDICTION COMPONENTS */}
       <MatchHeader {...predictionData.header} />
-      
-      <FormAndH2H {...predictionData.formAndH2h} />
-
+      <FormAndH2H {...predictionData.formAndH2h} team1Name={predictionData.header.team1.name} team2Name={predictionData.header.team2.name} />
       {/* ADVANCED METRICS */}
       {predictionData.advancedMetrics && (() => {
         const am = predictionData.advancedMetrics as any;

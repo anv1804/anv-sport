@@ -97,7 +97,7 @@ export async function crawlClubs(league: string) {
     
     let count = 0;
     for (const team of data.teams) {
-      const slug = team.strTeam.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+      const slug = team.strTeam.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
       
       const basicInfo = JSON.stringify({
         formedYear: team.intFormedYear,
@@ -112,14 +112,14 @@ export async function crawlClubs(league: string) {
         where: { slug },
         update: {
           name: team.strTeam,
-          logo: team.strTeamBadge,
+          logo: team.strBadge || team.strLogo || null,
           sportType: 'FOOTBALL',
           basicInfo: basicInfo
         },
         create: {
           name: team.strTeam,
           slug: slug,
-          logo: team.strTeamBadge,
+          logo: team.strBadge || team.strLogo || null,
           sportType: 'FOOTBALL',
           basicInfo: basicInfo
         }
@@ -136,30 +136,228 @@ export async function crawlClubs(league: string) {
   }
 }
 
-export async function batchExtractWikipediaClubs(urls: string[]) {
+export async function batchExtractWikipediaClubs(urls: string[], countryId?: string, leagueId?: string) {
   try {
     const results = [];
     const countries = await prisma.country.findMany();
     const leagues = await prisma.league.findMany();
 
-    for (const url of urls) {
+    const targetUrls = [...urls];
+
+    // Auto-crawl all teams in the league if selected and urls list is empty
+    if (leagueId && targetUrls.length === 0) {
+      const leagueObj = leagues.find(x => x.id === leagueId);
+      if (leagueObj) {
+        const staticLeagueTeams: {[key: string]: string[]} = {
+          'premier league': [
+            'Arsenal', 'Aston Villa', 'Bournemouth', 'Brentford', 'Brighton & Hove Albion', 
+            'Chelsea', 'Crystal Palace', 'Everton', 'Fulham', 'Ipswich Town', 
+            'Leicester City', 'Liverpool', 'Manchester City', 'Manchester United', 
+            'Newcastle United', 'Nottingham Forest', 'Southampton', 'Tottenham Hotspur', 
+            'West Ham United', 'Wolverhampton Wanderers'
+          ],
+          'bundesliga': [
+            'Bayern Munich', 'Borussia Dortmund', 'Bayer Leverkusen', 'RB Leipzig', 
+            'VfB Stuttgart', 'Eintracht Frankfurt', 'Hoffenheim', 'Heidenheim', 
+            'Werder Bremen', 'Freiburg', 'Augsburg', 'Wolfsburg', 
+            'Mainz 05', 'Borussia Mönchengladbach', 'Union Berlin', 'VfL Bochum', 
+            'St. Pauli', 'Holstein Kiel'
+          ],
+          'la liga': [
+            'Real Madrid', 'Barcelona', 'Girona', 'Atletico Madrid', 'Athletic Bilbao', 
+            'Real Sociedad', 'Real Betis', 'Villarreal', 'Valencia', 'Alaves', 
+            'Osasuna', 'Getafe', 'Celta Vigo', 'Sevilla', 'Mallorca', 
+            'Las Palmas', 'Rayo Vallecano', 'Leganes', 'Real Valladolid', 'Espanyol'
+          ],
+          'serie a': [
+            'Inter Milan', 'AC Milan', 'Juventus', 'Atalanta', 'Bologna', 
+            'AS Roma', 'Lazio', 'Fiorentina', 'Torino', 'Napoli', 
+            'Genoa', 'Monza', 'Verona', 'Lecce', 'Udinese', 
+            'Cagliari', 'Empoli', 'Parma', 'Como', 'Venezia'
+          ],
+          'ligue 1': [
+            'Paris Saint-Germain', 'Monaco', 'Lille', 'Brest', 'Nice', 
+            'Lens', 'Lyon', 'Marseille', 'Reims', 'Rennes', 
+            'Toulouse', 'Montpellier', 'Strasbourg', 'Le Havre', 'Nantes', 
+            'Auxerre', 'Angers', 'Saint-Etienne'
+          ],
+          'v.league 1': [
+            'Thép Xanh Nam Định', 'Hà Nội FC', 'Công An Hà Nội', 'Đông Á Thanh Hóa', 'Thể Công Viettel',
+            'Hải Phòng FC', 'Becamex Bình Dương', 'Quy Nhơn Bình Định', 'Hồng Lĩnh Hà Tĩnh', 'Sông Lam Nghệ An',
+            'Hoàng Anh Gia Lai', 'Quảng Nam FC', 'SHB Đà Nẵng', 'Hồ Chí Minh City FC'
+          ]
+        };
+
+        const leagueKey = leagueObj.name.toLowerCase();
+        
+        // 1. Check if we have static teams list
+        if (staticLeagueTeams[leagueKey]) {
+          const teamNames = staticLeagueTeams[leagueKey];
+          for (const name of teamNames) {
+            // Find team from TheSportsDB
+            try {
+              const res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=${encodeURIComponent(name)}`);
+              if (res.ok) {
+                const data = await res.json();
+                if (data.teams && data.teams.length > 0) {
+                  // Find exact or closest match
+                  const team = data.teams.find((t: any) => t.strTeam.toLowerCase() === name.toLowerCase()) || data.teams[0];
+                  
+                  const slug = team.strTeam.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+                  
+                  const existing = await prisma.club.findFirst({
+                    where: {
+                      OR: [
+                        { slug },
+                        { name: { equals: team.strTeam, mode: 'insensitive' } }
+                      ]
+                    }
+                  });
+
+                  if (existing) {
+                    results.push({ url: team.strTeam, status: 'success', name: `${team.strTeam} (Đã tồn tại - Bỏ qua)` });
+                    continue;
+                  }
+
+                  const basicInfo = JSON.stringify({
+                    fullName: team.strTeam,
+                    nickname: team.strAlternate || '',
+                    formedYear: team.intFormedYear ? `${team.intFormedYear}-01-01` : '',
+                    stadium: team.strStadium || '',
+                    stadiumCapacity: team.intStadiumCapacity || '',
+                    manager: '',
+                    website: team.strWebsite || '',
+                    description: team.strDescriptionEN || ''
+                  });
+
+                  await prisma.club.create({
+                    data: {
+                      name: team.strTeam,
+                      slug,
+                      logo: team.strBadge || team.strLogo || null,
+                      sportType: 'FOOTBALL',
+                      basicInfo,
+                      countryId: countryId || leagueObj.countryId || null,
+                      leagueId: leagueId,
+                      achievements: '[]'
+                    }
+                  });
+                  results.push({ url: team.strTeam, status: 'success', name: team.strTeam });
+                }
+              }
+            } catch (err) {
+              console.error(`Error crawling static team ${name}:`, err);
+            }
+          }
+          revalidatePath('/admin/clubs');
+          return { success: true, results };
+        } else {
+          // Fallback to name search on TheSportsDB (limited to 10 results but correct)
+          const thesportsdbLeagueNames: {[key: string]: string} = {
+            'ngoại hạng anh': 'English Premier League',
+            'premier league': 'English Premier League',
+            'hạng nhất anh': 'English Championship',
+            'efl championship': 'English Championship',
+            'efl league one': 'English League 1',
+            'la liga': 'Spanish La Liga',
+            'vô địch quốc gia tây ban nha': 'Spanish La Liga',
+            'segunda división': 'Spanish La Liga 2',
+            'serie a': 'Italian Serie A',
+            'vô địch quốc gia ý': 'Italian Serie A',
+            'vô địch quốc gia italia': 'Italian Serie A',
+            'serie b': 'Italian Serie B',
+            'bundesliga': 'German Bundesliga',
+            'vô địch quốc gia đức': 'German Bundesliga',
+            '2. bundesliga': 'German 2. Bundesliga',
+            'ligue 1': 'French Ligue 1',
+            'vô địch quốc gia pháp': 'French Ligue 1',
+            'ligue 2': 'French Ligue 2',
+            'v.league 1': 'Vietnamese V.League 1',
+            'v-league': 'Vietnamese V.League 1'
+          };
+          const searchLeagueName = thesportsdbLeagueNames[leagueKey] || leagueObj.name;
+          const fetchUrl = `https://www.thesportsdb.com/api/v1/json/3/search_all_teams.php?l=${encodeURIComponent(searchLeagueName)}`;
+          
+          try {
+            const apiRes = await fetch(fetchUrl);
+            if (apiRes.ok) {
+              const apiData = await apiRes.json();
+              if (apiData.teams && apiData.teams.length > 0) {
+                for (const team of apiData.teams) {
+                  const slug = team.strTeam.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+                  
+                  const existing = await prisma.club.findFirst({
+                    where: {
+                      OR: [
+                        { slug },
+                        { name: { equals: team.strTeam, mode: 'insensitive' } }
+                      ]
+                    }
+                  });
+
+                  if (existing) {
+                    results.push({ url: team.strTeam, status: 'success', name: `${team.strTeam} (Đã tồn tại - Bỏ qua)` });
+                    continue;
+                  }
+
+                  const basicInfo = JSON.stringify({
+                    fullName: team.strTeam,
+                    nickname: team.strAlternate || '',
+                    formedYear: team.intFormedYear ? `${team.intFormedYear}-01-01` : '',
+                    stadium: team.strStadium || '',
+                    stadiumCapacity: team.intStadiumCapacity || '',
+                    manager: '',
+                    website: team.strWebsite || '',
+                    description: team.strDescriptionEN || ''
+                  });
+
+                  await prisma.club.create({
+                    data: {
+                      name: team.strTeam,
+                      slug,
+                      logo: team.strBadge || team.strLogo || null,
+                      sportType: 'FOOTBALL',
+                      basicInfo,
+                      countryId: countryId || leagueObj.countryId || null,
+                      leagueId: leagueId,
+                      achievements: '[]'
+                    }
+                  });
+                  results.push({ url: team.strTeam, status: 'success', name: team.strTeam });
+                }
+              }
+            }
+          } catch (err) {
+            console.error("Fallback search all teams error:", err);
+          }
+          
+          revalidatePath('/admin/clubs');
+          return { success: true, results };
+        }
+      }
+    }
+
+    // Manual URLs or list of names
+    for (const url of targetUrls) {
       if (!url.trim()) continue;
       
       const res = await extractWikipediaClub(url.trim());
       if (res.success && res.data) {
-        let matchedCountryId: string | null = null;
-        let matchedLeagueId: string | null = null;
+        let matchedCountryId: string | null = countryId || null;
+        let matchedLeagueId: string | null = leagueId || null;
 
-        if (res.data.country) {
-          const c = countries.find(x => res.data.country.toLowerCase().includes(x.name.toLowerCase()) || x.name.toLowerCase().includes(res.data.country.toLowerCase()));
-          if (c) matchedCountryId = c.id;
-        }
-        if (!matchedCountryId && res.data.country) {
-          const c = countries.find(x => x.slug.toLowerCase() === res.data.country.toLowerCase() || res.data.country.toLowerCase().includes(x.slug.toLowerCase()));
-          if (c) matchedCountryId = c.id;
+        if (!matchedCountryId) {
+          if (res.data.country) {
+            const c = countries.find(x => res.data.country.toLowerCase().includes(x.name.toLowerCase()) || x.name.toLowerCase().includes(res.data.country.toLowerCase()));
+            if (c) matchedCountryId = c.id;
+          }
+          if (!matchedCountryId && res.data.country) {
+            const c = countries.find(x => x.slug.toLowerCase() === res.data.country.toLowerCase() || res.data.country.toLowerCase().includes(x.slug.toLowerCase()));
+            if (c) matchedCountryId = c.id;
+          }
         }
 
-        if (res.data.league) {
+        if (!matchedLeagueId && res.data.league) {
           const leagueText = res.data.league.toLowerCase();
           const leagueAliases: {[key: string]: string} = {
             'ngoại hạng anh': 'premier league',
@@ -210,7 +408,22 @@ export async function batchExtractWikipediaClubs(urls: string[]) {
         }
 
         // Generate slug
-        const slug = res.data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+        const slug = res.data.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+
+        // Skip if already exists in manual crawl mode too
+        const existing = await prisma.club.findFirst({
+          where: {
+            OR: [
+              { slug },
+              { name: { equals: res.data.name, mode: 'insensitive' } }
+            ]
+          }
+        });
+
+        if (existing) {
+          results.push({ url, status: 'success', name: `${res.data.name} (Đã tồn tại - Bỏ qua)` });
+          continue;
+        }
 
         try {
           await prisma.club.create({
@@ -440,10 +653,68 @@ export async function deleteMultipleClubs(ids: string[]) {
   revalidatePath('/trung-tam-du-lieu');
 }
 
+async function fetchClubFromTheSportsDB(nameOrUrl: string) {
+  let name = nameOrUrl;
+  if (nameOrUrl.includes('wikipedia.org')) {
+    const parts = nameOrUrl.split('/wiki/');
+    if (parts.length > 1) {
+      name = decodeURIComponent(parts[1]).replace(/_/g, ' ');
+    }
+  }
+  
+  const searchName = name.replace(/\s*\(.*?\)\s*/g, '').trim();
+  
+  try {
+    const res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=${encodeURIComponent(searchName)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.teams && data.teams.length > 0) {
+        // Find the closest name match
+        const exactMatch = data.teams.find((t: any) => 
+          t.strTeam.toLowerCase() === searchName.toLowerCase() ||
+          t.strAlternate?.toLowerCase().includes(searchName.toLowerCase())
+        );
+        return exactMatch || data.teams[0];
+      }
+    }
+  } catch (e) {
+    console.error("Error searching TheSportsDB:", e);
+  }
+  return null;
+}
+
 export async function extractWikipediaClub(url: string) {
   try {
+    // 1. Try to fetch from TheSportsDB first for speed & standard naming
+    const team = await fetchClubFromTheSportsDB(url);
+    if (team) {
+      const basicInfo = {
+        fullName: team.strTeam,
+        nickname: team.strAlternate || '',
+        formedYear: team.intFormedYear ? `${team.intFormedYear}-01-01` : '',
+        stadium: team.strStadium || '',
+        stadiumCapacity: team.intStadiumCapacity || '',
+        manager: '',
+        website: team.strWebsite || '',
+        description: team.strDescriptionEN || ''
+      };
+      
+      return {
+        success: true,
+        data: {
+          name: team.strTeam,
+          logo: team.strBadge || team.strLogo || '',
+          country: team.strCountry || '',
+          league: team.strLeague || '',
+          achievements: [],
+          basicInfo: JSON.stringify(basicInfo)
+        }
+      };
+    }
+
+    // 2. Fallback to Wikipedia scrape if not found on TheSportsDB
     if (!url.includes('wikipedia.org')) {
-      return { success: false, error: 'Vui lòng nhập link Wikipedia hợp lệ' };
+      return { success: false, error: 'Vui lòng nhập link Wikipedia hợp lệ hoặc tên đội bóng hợp lệ' };
     }
 
     const res = await fetch(url, {
@@ -520,26 +791,54 @@ export async function extractWikipediaClub(url: string) {
     // Clean up disambiguation
     name = name.replace(/\s*\(.*?\)\s*/g, '').trim();
 
-    // Clean up name aggressively for international standards
     const prefixesSuffixes = [
-      'Câu lạc bộ bóng đá ', 'Câu lạc bộ ', 
-      ' F\\.C\\.', ' FC', ' A\\.F\\.C\\.', ' AFC', 'Football Club ', ' Fútbol Club', 'Fútbol Club ', 'Club de Fútbol ', ' Club de Fútbol',
-      ' S\\.r\\.l\\.', ' s\\.r\\.l\\.', ' S\\.R\\.L\\.', ' S\\.R\\.L', ' Srl',
-      ' S\\.p\\.A\\.', ' S\\.p\\.A', ' SpA',
-      ' A\\.S\\.', ' S\\.S\\.', ' U\\.S\\.',
-      'Associazione Sportiva ', 'Società Sportiva ', 'Unione Sportiva ', 'Associazione Calcistica ',
-      'Fußball-Club ', 'Fußball Club ', 'Fussballclub ', '1\\. FC ', '1\\. Fußball-Club ',
-      'Sportverein ', 'Turn- und Sportverein ', 'Deutscher Sport-Club ', 'Meidericher Spielverein ', 'Spielvereinigung ', 'Sport-Club ', 'Verein für Leibesübungen ',
-      ' e\\. V\\.', ' e\\.V\\.', ' e\\. V', 'e\\.V\\.',
-      ', S\\.A\\.D\\.', ' S\\.A\\.D\\.', ' S\\.A\\.D', 'S\\.A\\.D\\.',
-      'Club Atlético ', 'Racing Club ', 'Unión Deportiva ', 'Balompié',
-      'Delfino ', 'Calcio '
+      '^Câu lạc bộ bóng đá ', '^Câu lạc bộ ', 
+      '\\bF\\.C\\.\\b', '\\bFC\\b', '\\bA\\.F\\.C\\.\\b', '\\bAFC\\b', '\\bFootball Club\\b', '\\bFútbol Club\\b', '\\bFútbol Club\\b', '\\bClub de Fútbol\\b',
+      '\\bS\\.r\\.l\\.\\b', '\\bs\\.r\\.l\\.\\b', '\\bS\\.R\\.L\\.\\b', '\\bSrl\\b',
+      '\\bS\\.p\\.A\\.\\b', '\\bSpA\\b',
+      '\\bA\\.S\\.\\b', '\\bS\\.S\\.\\b', '\\bU\\.S\\.\\b', '\\bSC\\b', '\\bS\\.C\\.\\b',
+      '\\bAssociazione Sportiva\\b', '\\bSocietà Sportiva\\b', '\\bUnione Sportiva\\b', '\\bAssociazione Calcistica\\b',
+      '\\bFußball-Club\\b', '\\bFußball Club\\b', '\\bFussballclub\\b', '\\b1\\.\\s*FC\\b', '\\b1\\.\\s*Fußball-Club\\b',
+      '\\bSportverein\\b', '\\bTurn-\\s*und\\s*Sportverein\\b', '\\bDeutscher\\s*Sport-Club\\b', '\\bMeidericher\\s*Spielverein\\b', '\\bSpielvereinigung\\b', '\\bSport-Club\\b', '\\bVerein\\s*für\\s*Leibesübungen\\b',
+      '\\be\\.\\s*V\\.\\b', '\\be\\.V\\.\\b',
+      '\\bS\\.A\\.D\\.\\b',
+      '\\bClub Atlético\\b', '\\bRacing Club\\b', '\\bUnión Deportiva\\b', '\\bBalompié\\b',
+      '\\bDelfino\\b', '\\bCalcio\\b',
+      '\\bVfL\\b', '\\bSV\\b', '\\bTSG\\b', '\\bFSV\\b', '\\bVfB\\b',
+      '^1\\.\\s+', '\\b(?:18|19)\\d{2}\\b'
     ];
     const regex = new RegExp(`(${prefixesSuffixes.join('|')})`, 'ig');
     name = name.replace(regex, '').trim();
     name = name.replace(/Mühlburg-Phönix/ig, '').trim();
     name = name.replace(/\s+von\s*$/i, '').trim();
     name = name.replace(/,\s*$/, '').trim();
+    name = name.replace(/\s+/g, ' ').trim();
+    name = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
+
+    // Use AI to standardize name to standard English/Vietnamese common football names
+    try {
+      const { generateWithFallback } = await import('@/lib/aiBox');
+      const aiPrompt = `Bạn là một chuyên gia bóng đá thế giới. Tôi có tên câu lạc bộ bóng đá lấy từ Wikipedia tiếng Việt/Đức/Anh là: "${name}".
+Hãy trả về duy nhất tên phổ biến nhất của câu lạc bộ này bằng tiếng Anh (hoặc tiếng Việt chuẩn bóng đá quốc tế, không chứa các từ viết tắt rác như FC, SC, SV, F.C. ở đầu hoặc cuối trừ khi nó là một phần bắt buộc của thương hiệu thương mại rất phổ biến như AC Milan).
+Ví dụ:
+- "Bayern Munchen" hoặc "Bayern Munich" -> "Bayern Munich"
+- "Manchester United" -> "Manchester United"
+- "Internazionale" hoặc "Inter Milano" -> "Inter Milan"
+- "Milan" -> "AC Milan"
+- "Sporting CP" hoặc "Sporting Clube de Portugal" -> "Sporting Lisbon"
+- "Athletic Club" -> "Athletic Bilbao"
+- "Real Madrid" -> "Real Madrid"
+- "Roma" -> "AS Roma"
+- "Monchengladbach" -> "Borussia Monchengladbach"
+
+Chỉ trả về chuỗi tên sạch nhất, không bao gồm bất kỳ dấu ngoặc kép, dấu chấm câu hay giải thích nào khác. Tên cần trả về:`;
+      const standardized = await generateWithFallback(aiPrompt, "You are a football naming expert. Return only the most common name.", true);
+      if (standardized && standardized.trim().length > 2) {
+        name = standardized.trim().replace(/^["']|["']$/g, '');
+      }
+    } catch (e) {
+      console.error("Lỗi AI khi chuẩn hóa tên CLB:", e);
+    }
 
     // Parse date from "D tháng M năm YYYY" or "YYYY" to YYYY-MM-DD
     let formattedDate = '';

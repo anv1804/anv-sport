@@ -30,7 +30,7 @@ export default async function ClubsAdminPage() {
         description="Quản lý danh sách các đội bóng, CLB thể thao trong hệ thống."
         actions={
           <div className="flex items-center gap-3">
-            <BatchCrawlButton />
+            <BatchCrawlButton countries={countries} leagues={leagues} />
             <Link href="/admin/clubs/new" className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg shadow-sm transition-colors flex items-center text-[13px]">
               <Plus className="w-4 h-4 mr-1.5" /> Thêm Mới
             </Link>

@@ -1,21 +1,92 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Search, Loader2, CheckCircle, AlertCircle, Info } from 'lucide-react';
-import { useAlert } from '@/components/providers/ConfirmProvider';
+import { CustomSelect } from './entity-form/CustomSelect';
 
-export function WikiCrawlerModal({ isOpen, onClose, onRefresh }: { isOpen: boolean; onClose: () => void; onRefresh: () => void }) {
-  const alert = useAlert();
+export function WikiCrawlerModal({ 
+  isOpen, 
+  onClose, 
+  onRefresh,
+  clubs = [],
+  countries = []
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  onRefresh: () => void;
+  clubs?: { id: string; name: string; countryId: string | null }[];
+  countries?: { id: string; name: string }[];
+}) {
   const [names, setNames] = useState('');
   const [lang, setLang] = useState('vi');
+  const [selectedCountryId, setSelectedCountryId] = useState('');
+  const [selectedClubId, setSelectedClubId] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Reset selected club if it doesn't belong to the newly selected country
+  useEffect(() => {
+    if (selectedCountryId) {
+      const isClubInCountry = clubs.some(c => c.id === selectedClubId && c.countryId === selectedCountryId);
+      if (!isClubInCountry) {
+        setSelectedClubId('');
+      }
+    }
+  }, [selectedCountryId, clubs, selectedClubId]);
   const [results, setResults] = useState<any[]>([]);
   const [progress, setProgress] = useState(0);
   const [currentName, setCurrentName] = useState('');
   const [processedCount, setProcessedCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
-  if (!isOpen) return null;
+  // Poll progress state from server
+  const pollProgress = async () => {
+    try {
+      const res = await fetch('/api/admin/crawler/wiki');
+      const data = await res.json();
+
+      if (data.success && data.progress) {
+        const prog = data.progress;
+        setResults(prog.results || []);
+        setProcessedCount(prog.processed || 0);
+        setTotalCount(prog.total || 0);
+        setCurrentName(prog.currentName || '');
+        
+        if (prog.total > 0) {
+          setProgress(Math.round((prog.processed / prog.total) * 100));
+        }
+
+        if (prog.status === 'running') {
+          setLoading(true);
+        } else if (prog.status === 'completed' || prog.status === 'failed') {
+          setLoading(false);
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current);
+            pollingRef.current = null;
+          }
+          onRefresh();
+        }
+      }
+    } catch (err) {
+      console.error('Error polling crawler progress:', err);
+    }
+  };
+
+  // Start polling on mount/open
+  useEffect(() => {
+    if (isOpen) {
+      pollProgress(); // Instant check
+      pollingRef.current = setInterval(pollProgress, 1500);
+    }
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [isOpen]);
 
   const handleCrawl = async () => {
     const nameList = names
@@ -23,50 +94,76 @@ export function WikiCrawlerModal({ isOpen, onClose, onRefresh }: { isOpen: boole
       .map(n => n.trim())
       .filter(n => n.length > 0);
 
-    if (nameList.length === 0) return;
+    if (nameList.length === 0 && !selectedClubId) return;
 
     setLoading(true);
     setResults([]);
     setProgress(0);
     setProcessedCount(0);
-    setTotalCount(nameList.length);
+    setTotalCount(nameList.length || 25); // Estimated for club crawl
 
-    let hasSuccess = false;
+    try {
+      const res = await fetch('/api/admin/crawler/wiki', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          action: 'start', 
+          names, 
+          lang,
+          clubId: selectedClubId || undefined
+        })
+      });
 
-    for (let i = 0; i < nameList.length; i++) {
-      const name = nameList[i];
-      setCurrentName(name);
+      const data = await res.json();
+      if (data.success) {
+        // Start polling immediately
+        if (pollingRef.current) clearInterval(pollingRef.current);
+        pollingRef.current = setInterval(pollProgress, 1500);
+      } else {
+        setLoading(false);
+        alert(data.error || 'Không thể bắt đầu tiến trình crawl.');
+      }
+    } catch (error) {
+      setLoading(false);
+      alert('Lỗi kết nối tới máy chủ');
+    }
+  };
+
+  const handleStop = async () => {
+    try {
+      const res = await fetch('/api/admin/crawler/wiki', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'stop' })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setLoading(false);
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+        }
+      }
+    } catch (e) {
+      console.error("Error stopping crawler:", e);
+    }
+  };
+
+  const handleClose = async () => {
+    // If completed or failed, clear the session on close so it starts fresh next time
+    if (!loading) {
       try {
-        const res = await fetch('/api/admin/crawler/wiki', {
+        await fetch('/api/admin/crawler/wiki', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ names: name, lang, skipIfExists: true })
+          body: JSON.stringify({ action: 'clear' })
         });
-
-        const data = await res.json();
-        if (data.success && data.results && data.results.length > 0) {
-          const resultItem = data.results[0];
-          setResults(prev => [...prev, resultItem]);
-          if (resultItem.status === 'success') {
-            hasSuccess = true;
-          }
-        } else {
-          setResults(prev => [...prev, { name, status: 'error', message: data.error || 'Có lỗi xảy ra' }]);
-        }
-      } catch (error) {
-        setResults(prev => [...prev, { name, status: 'error', message: 'Lỗi kết nối tới máy chủ' }]);
-      }
-
-      const newProcessedCount = i + 1;
-      setProcessedCount(newProcessedCount);
-      setProgress(Math.round((newProcessedCount / nameList.length) * 100));
+      } catch (e) {}
     }
-
-    if (hasSuccess) {
-      onRefresh();
-    }
-    setLoading(false);
+    onClose();
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
@@ -81,40 +178,107 @@ export function WikiCrawlerModal({ isOpen, onClose, onRefresh }: { isOpen: boole
               <p className="text-sm text-slate-500">Tự động lấy dữ liệu cầu thủ từ Wikipedia</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors p-2 rounded-full hover:bg-slate-200">
+          <button onClick={handleClose} className="text-slate-400 hover:text-slate-600 transition-colors p-2 rounded-full hover:bg-slate-200">
             <X size={24} />
           </button>
         </div>
 
         <div className="p-4 md:p-6 overflow-y-auto flex-1">
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Ngôn ngữ Wikipedia</label>
-              <select value={lang} onChange={e => setLang(e.target.value)} className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                <option value="vi">Tiếng Việt (vi.wikipedia.org)</option>
-                <option value="en">Tiếng Anh (en.wikipedia.org) - Khuyên dùng</option>
-              </select>
-            </div>
+            {!loading && processedCount === 0 && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">Ngôn ngữ Wikipedia</label>
+                    <CustomSelect 
+                      value={lang} 
+                      onChange={setLang} 
+                      options={[
+                        { value: 'vi', label: 'Tiếng Việt (vi.wikipedia.org)' },
+                        { value: 'en', label: 'Tiếng Anh (en.wikipedia.org) - Khuyên dùng' }
+                      ]} 
+                      placeholder="-- Chọn ngôn ngữ --"
+                    />
+                  </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1">Danh sách cầu thủ</label>
-              <textarea 
-                value={names}
-                onChange={e => setNames(e.target.value)}
-                placeholder="Nhập tên cầu thủ, mỗi tên một dòng (hoặc cách nhau bằng dấu phẩy).&#10;Ví dụ:&#10;Lionel Messi&#10;Cristiano Ronaldo"
-                className="w-full h-32 px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none text-sm"
-                disabled={loading}
-              />
-            </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">Lọc theo Quốc gia</label>
+                    <CustomSelect 
+                      value={selectedCountryId} 
+                      onChange={setSelectedCountryId} 
+                      options={[
+                        { value: '', label: '-- Tất cả quốc gia --' },
+                        ...countries.map(c => ({ value: c.id, label: c.name }))
+                      ]} 
+                      placeholder="-- Chọn quốc gia --"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">Cào toàn bộ đội hình CLB</label>
+                    <CustomSelect 
+                      value={selectedClubId} 
+                      onChange={setSelectedClubId} 
+                      options={[
+                        { value: '', label: '-- Không chọn (Nhập thủ công) --' },
+                        ...clubs
+                          .filter(c => !selectedCountryId || c.countryId === selectedCountryId)
+                          .map(c => ({ value: c.id, label: c.name }))
+                      ]} 
+                      placeholder="-- Chọn CLB --"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-1">
+                    {selectedClubId ? 'Danh sách cầu thủ bổ sung (Không bắt buộc)' : 'Danh sách cầu thủ'}
+                  </label>
+                  <textarea 
+                    value={names}
+                    onChange={e => setNames(e.target.value)}
+                    placeholder={selectedClubId 
+                      ? "Nhập thêm các tên cầu thủ khác nếu muốn cào đồng thời..." 
+                      : "Nhập tên cầu thủ, mỗi tên một dòng (hoặc cách nhau bằng dấu phẩy).\nVí dụ:\nLionel Messi\nCristiano Ronaldo"
+                    }
+                    className="w-full h-32 px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none text-sm"
+                    disabled={loading}
+                  />
+                  {selectedClubId && (
+                    <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
+                      <Info size={14} /> Hệ thống sẽ tự động quét & cào danh sách cầu thủ của câu lạc bộ đã chọn từ TheSportsDB.
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
             
-            {loading && (
+            {(loading || processedCount > 0) && (
               <div className="space-y-2 bg-slate-50 p-4 rounded-lg border border-slate-200">
                 <div className="flex justify-between items-center text-sm font-medium text-slate-700">
                   <span className="flex items-center gap-2">
-                    <Loader2 size={16} className="animate-spin text-emerald-600" />
-                    Đang xử lý: <span className="text-emerald-700 font-semibold">{currentName}</span>
+                    {loading ? (
+                      <Loader2 size={16} className="animate-spin text-emerald-600" />
+                    ) : (
+                      <CheckCircle size={16} className="text-emerald-600" />
+                    )}
+                    {loading ? (
+                      <>Đang xử lý: <span className="text-emerald-700 font-semibold">{currentName}</span></>
+                    ) : (
+                      <span className="text-emerald-700 font-semibold">Đã hoàn thành tiến trình crawl</span>
+                    )}
                   </span>
-                  <span>{processedCount}/{totalCount} ({progress}%)</span>
+                  <div className="flex items-center gap-3">
+                    {loading && (
+                      <button 
+                        onClick={handleStop}
+                        className="px-2.5 py-1 text-xs bg-red-100 hover:bg-red-200 text-red-700 font-bold rounded-lg transition-colors"
+                      >
+                        Dừng lại
+                      </button>
+                    )}
+                    <span>{processedCount}/{totalCount} ({progress}%)</span>
+                  </div>
                 </div>
                 <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
                   <div 
@@ -122,6 +286,9 @@ export function WikiCrawlerModal({ isOpen, onClose, onRefresh }: { isOpen: boole
                     style={{ width: `${progress}%` }}
                   />
                 </div>
+                {!loading && (
+                  <p className="text-xs text-slate-400 italic mt-1">Bạn có thể đóng bảng này để bắt đầu lượt cào mới.</p>
+                )}
               </div>
             )}
 
@@ -164,17 +331,18 @@ export function WikiCrawlerModal({ isOpen, onClose, onRefresh }: { isOpen: boole
         </div>
 
         <div className="p-4 md:p-6 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 shrink-0">
-          <button onClick={onClose} disabled={loading} className="px-6 py-2.5 rounded-lg border border-slate-300 text-slate-600 font-medium hover:bg-slate-100 transition-colors disabled:opacity-50">
+          <button onClick={handleClose} className="px-6 py-2.5 rounded-lg border border-slate-300 text-slate-600 font-medium hover:bg-slate-100 transition-colors">
             Đóng
           </button>
-          <button 
-            onClick={handleCrawl} 
-            disabled={loading || !names.trim()}
-            className="px-6 py-2.5 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {loading && <Loader2 size={18} className="animate-spin" />}
-            {loading ? 'Đang phân tích AI...' : 'Bắt đầu Crawl'}
-          </button>
+          {!loading && processedCount === 0 && (
+            <button 
+              onClick={handleCrawl} 
+              disabled={loading || (!names.trim() && !selectedClubId)}
+              className="px-6 py-2.5 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              Bắt đầu Crawl
+            </button>
+          )}
         </div>
       </div>
     </div>

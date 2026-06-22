@@ -594,35 +594,59 @@ export async function GET(request: Request) {
 
       // 2. Map Real Lineups from ESPN
       if (espnData.rosters && espnData.rosters.length === 2) {
-        detail.lineups = espnData.rosters.map((rosterItem: any) => {
+        const mappedLineups = [];
+        for (const rosterItem of espnData.rosters) {
+          const playerNames = (rosterItem.roster || [])
+            .map((p: any) => p.athlete?.displayName)
+            .filter(Boolean);
+            
+          const dbPlayers = await prisma.entity.findMany({
+            where: {
+              type: "FOOTBALL_PLAYER",
+              name: { in: playerNames }
+            }
+          });
+          const playerDbMap = new Map(dbPlayers.map(p => [p.name.toLowerCase(), p]));
+          
           const startXI = (rosterItem.roster || [])
             .filter((p: any) => p.starter)
-            .map((p: any) => ({
-              player: {
-                number: p.jersey || "",
-                name: p.athlete?.displayName || "",
-                pos: p.position?.abbreviation || "M"
-              }
-            }));
+            .map((p: any) => {
+              const dbPlayer = playerDbMap.get(p.athlete?.displayName?.toLowerCase());
+              return {
+                player: {
+                  number: p.jersey || "",
+                  name: p.athlete?.displayName || "",
+                  pos: p.position?.abbreviation || "M",
+                  avatar: dbPlayer?.avatar || null,
+                  slug: dbPlayer?.slug || null
+                }
+              };
+            });
             
           const substitutes = (rosterItem.roster || [])
             .filter((p: any) => !p.starter)
-            .map((p: any) => ({
-              player: {
-                number: p.jersey || "",
-                name: p.athlete?.displayName || "",
-                pos: p.position?.abbreviation || "M"
-              }
-            }));
-
-          return {
+            .map((p: any) => {
+              const dbPlayer = playerDbMap.get(p.athlete?.displayName?.toLowerCase());
+              return {
+                player: {
+                  number: p.jersey || "",
+                  name: p.athlete?.displayName || "",
+                  pos: p.position?.abbreviation || "M",
+                  avatar: dbPlayer?.avatar || null,
+                  slug: dbPlayer?.slug || null
+                }
+              };
+            });
+            
+          mappedLineups.push({
             team: { name: rosterItem.team?.displayName || "", logo: rosterItem.team?.logos?.[0]?.href || "" },
             formation: rosterItem.formation || "4-3-3",
             coach: { name: "HLV Trưởng" },
             startXI,
             substitutes
-          };
-        });
+          });
+        }
+        detail.lineups = mappedLineups;
       }
 
       // 3. Map Real Events from ESPN

@@ -65,7 +65,7 @@ export function ClubFormClient({ club, sports = [], countries = [], leagues = []
   );
 
   const generateSlug = (str: string) => {
-    return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    return str.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
   };
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -75,7 +75,7 @@ export function ClubFormClient({ club, sports = [], countries = [], leagues = []
 
   const handleExtract = async () => {
     if (!formData.wikiUrl) {
-      setError('Vui lòng nhập link Wikipedia');
+      setError('Vui lòng nhập link Wikipedia hoặc tên đội bóng');
       return;
     }
     setIsExtracting(true);
@@ -87,13 +87,15 @@ export function ClubFormClient({ club, sports = [], countries = [], leagues = []
         let matchedCountryId = formData.countryId;
         let matchedLeagueId = formData.leagueId;
 
-        if (result.data.country) {
-          const c = countries.find(x => result.data.country.toLowerCase().includes(x.name.toLowerCase()) || x.name.toLowerCase().includes(result.data.country.toLowerCase()));
-          if (c) matchedCountryId = c.id;
-        }
-        if (!matchedCountryId && result.data.country) {
-          const c = countries.find(x => x.slug.toLowerCase() === result.data.country.toLowerCase() || result.data.country.toLowerCase().includes(x.slug.toLowerCase()));
-          if (c) matchedCountryId = c.id;
+        if (!matchedCountryId) {
+          if (result.data.country) {
+            const c = countries.find(x => result.data.country.toLowerCase().includes(x.name.toLowerCase()) || x.name.toLowerCase().includes(result.data.country.toLowerCase()));
+            if (c) matchedCountryId = c.id;
+          }
+          if (!matchedCountryId && result.data.country) {
+            const c = countries.find(x => x.slug.toLowerCase() === result.data.country.toLowerCase() || result.data.country.toLowerCase().includes(x.slug.toLowerCase()));
+            if (c) matchedCountryId = c.id;
+          }
         }
         
         if (result.data.league) {
@@ -533,7 +535,7 @@ export function ClubFormClient({ club, sports = [], countries = [], leagues = []
         </div>
       </div>
 
-      {/* Wikipedia Autofill Tool */}
+      {/* Wikipedia / TheSportsDB Autofill Tool */}
       <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100 rounded-2xl p-6 shadow-sm relative overflow-hidden">
         <div className="absolute -bottom-10 -right-10 p-4 opacity-5 pointer-events-none">
           <Wand2 className="w-48 h-48" />
@@ -541,16 +543,16 @@ export function ClubFormClient({ club, sports = [], countries = [], leagues = []
         <div className="relative z-10">
           <h3 className="text-emerald-800 font-bold flex items-center gap-2 mb-2 text-base">
             <Wand2 className="w-5 h-5 text-emerald-600" /> 
-            Tự động điền dữ liệu
+            Tự động điền dữ liệu (TheSportsDB & Wikipedia)
           </h3>
           <p className="text-[13px] text-emerald-700/80 mb-5 leading-relaxed">
-            Nhập link Wikipedia của Câu lạc bộ. Trí tuệ nhân tạo sẽ tự động trích xuất Tên, Logo, Sân vận động, Huấn luyện viên trưởng...
+            Nhập <strong>Tên đội bóng bằng tiếng Anh</strong> (ví dụ: <em>Bayern Munich</em>) hoặc <strong>Link Wikipedia</strong>. Hệ thống sẽ tự động điền Tên, Logo, Sân vận động, Giải đấu, v.v.
           </p>
           <div className="flex flex-col gap-3">
             <Input 
               value={formData.wikiUrl}
               onChange={e => { setFormData(prev => ({...prev, wikiUrl: e.target.value})); setIsDirty(true); }}
-              placeholder="https://vi.wikipedia.org/wiki/..." 
+              placeholder="Ví dụ: Bayern Munich hoặc https://vi.wikipedia.org/wiki/..." 
               className="w-full bg-white border-emerald-200 focus:border-emerald-500 shadow-sm text-[13px]"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -567,7 +569,7 @@ export function ClubFormClient({ club, sports = [], countries = [], leagues = []
               className="w-full shadow-sm font-bold"
             >
               {isExtracting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Search className="w-4 h-4 mr-2" />}
-              {isExtracting ? 'Đang phân tích...' : 'Trích xuất từ Wikipedia'}
+              {isExtracting ? 'Đang truy vấn...' : 'Tìm kiếm & Trích xuất dữ liệu'}
             </Button>
           </div>
           {error && <div className="mt-3 text-[13px] font-medium text-red-600 bg-red-50 px-3 py-2 border border-red-100 rounded-lg block">{error}</div>}

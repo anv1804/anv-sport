@@ -116,7 +116,7 @@ const PlayerListIndicators = ({ summary, isAlignRight }: { summary: any, isAlign
 };
 
 const PlayerIcon = ({ player, teamName, isTop, events }: { player: any, teamName: string, isTop: boolean, events: any[] }) => {
-  const avatarUrl = `https://i.pravatar.cc/150?u=${encodeURIComponent(player.name)}`;
+  const avatarUrl = player.avatar || `https://i.pravatar.cc/150?u=${encodeURIComponent(player.name)}`;
   const summary = getPlayerEventsSummary(player, events);
   
   return (
@@ -175,7 +175,7 @@ const PlayerIcon = ({ player, teamName, isTop, events }: { player: any, teamName
 
 const PitchLineup = ({ team1, team2, formationsData, events }: { team1: any, team2: any, formationsData: any, events: any[] }) => {
   const getPlayersWithPositions = (teamInfo: any, isTopTeam: boolean) => {
-    if (!teamInfo || !teamInfo.startXI || !teamInfo.formation) return [];
+    if (!teamInfo || !teamInfo.startXI || teamInfo.startXI.length === 0 || !teamInfo.formation) return [];
     
     const dbCoords = formationsData ? formationsData[teamInfo.formation] : null;
     
@@ -1238,11 +1238,26 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
                            return (
                              <div key={idx} className={`flex items-center justify-between w-full py-1.5 border-b border-slate-50 last:border-0 ${i === 0 ? '' : 'flex-row-reverse'}`}>
                                <div className={`flex items-center gap-3 ${i === 0 ? '' : 'flex-row-reverse'}`}>
-                                 <div className="w-7 h-7 rounded-full bg-slate-800 flex items-center justify-center text-[11px] font-black text-white shrink-0 shadow-sm">
-                                   {playerObj.player.number}
-                                 </div>
+                                 {playerObj.player.avatar ? (
+                                   <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 border border-slate-200 shadow-sm relative group/avatar">
+                                     <img src={playerObj.player.avatar} alt={playerObj.player.name} className="w-full h-full object-cover" />
+                                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
+                                       <span className="text-[9px] text-white font-black">{playerObj.player.number}</span>
+                                     </div>
+                                   </div>
+                                 ) : (
+                                   <div className="w-7 h-7 rounded-full bg-slate-800 flex items-center justify-center text-[11px] font-black text-white shrink-0 shadow-sm">
+                                     {playerObj.player.number}
+                                   </div>
+                                 )}
                                  <div className={`flex flex-col ${i === 0 ? 'items-start' : 'items-end'}`}>
-                                   <span className="text-[13px] font-bold text-slate-800">{playerObj.player.name}</span>
+                                   {playerObj.player.slug ? (
+                                     <Link href={`/entity/${playerObj.player.slug}`} className="text-[13px] font-bold text-slate-800 hover:text-[#16A34A] transition-colors hover:underline">
+                                       {playerObj.player.name}
+                                     </Link>
+                                   ) : (
+                                     <span className="text-[13px] font-bold text-slate-800">{playerObj.player.name}</span>
+                                   )}
                                    <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{posMap[playerObj.player.pos] || playerObj.player.pos}</span>
                                  </div>
                                </div>
@@ -1273,11 +1288,26 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
                              return (
                                <div key={idx} className={`flex items-center justify-between w-full py-1.5 border-b border-slate-50 last:border-0 ${i === 0 ? '' : 'flex-row-reverse'}`}>
                                  <div className={`flex items-center gap-3 ${i === 0 ? '' : 'flex-row-reverse'}`}>
-                                   <div className="w-6 h-6 rounded-full bg-slate-50 flex items-center justify-center text-[10px] font-bold text-slate-500 shrink-0 border border-slate-200">
-                                     {playerObj.player.number}
-                                   </div>
+                                   {playerObj.player.avatar ? (
+                                     <div className="w-6 h-6 rounded-full overflow-hidden shrink-0 border border-slate-200 shadow-sm relative group/avatar">
+                                       <img src={playerObj.player.avatar} alt={playerObj.player.name} className="w-full h-full object-cover" />
+                                       <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
+                                         <span className="text-[8px] text-white font-black">{playerObj.player.number}</span>
+                                       </div>
+                                     </div>
+                                   ) : (
+                                     <div className="w-6 h-6 rounded-full bg-slate-50 flex items-center justify-center text-[10px] font-bold text-slate-500 shrink-0 border border-slate-200">
+                                       {playerObj.player.number}
+                                     </div>
+                                   )}
                                    <div className={`flex flex-col ${i === 0 ? 'items-start' : 'items-end'}`}>
-                                     <span className="text-[13px] font-semibold text-slate-600">{playerObj.player.name}</span>
+                                     {playerObj.player.slug ? (
+                                       <Link href={`/entity/${playerObj.player.slug}`} className="text-[13px] font-semibold text-slate-600 hover:text-[#16A34A] transition-colors hover:underline">
+                                         {playerObj.player.name}
+                                       </Link>
+                                     ) : (
+                                       <span className="text-[13px] font-semibold text-slate-600">{playerObj.player.name}</span>
+                                     )}
                                      <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">{posMap[playerObj.player.pos] || playerObj.player.pos}</span>
                                    </div>
                                  </div>

@@ -59,8 +59,9 @@ export async function searchWebForImages(query: string): Promise<{ url: string; 
           const parsed = JSON.parse(m);
           if (parsed.murl) {
             const urlLower = parsed.murl.toLowerCase();
+            const altLower = (parsed.t || "").toLowerCase();
             // Bộ lọc loại trừ các từ khoá nhạy cảm hoặc domain đen
-            const isUnsafe = /nsfw|porn|sex|nude|naked|adult|xxx|onlyfans|xvideos|escort|hookup|babes|bikini|model/i.test(urlLower);
+            const isUnsafe = /nsfw|porn|sex|nude|naked|adult|xxx|onlyfans|xvideos|escort|hookup|babes|bikini|model|girl|hot|sexy|boobs|ass|tits|scandal|nguc|vu|mong|18\+|gai|bikini|noi-y|do-lot|casino|betting|gamble|loto|ads|adserving/i.test(urlLower) || /nsfw|porn|sex|nude|naked|adult|xxx|onlyfans|xvideos|escort|hookup|babes|bikini|model|girl|hot|sexy|boobs|ass|tits|scandal|nguc|vu|mong|18\+|gai|bikini|noi-y|do-lot|casino/i.test(altLower);
             
             if (!isUnsafe) {
               images.push({

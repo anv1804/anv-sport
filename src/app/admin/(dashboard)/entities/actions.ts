@@ -157,3 +157,151 @@ export async function deleteEntity(id: string) {
   revalidatePath('/admin/entities');
   revalidatePath('/trung-tam-du-lieu');
 }
+
+export async function deleteMultipleEntities(ids: string[]) {
+  if (!ids || ids.length === 0) return;
+  await prisma.entity.deleteMany({
+    where: {
+      id: { in: ids }
+    }
+  });
+  revalidatePath('/admin/entities');
+  revalidatePath('/trung-tam-du-lieu');
+}
+
+function decodeHtmlEntities(str: string): string {
+  if (!str) return '';
+  return str
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&#39;/g, "'");
+}
+
+export async function syncMultipleEntities(ids: string[]) {
+  if (!ids || ids.length === 0) return { success: false, error: 'Không có cầu thủ nào được chọn' };
+
+  let successCount = 0;
+  
+  for (const id of ids) {
+    try {
+      const entity = await prisma.entity.findUnique({ where: { id } });
+      if (!entity) continue;
+
+      const res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/searchplayers.php?p=${encodeURIComponent(entity.name)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.player && data.player.length > 0) {
+          const p = data.player[0];
+          
+          const lRes = await fetch(`https://www.thesportsdb.com/api/v1/json/3/lookupplayer.php?id=${p.idPlayer}`);
+          if (lRes.ok) {
+            const lData = await lRes.json();
+            if (lData.players && lData.players.length > 0) {
+              const fullPlayer = lData.players[0];
+              
+              const pos = fullPlayer.strPosition || 'Forward';
+              
+              let currentBasicInfo: any = {};
+              try {
+                if (entity.basicInfo) currentBasicInfo = JSON.parse(entity.basicInfo);
+              } catch (e) {}
+
+              const mapPositionToCode = (p: string) => {
+                const lower = p.toLowerCase();
+                if (lower.includes('goalkeeper') || lower.includes('thủ môn')) return 'GK';
+                if (lower.includes('centre-back') || lower.includes('centre back') || lower.includes('center back') || lower.includes('hậu vệ quét') || lower.includes('trung vệ')) return 'CB';
+                if (lower.includes('left-back') || lower.includes('left back') || lower.includes('hậu vệ cánh trái')) return 'LB';
+                if (lower.includes('right-back') || lower.includes('right back') || lower.includes('hậu vệ cánh phải')) return 'RB';
+                if (lower.includes('defensive midfielder') || lower.includes('tiền vệ phòng ngự')) return 'DM';
+                if (lower.includes('central midfielder') || lower.includes('tiền vệ trung tâm')) return 'CM';
+                if (lower.includes('attacking midfielder') || lower.includes('tiền vệ tấn công')) return 'AM';
+                if (lower.includes('left midfielder') || lower.includes('tiền vệ cánh trái')) return 'LM';
+                if (lower.includes('right midfielder') || lower.includes('tiền vệ cánh phải')) return 'RM';
+                if (lower.includes('left winger') || lower.includes('tiền đạo cánh trái')) return 'LW';
+                if (lower.includes('right winger') || lower.includes('tiền đạo cánh phải')) return 'RW';
+                return 'CF';
+              };
+              
+              const positionAbbr = mapPositionToCode(pos);
+              const decodedFullName = decodeHtmlEntities(fullPlayer.strPlayerAlternate || fullPlayer.strPlayer);
+              const decodedName = decodeHtmlEntities(fullPlayer.strPlayer);
+
+              const basicInfo = {
+                ...currentBasicInfo,
+                fullName: decodedFullName,
+                birthDate: fullPlayer.dateBorn || currentBasicInfo.birthDate || '1998-01-01',
+                height: fullPlayer.strHeight ? parseInt(fullPlayer.strHeight) || currentBasicInfo.height || '180' : '180',
+                position: [positionAbbr],
+                preferredFoot: fullPlayer.strSide || currentBasicInfo.preferredFoot || 'Right',
+                shirtNumber: fullPlayer.strNumber || currentBasicInfo.shirtNumber || '10',
+                playerValue: fullPlayer.strSigning || currentBasicInfo.playerValue || '1M €',
+                excerpt: fullPlayer.strDescriptionEN ? decodeHtmlEntities(fullPlayer.strDescriptionEN.substring(0, 300)) : currentBasicInfo.excerpt || '',
+                currentClub: fullPlayer.strTeam || currentBasicInfo.currentClub || ''
+              };
+
+              let currentStats: any = {};
+              try {
+                if (entity.stats) currentStats = JSON.parse(entity.stats);
+              } catch (e) {}
+
+              const attributes = currentStats.attributes || {
+                ATT: positionAbbr === 'CF' || positionAbbr === 'LW' || positionAbbr === 'RW' ? 82 : 55,
+                TEC: 78,
+                TAC: positionAbbr === 'CB' || positionAbbr === 'DM' ? 78 : 55,
+                DEF: positionAbbr === 'CB' || positionAbbr === 'GK' ? 80 : 35,
+                CRE: positionAbbr === 'CM' || positionAbbr === 'AM' ? 80 : 60,
+                STA: 75,
+                PHY: 75
+              };
+
+              const sum = Object.values(attributes).reduce((acc: number, val: any) => acc + (Number(val) || 0), 0);
+              const avg = sum / Object.keys(attributes).length;
+              const averageRating = (avg / 10).toFixed(1);
+
+              const stats = {
+                ...currentStats,
+                attributes,
+                averageRating,
+                totalMatches: currentStats.totalMatches || 60,
+                totalGoals: positionAbbr === 'CF' ? 22 : 4
+              };
+
+              let clubId = entity.clubId;
+              if (fullPlayer.strTeam) {
+                const cleanedClubName = fullPlayer.strTeam.replace(/\s*\(.*?\)\s*/g, '').trim();
+                const clubSlug = cleanedClubName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-');
+                const club = await prisma.club.findUnique({ where: { slug: clubSlug } });
+                if (club) {
+                  clubId = club.id;
+                }
+              }
+
+              await prisma.entity.update({
+                where: { id },
+                data: {
+                  name: decodedName,
+                  avatar: fullPlayer.strThumb || entity.avatar,
+                  clubId,
+                  basicInfo: JSON.stringify(basicInfo),
+                  stats: JSON.stringify(stats)
+                }
+              });
+
+              successCount++;
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error(`Sync error for player ID ${id}:`, err);
+    }
+  }
+
+  revalidatePath('/admin/entities');
+  revalidatePath('/trung-tam-du-lieu');
+
+  return { success: true, count: successCount };
+}

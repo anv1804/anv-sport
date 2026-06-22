@@ -5,7 +5,13 @@ import { WikiCrawlerModal } from './WikiCrawlerModal';
 import { Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
-export function WikiCrawlerWrapper() {
+export function WikiCrawlerWrapper({ 
+  clubs, 
+  countries 
+}: { 
+  clubs: { id: string; name: string; countryId: string | null }[];
+  countries: { id: string; name: string }[];
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
 
@@ -23,6 +29,8 @@ export function WikiCrawlerWrapper() {
         isOpen={isOpen} 
         onClose={() => setIsOpen(false)} 
         onRefresh={() => router.refresh()}
+        clubs={clubs}
+        countries={countries}
       />
     </>
   );

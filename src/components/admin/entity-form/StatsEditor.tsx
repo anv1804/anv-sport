@@ -55,7 +55,14 @@ export function StatsEditor({ name, defaultValue = '' }: Props) {
 
   const setValue = (key: string, val: number) => {
     const clamped = Math.min(100, Math.max(0, val));
-    setAttrs(prev => ({ ...prev, [key]: clamped }));
+    setAttrs(prev => {
+      const next = { ...prev, [key]: clamped };
+      const sum = STAT_FIELDS.reduce((acc, f) => acc + (next[f.key] ?? 0), 0);
+      const avg = sum / STAT_FIELDS.length;
+      const outOfTen = (avg / 10).toFixed(1);
+      setRating(outOfTen);
+      return next;
+    });
   };
 
   const serialized = JSON.stringify({

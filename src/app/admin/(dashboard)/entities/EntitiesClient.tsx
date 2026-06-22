@@ -3,7 +3,7 @@
 import { useState, useMemo, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Edit2, Trash2, Search, Filter, Users, RefreshCw, Loader2 } from "lucide-react";
-import { deleteEntity } from "./actions";
+import { deleteEntity, deleteMultipleEntities, syncMultipleEntities } from "./actions";
 import toast from "react-hot-toast";
 import Link from "next/link";
 import { CustomSelect } from "@/components/admin/entity-form/CustomSelect";
@@ -18,6 +18,7 @@ type EntityWithClub = {
   type: string;
   avatar: string | null;
   club: { id: string; name: string } | null;
+  basicInfo: string | null;
 };
 
 type ClubData = {
@@ -106,25 +107,39 @@ export default function EntitiesClient({ initialEntities, initialClubs }: Entiti
     if (!ok) return;
     
     setIsSubmitting(true);
-    let successCount = 0;
-    
-    for (const id of selectedIds) {
-      try {
-        await deleteEntity(id);
-        successCount++;
-      } catch (err) {
-        console.error("Delete failed for", id);
-      }
-    }
-    
-    if (successCount === selectedIds.length) {
-      toast.success(`Đã xóa thành công ${successCount} mục`);
-    } else {
-      toast.error(`Đã xóa ${successCount}/${selectedIds.length} mục. Có lỗi xảy ra.`);
+    try {
+      await deleteMultipleEntities(selectedIds);
+      toast.success(`Đã xóa thành công ${selectedIds.length} VĐV`);
+    } catch (err) {
+      toast.error("Không thể xóa. Đã có lỗi xảy ra.");
     }
     
     setSelectedIds([]);
     setIsSubmitting(false);
+    startTransition(() => router.refresh());
+  };
+
+  const handleBulkSync = async () => {
+    if (!selectedIds.length) return;
+    const ok = await confirm(`Bạn có chắc chắn muốn đồng bộ thông tin của ${selectedIds.length} VĐV đã chọn?`);
+    if (!ok) return;
+
+    setIsSubmitting(true);
+    const toastId = toast.loading("Đang đồng bộ...");
+    try {
+      const res = await syncMultipleEntities(selectedIds);
+      if (res.success) {
+        toast.success(`Đồng bộ thành công cho ${res.count} cầu thủ`, { id: toastId });
+      } else {
+        toast.error(res.error || "Có lỗi xảy ra", { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Lỗi kết nối", { id: toastId });
+    } finally {
+      setSelectedIds([]);
+      setIsSubmitting(false);
+      startTransition(() => router.refresh());
+    }
   };
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -203,13 +218,23 @@ export default function EntitiesClient({ initialEntities, initialClubs }: Entiti
           </button>
           
           {selectedIds.length > 0 && (
-            <button 
-              onClick={handleBulkDelete}
-              disabled={isSubmitting}
-              className="flex items-center justify-center gap-2 px-5 py-2.5 bg-red-50 text-red-600 font-bold text-sm rounded-lg hover:bg-red-100 border border-red-200 transition-colors whitespace-nowrap disabled:opacity-50 w-full sm:w-auto"
-            >
-              <Trash2 className="w-4 h-4" /> Xóa ({selectedIds.length})
-            </button>
+            <>
+              <button 
+                onClick={handleBulkSync}
+                disabled={isSubmitting}
+                className="flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-50 text-emerald-600 font-bold text-sm rounded-lg hover:bg-emerald-100 border border-emerald-200 transition-colors whitespace-nowrap disabled:opacity-50 w-full sm:w-auto"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isSubmitting ? 'animate-spin' : ''}`} />
+                Đồng bộ ({selectedIds.length})
+              </button>
+              <button 
+                onClick={handleBulkDelete}
+                disabled={isSubmitting}
+                className="flex items-center justify-center gap-2 px-5 py-2.5 bg-red-50 text-red-600 font-bold text-sm rounded-lg hover:bg-red-100 border border-red-200 transition-colors whitespace-nowrap disabled:opacity-50 w-full sm:w-auto"
+              >
+                <Trash2 className="w-4 h-4" /> Xóa ({selectedIds.length})
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -266,7 +291,18 @@ export default function EntitiesClient({ initialEntities, initialClubs }: Entiti
                   </span>
                 </td>
                 <td className="py-3 px-5 text-sm font-bold text-slate-600">
-                  {e.club ? e.club.name : <span className="text-slate-400 font-normal italic">Không có</span>}
+                  {e.club ? (
+                    e.club.name
+                  ) : (() => {
+                    try {
+                      if (e.basicInfo) {
+                        const info = JSON.parse(e.basicInfo);
+                        if (info.currentClub) return info.currentClub;
+                        if (info.clubName) return info.clubName;
+                      }
+                    } catch (err) {}
+                    return <span className="text-slate-400 font-normal italic">Không có</span>;
+                  })()}
                 </td>
                 <td className="py-3 px-5">
                   <div className="flex items-center justify-end gap-3">
@@ -341,7 +377,18 @@ export default function EntitiesClient({ initialEntities, initialClubs }: Entiti
                 <div>
                   <span className="font-medium text-slate-400 block mb-0.5">Câu lạc bộ</span>
                   <span className="text-slate-600 font-bold">
-                    {e.club ? e.club.name : <span className="text-slate-400 font-normal italic">Không có</span>}
+                    {e.club ? (
+                      e.club.name
+                    ) : (() => {
+                      try {
+                        if (e.basicInfo) {
+                          const info = JSON.parse(e.basicInfo);
+                          if (info.currentClub) return info.currentClub;
+                          if (info.clubName) return info.clubName;
+                        }
+                      } catch (err) {}
+                      return <span className="text-slate-400 font-normal italic">Không có</span>;
+                    })()}
                   </span>
                 </div>
               </div>

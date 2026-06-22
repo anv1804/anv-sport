@@ -3,6 +3,8 @@ import React from 'react';
 export interface FormAndH2HProps {
   team1Form: string[]; // ['W', 'D', 'L', 'W', 'W']
   team2Form: string[];
+  team1Name?: string;
+  team2Name?: string;
   h2hData: {
     total: number;
     team1Wins: number;
@@ -12,7 +14,7 @@ export interface FormAndH2HProps {
   };
 }
 
-export function FormAndH2H({ team1Form, team2Form, h2hData }: FormAndH2HProps) {
+export function FormAndH2H({ team1Form, team2Form, team1Name, team2Name, h2hData }: FormAndH2HProps) {
   const renderFormBadge = (result: string, idx: number) => {
     let color = 'bg-slate-200 text-slate-600';
     if (result === 'W') color = 'bg-[#16A34A] text-white';
@@ -37,14 +39,14 @@ export function FormAndH2H({ team1Form, team2Form, h2hData }: FormAndH2HProps) {
         
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <span className="font-bold text-slate-700 text-xs uppercase tracking-wide">Đội nhà</span>
+            <span className="font-bold text-slate-700 text-xs uppercase tracking-wide">{team1Name || 'Đội nhà'}</span>
             <div className="flex gap-1">
               {team1Form.map((r, i) => renderFormBadge(r, i))}
             </div>
           </div>
           <div className="w-full h-px bg-slate-100"></div>
           <div className="flex items-center justify-between">
-            <span className="font-bold text-slate-700 text-xs uppercase tracking-wide">Đội khách</span>
+            <span className="font-bold text-slate-700 text-xs uppercase tracking-wide">{team2Name || 'Đội khách'}</span>
             <div className="flex gap-1">
               {team2Form.map((r, i) => renderFormBadge(r, i))}
             </div>
@@ -69,7 +71,7 @@ export function FormAndH2H({ team1Form, team2Form, h2hData }: FormAndH2HProps) {
             <div className="flex justify-between items-center mb-5 text-[11px] font-black uppercase text-slate-500 bg-slate-50 p-2.5 rounded border border-slate-100">
               <div className="text-center">
                 <div className="text-lg text-[#16A34A] font-black">{h2hData.team1Wins}</div>
-                <div>Nhà thắng</div>
+                <div>{team1Name ? `${team1Name} thắng` : 'Nhà thắng'}</div>
               </div>
               <div className="text-center">
                 <div className="text-lg text-slate-400 font-black">{h2hData.draws}</div>
@@ -77,7 +79,7 @@ export function FormAndH2H({ team1Form, team2Form, h2hData }: FormAndH2HProps) {
               </div>
               <div className="text-center">
                 <div className="text-lg text-red-600 font-black">{h2hData.team2Wins}</div>
-                <div>Khách thắng</div>
+                <div>{team2Name ? `${team2Name} thắng` : 'Khách thắng'}</div>
               </div>
             </div>
 
