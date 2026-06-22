@@ -72,6 +72,16 @@ function cleanPlayerName(name: string): string {
   return decodeHtmlEntities(cleaned);
 }
 
+function cleanStringForComparison(str: string): string {
+  if (!str) return '';
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/[^a-z0-9]+/g, ' ');
+}
+
 function mapCountryToCode(country: string): string {
   if (!country) return 'VIE';
   const map: Record<string, string> = {
@@ -181,7 +191,18 @@ async function runBackgroundCrawl(nameList: string[], lang: string, targetClubId
         if (searchRes.ok) {
           const searchData = await searchRes.json();
           if (searchData.query?.search?.length) {
-            title = searchData.query.search[0].title;
+            const firstResult = searchData.query.search[0];
+            const resultTitle = firstResult.title;
+            // Validate that the result title has some word overlap with the query name to avoid random page hits
+            const cleanQuery = cleanStringForComparison(searchName);
+            const cleanTitle = cleanStringForComparison(resultTitle);
+            const queryWords = cleanQuery.split(/\s+/).filter(w => w.length > 1);
+            const hasOverlap = queryWords.some(word => cleanTitle.includes(word));
+            if (hasOverlap) {
+              title = resultTitle;
+            } else {
+              console.log(`Fuzzy match rejected: query "${searchName}" yielded irrelevant title "${resultTitle}"`);
+            }
           }
         }
 
