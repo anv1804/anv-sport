@@ -7,6 +7,8 @@ export const metadata: Metadata = {
   description: 'Công cụ AI dự đoán và phân tích chi tiết trận đấu bóng đá trực tiếp.',
 };
 
+export const revalidate = 30; // Cache prediction page for 30 seconds (ISR)
+
 export default async function Page() {
   // Query 5 latest AI-generated posts
   let aiPosts = await prisma.post.findMany({

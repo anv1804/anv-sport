@@ -39,7 +39,7 @@ export type SiteHamburgerSettings = {
 
 // Default values
 export const DEFAULT_HEADER_SETTINGS: SiteHeaderSettings = {
-  logoUrl: '',
+  logoUrl: '/logos/anv-sport-logo.png',
   siteName: 'ANV Sport',
   contactEmail: '',
   contactPhone: ''

@@ -180,6 +180,156 @@ function decodeHtmlEntities(str: string): string {
     .replace(/&#39;/g, "'");
 }
 
+async function getOrCreateClub(teamName: string): Promise<string | null> {
+  if (!teamName || typeof teamName !== 'string' || teamName.length < 2) return null;
+  
+  const cleanedClubName = teamName.replace(/\s*\(.*?\)\s*/g, '').trim();
+  const clubSlug = cleanedClubName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+  
+  let club = await prisma.club.findFirst({
+    where: {
+      OR: [
+        { slug: clubSlug },
+        { name: { equals: cleanedClubName, mode: 'insensitive' } }
+      ]
+    }
+  });
+  
+  if (club) {
+    return club.id;
+  }
+  
+  try {
+    const res = await fetch(`https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=${encodeURIComponent(cleanedClubName)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.teams && data.teams.length > 0) {
+        const team = data.teams.find((t: any) => t.strTeam.toLowerCase() === cleanedClubName.toLowerCase()) || data.teams[0];
+        const finalSlug = team.strTeam.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+        
+        let existingClub = await prisma.club.findFirst({
+          where: {
+            OR: [
+              { slug: finalSlug },
+              { name: { equals: team.strTeam, mode: 'insensitive' } }
+            ]
+          }
+        });
+        if (existingClub) {
+          return existingClub.id;
+        }
+
+        let countryId: string | null = null;
+        if (team.strCountry) {
+          const country = await prisma.country.findFirst({
+            where: {
+              OR: [
+                { name: { equals: team.strCountry, mode: 'insensitive' } },
+                { slug: team.strCountry.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-') }
+              ]
+            }
+          });
+          if (country) {
+            countryId = country.id;
+          } else {
+            const countrySlug = team.strCountry.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-');
+            const newCountry = await prisma.country.create({
+              data: {
+                name: team.strCountry,
+                slug: countrySlug,
+                code: team.strCountry.substring(0, 3).toUpperCase()
+              }
+            });
+            countryId = newCountry.id;
+          }
+        }
+
+        let leagueId: string | null = null;
+        if (team.strLeague) {
+          const league = await prisma.league.findFirst({
+            where: {
+              OR: [
+                { name: { equals: team.strLeague, mode: 'insensitive' } },
+                { slug: team.strLeague.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-') }
+              ]
+            }
+          });
+          if (league) {
+            leagueId = league.id;
+          }
+        }
+
+        const basicInfo = JSON.stringify({
+          fullName: team.strTeam,
+          nickname: team.strAlternate || '',
+          formedYear: team.intFormedYear ? `${team.intFormedYear}-01-01` : '',
+          stadium: team.strStadium || '',
+          stadiumCapacity: team.intStadiumCapacity || '',
+          manager: '',
+          website: team.strWebsite || '',
+          description: team.strDescriptionEN || ''
+        });
+
+        const newClub = await prisma.club.create({
+          data: {
+            name: team.strTeam,
+            slug: finalSlug,
+            logo: team.strBadge || team.strLogo || null,
+            sportType: 'FOOTBALL',
+            basicInfo,
+            countryId,
+            leagueId,
+            achievements: '[]'
+          }
+        });
+        return newClub.id;
+      }
+    }
+  } catch (err) {
+    console.error(`Error auto-creating club ${cleanedClubName}:`, err);
+  }
+
+  try {
+    let existingClub = await prisma.club.findFirst({
+      where: {
+        OR: [
+          { slug: clubSlug },
+          { name: { equals: cleanedClubName, mode: 'insensitive' } }
+        ]
+      }
+    });
+    if (existingClub) {
+      return existingClub.id;
+    }
+
+    const basicInfo = JSON.stringify({
+      fullName: cleanedClubName,
+      nickname: '',
+      formedYear: '',
+      stadium: '',
+      stadiumCapacity: '',
+      manager: '',
+      website: '',
+      description: ''
+    });
+
+    const fallbackClub = await prisma.club.create({
+      data: {
+        name: cleanedClubName,
+        slug: clubSlug,
+        logo: null,
+        sportType: 'FOOTBALL',
+        basicInfo,
+        achievements: '[]'
+      }
+    });
+    return fallbackClub.id;
+  } catch (fallbackErr) {
+    console.error(`Error creating fallback club ${cleanedClubName}:`, fallbackErr);
+    return null;
+  }
+}
+
 export async function syncMultipleEntities(ids: string[]) {
   if (!ids || ids.length === 0) return { success: false, error: 'Không có cầu thủ nào được chọn' };
 
@@ -271,11 +421,9 @@ export async function syncMultipleEntities(ids: string[]) {
 
               let clubId = entity.clubId;
               if (fullPlayer.strTeam) {
-                const cleanedClubName = fullPlayer.strTeam.replace(/\s*\(.*?\)\s*/g, '').trim();
-                const clubSlug = cleanedClubName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-');
-                const club = await prisma.club.findUnique({ where: { slug: clubSlug } });
-                if (club) {
-                  clubId = club.id;
+                const resolvedClubId = await getOrCreateClub(fullPlayer.strTeam);
+                if (resolvedClubId) {
+                  clubId = resolvedClubId;
                 }
               }
 

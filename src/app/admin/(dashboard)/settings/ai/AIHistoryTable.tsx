@@ -118,14 +118,23 @@ export default function AIHistoryTable({ initialLogs, totalCalls }: AIHistoryTab
                       <span className="px-2.5 py-0.5 text-xs font-bold rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100">
                         Thành công
                       </span>
-                    ) : (
-                      <span 
-                        className="px-2.5 py-0.5 text-xs font-bold rounded-lg bg-red-50 text-red-650 border border-red-100 cursor-help"
-                        title={log.errorMessage || "Lỗi không xác định"}
-                      >
-                        Lỗi
-                      </span>
-                    )}
+                    ) : (() => {
+                      const isOutOfMoney = log.errorMessage?.toLowerCase().includes("quota") || 
+                                           log.errorMessage?.toLowerCase().includes("balance") || 
+                                           log.errorMessage?.toLowerCase().includes("hết tiền");
+                      return (
+                        <span 
+                          className={`px-2.5 py-0.5 text-xs font-bold rounded-lg border cursor-help ${
+                            isOutOfMoney 
+                              ? "bg-amber-50 text-amber-700 border-amber-200" 
+                              : "bg-red-50 text-red-650 border-red-100"
+                          }`}
+                          title={log.errorMessage || "Lỗi không xác định"}
+                        >
+                          {isOutOfMoney ? "Hết tiền" : "Lỗi"}
+                        </span>
+                      );
+                    })()}
                   </td>
                 </tr>
               ))

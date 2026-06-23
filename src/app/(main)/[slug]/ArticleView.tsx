@@ -25,13 +25,6 @@ async function ArticleContent({ id }: { id: number }) {
     notFound()
   }
 
-  // Fetch some "related" or "latest" posts for the right sidebar
-  const latestPosts = await prisma.post.findMany({
-    where: { status: 'PUBLISHED', id: { not: post.id } },
-    orderBy: { createdAt: 'desc' },
-    take: 5
-  })
-
   // Lấy các bài viết liên quan được chọn thủ công từ metadata
   let parsedMeta: any = {};
   try {
@@ -45,43 +38,49 @@ async function ArticleContent({ id }: { id: number }) {
       .filter((id: number) => !isNaN(id) && id !== post.id);
   }
 
-  let manualPosts: any[] = [];
-  if (manualRelatedIds.length > 0) {
-    manualPosts = await prisma.post.findMany({
-      where: { id: { in: manualRelatedIds } },
-      include: { categories: true }
-    });
-    // Giữ đúng thứ tự đã chọn
+  const excludeIds = [post.id, ...manualRelatedIds];
+  const takeCount = Math.max(0, 15 - manualRelatedIds.length);
+  const categoryId = post.categories?.[0]?.id;
+
+  // Run all secondary queries in parallel to eliminate database waterfalls
+  const [latestPosts, manualPosts, autoRelatedPosts] = await Promise.all([
+    prisma.post.findMany({
+      where: { status: 'PUBLISHED', id: { not: post.id } },
+      orderBy: { createdAt: 'desc' },
+      take: 5
+    }),
+    manualRelatedIds.length > 0
+      ? prisma.post.findMany({
+          where: { id: { in: manualRelatedIds } },
+          include: { categories: true }
+        })
+      : Promise.resolve([]),
+    categoryId && takeCount > 0
+      ? prisma.post.findMany({
+          where: { 
+            status: 'PUBLISHED', 
+            id: { notIn: excludeIds },
+            categories: { some: { id: categoryId } }
+          },
+          orderBy: { createdAt: 'desc' },
+          take: takeCount,
+          include: { categories: true }
+        })
+      : takeCount > 0
+      ? prisma.post.findMany({
+          where: { status: 'PUBLISHED', id: { notIn: excludeIds } },
+          orderBy: { createdAt: 'desc' },
+          take: takeCount,
+          include: { categories: true }
+        })
+      : Promise.resolve([])
+  ]);
+
+  // Keep manual order
+  if (manualRelatedIds.length > 0 && manualPosts.length > 0) {
     manualPosts.sort((a, b) => manualRelatedIds.indexOf(a.id) - manualRelatedIds.indexOf(b.id));
   }
 
-  const excludeIds = [post.id, ...manualRelatedIds];
-  const takeCount = Math.max(0, 15 - manualPosts.length);
-
-  // Fetch related posts from same category
-  const categoryId = post.categories?.[0]?.id;
-  let autoRelatedPosts: any[] = [];
-  if (categoryId && takeCount > 0) {
-    autoRelatedPosts = await prisma.post.findMany({
-      where: { 
-        status: 'PUBLISHED', 
-        id: { notIn: excludeIds },
-        categories: { some: { id: categoryId } }
-      },
-      orderBy: { createdAt: 'desc' },
-      take: takeCount,
-      include: { categories: true }
-    });
-  } else if (takeCount > 0) {
-    autoRelatedPosts = await prisma.post.findMany({
-      where: { status: 'PUBLISHED', id: { notIn: excludeIds } },
-      orderBy: { createdAt: 'desc' },
-      take: takeCount,
-      include: { categories: true }
-    });
-  }
-
-  // Gộp bài thủ công lên đầu, bài tự động ở sau
   const relatedPosts = [...manualPosts, ...autoRelatedPosts];
 
   // Format date
@@ -302,12 +301,15 @@ async function ArticleContent({ id }: { id: number }) {
                   <div className="flex flex-col gap-6">
                     {relatedPosts.map((rp) => (
                       <div key={rp.id} className="flex flex-col sm:flex-row gap-5 group border-b border-slate-100 pb-6 last:border-0 last:pb-0">
-                        <Link href={createArticleUrl(rp.title, rp.id)} className="w-full sm:w-[240px] md:w-[280px] shrink-0 block overflow-hidden rounded-lg relative">
+                        <Link href={createArticleUrl(rp.title, rp.id)} className="w-full sm:w-[240px] md:w-[280px] shrink-0 block overflow-hidden rounded-lg relative group">
                           <img 
                             src={rp.imageUrl || '/placeholder.jpg'} 
                             alt={rp.title} 
                             className="w-full aspect-[16/10] object-cover group-hover:scale-105 transition-transform duration-500"
                           />
+                          {rp.imageUrl && (
+                            <img src="/icons/anv-sport-icon.png" alt="" className="absolute bottom-2 right-2 w-5 h-5 object-contain opacity-50 transition-opacity duration-300 pointer-events-none z-10 select-none group-hover:opacity-80" />
+                          )}
                         </Link>
                         
                         <div className="flex flex-col flex-1 py-1">

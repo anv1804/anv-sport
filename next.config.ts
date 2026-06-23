@@ -6,6 +6,9 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   turbopack: {},
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
   webpack: (config) => {
     config.resolve.alias = {
       ...config.resolve.alias,

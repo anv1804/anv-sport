@@ -6,21 +6,26 @@ import { Bot } from "lucide-react";
 import { createArticleUrl } from "@/lib/helpers/url";
 
 export async function NewsFeed({ zoneId }: { zoneId?: string }) {
-  let posts = [];
-  
+  const postSelect = {
+    id: true, title: true, excerpt: true, imageUrl: true,
+    createdAt: true, isAiGenerated: true, status: true
+  };
+  let posts: any[] = [];
+
   if (zoneId) {
     const zonePosts = await prisma.zonePost.findMany({
       where: { zoneId },
       orderBy: { position: 'asc' },
       take: 5,
-      include: { post: true }
+      include: { post: { select: postSelect } }
     });
     posts = zonePosts.map(zp => zp.post);
   } else {
     posts = await prisma.post.findMany({
       where: { status: "PUBLISHED" },
       orderBy: { createdAt: "desc" },
-      take: 5
+      take: 5,
+      select: postSelect
     });
   }
 

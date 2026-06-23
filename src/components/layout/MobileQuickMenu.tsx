@@ -23,7 +23,7 @@ export default function MobileQuickMenu() {
             className="flex flex-col gap-3 mb-3 items-start"
           >
             {/* AI Prediction Button */}
-            <Link href="/du-doan" onClick={() => setIsOpen(false)}>
+            <Link href="/du-doan" prefetch={false} onClick={() => setIsOpen(false)}>
               <motion.div
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -37,7 +37,7 @@ export default function MobileQuickMenu() {
             </Link>
 
             {/* Data Center Button */}
-            <Link href="/trung-tam-du-lieu" onClick={() => setIsOpen(false)}>
+            <Link href="/trung-tam-du-lieu" prefetch={false} onClick={() => setIsOpen(false)}>
               <motion.div
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}

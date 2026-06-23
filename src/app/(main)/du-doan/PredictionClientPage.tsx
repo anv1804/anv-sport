@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { Calendar, AlertCircle, ChevronRight, Search, Trophy, Bot, Activity, BarChart3, TrendingUp, Cpu, Filter } from 'lucide-react';
 import Link from 'next/link';
 import { createArticleUrl } from '@/lib/utils';
@@ -310,7 +310,7 @@ export default function PredictionClientPage() {
                        const score2Num = (isFinished || isLive) && match.score2 !== null && match.score2 !== undefined ? parseInt(match.score2) : null;
 
                        return (
-                          <>
+                          <Fragment key={match.id}>
                             {/* DESKTOP LAYOUT */}
                             <div className="hidden sm:flex hover:bg-slate-50 transition-colors group">
                               
@@ -431,7 +431,7 @@ export default function PredictionClientPage() {
                                 </Link>
                               </div>
                             </div>
-                          </>
+                          </Fragment>
                        )
                     })}
                   </div>

@@ -42,7 +42,7 @@ export default function Header({ headerData, menuData, enrichedMenuData, hamburg
 
   const navLinks = menuData?.items || [];
   const siteName = headerData?.siteName || "ANV SPORT";
-  const logoUrl = headerData?.logoUrl || "";
+  const logoUrl = headerData?.logoUrl || "/logos/anv-sport-logo.png";
   const utilities = hamburgerData?.utilities || [];
   const apps = hamburgerData?.apps || [];
 

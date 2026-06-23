@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import { Search, Monitor, Mail, Phone, X } from "lucide-react";
 import { HamburgerLink } from "@/types/settings";
@@ -20,17 +21,31 @@ type HeaderMegaMenuProps = {
 };
 
 export function HeaderMegaMenu({ onClose, allCategoriesTree, utilities, apps }: HeaderMegaMenuProps) {
+  useEffect(() => {
+    // Block scroll on html and body when mounted to prevent double scrollbar
+    const originalHtmlOverflow = document.documentElement.style.overflow;
+    const originalBodyOverflow = document.body.style.overflow;
+
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.documentElement.style.overflow = originalHtmlOverflow;
+      document.body.style.overflow = originalBodyOverflow;
+    };
+  }, []);
+
   return (
     <>
       {/* Page Dim Overlay */}
       <div
-        className="fixed inset-0 top-[112px] bg-black/50 z-40 transition-opacity"
+        className="fixed inset-0 top-[130px] md:top-[92px] lg:top-[112px] bg-black/50 z-40 transition-opacity"
         onClick={onClose}
       />
 
       {/* Mega Menu Panel */}
-      <div className="fixed top-[112px] left-0 right-0 bottom-0 bg-white shadow-xl z-50 animate-in fade-in slide-in-from-top-2 duration-200 overflow-y-auto">
-        <div className="max-w-[1160px] mx-auto px-4 md:px-6 pt-4 pb-4 md:pb-6">
+      <div className="fixed top-[130px] md:top-[92px] lg:top-[112px] left-0 right-0 bottom-0 bg-white shadow-xl z-50 animate-in fade-in slide-in-from-top-2 duration-200 overflow-y-auto">
+        <div className="max-w-[1160px] mx-auto px-4 md:px-6 pt-4 pb-24 md:pb-6">
 
           {/* Search Bar on Mobile */}
           <div className="md:hidden relative mb-5">
@@ -95,22 +110,41 @@ export function HeaderMegaMenu({ onClose, allCategoriesTree, utilities, apps }: 
             {/* SIDEBAR AREA: Utilities & Contact */}
             <div className="w-full lg:w-[220px] lg:border-l lg:border-[#e5e5e5] lg:pl-6 flex flex-col space-y-6">
 
-              {/* Utilities Section 1 */}
-              <div className="flex flex-col space-y-3 pb-5 border-b border-[#e5e5e5]">
-                {utilities.slice(0, 3).map(util => (
-                  <Link key={util.id} href={util.url} className="font-bold text-[14px] text-[#222] hover:text-[var(--color-accent-main)]">
-                    {util.label}
-                  </Link>
-                ))}
-              </div>
+              {/* Utilities Section - Grid on Mobile, List on Desktop */}
+              <div className="pb-5 border-b border-[#e5e5e5]">
+                <h3 className="text-[14px] font-bold text-[#222] mb-3 lg:hidden">Tiện ích</h3>
+                
+                {/* Mobile Grid */}
+                <div className="grid grid-cols-2 gap-2.5 lg:hidden">
+                  {utilities.map(util => (
+                    <Link 
+                      key={util.id} 
+                      href={util.url} 
+                      onClick={onClose}
+                      className="bg-slate-50 border border-slate-100 hover:border-[var(--color-accent-main)] hover:bg-emerald-50/10 px-3 py-2.5 rounded-lg text-[13px] font-bold text-slate-700 text-center transition-all block"
+                    >
+                      {util.label}
+                    </Link>
+                  ))}
+                </div>
 
-              {/* Utilities Section 2 */}
-              <div className="flex flex-col space-y-3 pb-5 border-b border-[#e5e5e5]">
-                {utilities.slice(3).map(util => (
-                  <Link key={util.id} href={util.url} className="font-bold text-[14px] text-[#222] hover:text-[var(--color-accent-main)]">
-                    {util.label}
-                  </Link>
-                ))}
+                {/* Desktop List */}
+                <div className="hidden lg:flex flex-col space-y-6">
+                  <div className="flex flex-col space-y-3">
+                    {utilities.slice(0, 3).map(util => (
+                      <Link key={util.id} href={util.url} className="font-bold text-[14px] text-[#222] hover:text-[var(--color-accent-main)]">
+                        {util.label}
+                      </Link>
+                    ))}
+                  </div>
+                  <div className="flex flex-col space-y-3 pt-5 border-t border-[#e5e5e5]">
+                    {utilities.slice(3).map(util => (
+                      <Link key={util.id} href={util.url} className="font-bold text-[14px] text-[#222] hover:text-[var(--color-accent-main)]">
+                        {util.label}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
               </div>
 
               {/* Section 3: Liên hệ */}

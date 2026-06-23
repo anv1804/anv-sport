@@ -2,6 +2,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import BackToTop from "@/components/layout/BackToTop";
 import MobileQuickMenu from "@/components/layout/MobileQuickMenu";
+import NavigationLoader from "@/components/layout/NavigationLoader";
 import { getSetting } from "@/app/admin/(dashboard)/settings/actions";
 import { DEFAULT_HEADER_SETTINGS, DEFAULT_MENU_SETTINGS, DEFAULT_FOOTER_SETTINGS, DEFAULT_HAMBURGER_SETTINGS } from "@/types/settings";
 
@@ -10,23 +11,30 @@ export default async function MainLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const headerRaw = await getSetting('SITE_HEADER');
-  const menuRaw = await getSetting('SITE_MENU');
-  const footerRaw = await getSetting('SITE_FOOTER');
-  const hamburgerRaw = await getSetting('SITE_HAMBURGER');
+  const prisma = (await import("@/lib/prisma")).default;
+  const [settings, allCategories] = await Promise.all([
+    prisma.setting.findMany({
+      where: {
+        key: { in: ['SITE_HEADER', 'SITE_MENU', 'SITE_FOOTER', 'SITE_HAMBURGER'] }
+      }
+    }),
+    prisma.category.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, slug: true, parentId: true },
+      orderBy: { createdAt: 'asc' }
+    })
+  ]);
+
+  const settingsMap = new Map(settings.map(s => [s.key, s.value]));
+  const headerRaw = settingsMap.get('SITE_HEADER');
+  const menuRaw = settingsMap.get('SITE_MENU');
+  const footerRaw = settingsMap.get('SITE_FOOTER');
+  const hamburgerRaw = settingsMap.get('SITE_HAMBURGER');
 
   const headerData = headerRaw ? JSON.parse(headerRaw) : DEFAULT_HEADER_SETTINGS;
   const menuData = menuRaw ? JSON.parse(menuRaw) : DEFAULT_MENU_SETTINGS;
   const footerData = footerRaw ? JSON.parse(footerRaw) : DEFAULT_FOOTER_SETTINGS;
   const hamburgerData = hamburgerRaw ? JSON.parse(hamburgerRaw) : DEFAULT_HAMBURGER_SETTINGS;
-
-  // Auto-enrich menu items with subcategories from the database if they don't have children
-  const prisma = (await import("@/lib/prisma")).default;
-  const allCategories = await prisma.category.findMany({
-    where: { isActive: true },
-    select: { id: true, name: true, slug: true, parentId: true },
-    orderBy: { createdAt: 'asc' }
-  });
 
   const enrichItems = (items: any[]): any[] => {
     return items.map(item => {
@@ -83,7 +91,8 @@ export default async function MainLayout({
   ];
 
   return (
-    <div className="min-h-screen flex flex-col pt-[128px] md:pt-[112px] font-client-ui">
+    <div className="min-h-screen flex flex-col pt-[130px] md:pt-[92px] lg:pt-[112px] font-client-ui">
+      <NavigationLoader />
       <Header 
         headerData={headerData} 
         menuData={menuData} 
@@ -92,7 +101,7 @@ export default async function MainLayout({
         allCategoriesTree={allCategoriesTree}
       />
       <div className="flex-grow flex flex-col">{children}</div>
-      <Footer footerData={footerData} />
+      <Footer footerData={footerData} menuItems={enrichedMenuData?.items || []} />
       <BackToTop />
       <MobileQuickMenu />
     </div>

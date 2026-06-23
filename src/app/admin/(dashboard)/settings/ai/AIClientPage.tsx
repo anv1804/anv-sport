@@ -177,15 +177,24 @@ export default function AIClientPage({ initialSettings }: {
                     </div>
                   </div>
                 </div>
-              ) : (
-                <div className="flex items-start gap-2.5 text-red-700">
-                  <XCircle size={16} className="mt-0.5 flex-shrink-0" />
-                  <div className="space-y-1">
-                    <p className="font-bold text-sm">Lỗi kết nối API</p>
-                    <p className="text-xs font-medium leading-relaxed text-red-600/90">{testResult.error}</p>
+              ) : (() => {
+                const isOutOfMoney = testResult.error?.toLowerCase().includes("quota") || 
+                                     testResult.error?.toLowerCase().includes("balance") || 
+                                     testResult.error?.toLowerCase().includes("hết tiền");
+                return (
+                  <div className="flex items-start gap-2.5 text-red-700">
+                    <XCircle size={16} className="mt-0.5 flex-shrink-0" />
+                    <div className="space-y-1">
+                      <p className="font-bold text-sm">{isOutOfMoney ? "Lỗi: Tài khoản hết tiền / Hết Quota" : "Lỗi kết nối API"}</p>
+                      <p className="text-xs font-medium leading-relaxed text-red-600/90">
+                        {isOutOfMoney 
+                          ? "Tài khoản của bạn tại api.ai-box.vn đã hết tiền hoặc hết Quota sử dụng. Vui lòng nạp thêm tiền để tiếp tục." 
+                          : testResult.error}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           )}
         </div>

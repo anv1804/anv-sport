@@ -56,12 +56,15 @@ export function CategoryFeed({
       <div className="flex flex-col gap-6">
         {posts.map((post, idx) => (
           <div key={`${post.id}-${idx}`} className="flex flex-col sm:flex-row gap-5 group border-b border-slate-100 pb-6 last:border-0 last:pb-0">
-            <Link href={createArticleUrl(post.title, post.id)} className="w-full sm:w-[240px] md:w-[280px] shrink-0 block overflow-hidden rounded-lg relative">
+            <Link href={createArticleUrl(post.title, post.id)} className="w-full sm:w-[240px] md:w-[280px] shrink-0 block overflow-hidden rounded-lg relative group">
               <img 
                 src={post.imageUrl || '/placeholder.jpg'} 
                 alt={post.title} 
                 className="w-full aspect-[16/10] object-cover group-hover:scale-105 transition-transform duration-500"
               />
+              {post.imageUrl && (
+                <img src="/icons/anv-sport-icon.png" alt="" className="absolute bottom-2 right-2 w-5 h-5 object-contain opacity-50 transition-opacity duration-300 pointer-events-none z-10 select-none group-hover:opacity-80" />
+              )}
             </Link>
             
             <div className="flex flex-col flex-1 py-1">

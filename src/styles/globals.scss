@@ -13,6 +13,8 @@
   
   --color-text-main: #222222; 
   --color-text-muted: #757575; 
+  
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 /* Typography for Client UI only */
@@ -22,6 +24,10 @@
 
 
 /* Global baseline styles */
+html {
+  scrollbar-gutter: stable;
+}
+
 html, body {
   overflow-x: hidden;
   max-width: 100%;
@@ -34,26 +40,31 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Smooth scrollbar */
-::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+/* Smooth scrollbar globally */
+*::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
 }
-::-webkit-scrollbar-track {
+*::-webkit-scrollbar-track {
   background: transparent;
 }
-::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.3);
+*::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
   border-radius: 9999px;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(16, 185, 129, 0.8);
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent-main);
+}
+*::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 /* Firefox standard scrollbar rules */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
+  scrollbar-color: rgba(148, 163, 184, 0.35) transparent;
 }
 
 

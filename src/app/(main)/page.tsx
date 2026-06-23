@@ -5,6 +5,8 @@ export const metadata: Metadata = {
   description: 'Trang thông tin tổng hợp thể thao hàng đầu Việt Nam. Cập nhật nhanh chóng, chính xác tin tức bóng đá, tennis, võ thuật.',
 };
 
+export const revalidate = 30; // Cache homepage for 30 seconds (ISR) for ultra-fast loading
+
 import { MatchScheduleSlider } from "@/components/shared/widgets/MatchScheduleSlider";
 import { AdBanner } from "@/components/shared/ads/AdBanner";
 import {
@@ -18,7 +20,7 @@ import prisma from '@/lib/prisma';
 import { PageSettings } from '@/types/page';
 
 export default async function Home() {
-  // Lấy cấu hình Trang chủ
+  // Fetch page config first (needed to know which zone to fetch)
   const homePage = await prisma.page.findUnique({ where: { slug: '/' } });
 
   let settings: PageSettings = {};
@@ -26,32 +28,29 @@ export default async function Home() {
 
   const topZoneId = settings.top_section;
 
-  let topZone = null;
-  if (topZoneId) {
-    topZone = await prisma.zone.findUnique({
-      where: { id: topZoneId },
-      include: {
-        zonePosts: {
-          orderBy: { position: 'asc' },
-          take: 3,
-          include: { post: true }
+  // Fetch top zone based on config (single query)
+  const topZone = topZoneId
+    ? await prisma.zone.findUnique({
+        where: { id: topZoneId },
+        include: {
+          zonePosts: {
+            orderBy: { position: 'asc' },
+            take: 3,
+            include: { post: { select: { id: true, title: true, excerpt: true, imageUrl: true, createdAt: true, isAiGenerated: true, status: true } } }
+          }
         }
-      }
-    });
-  } else {
-    // Fallback
-    topZone = await prisma.zone.findFirst({
-      where: { page: { slug: '/' }, isActive: true },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        zonePosts: {
-          orderBy: { position: 'asc' },
-          take: 3,
-          include: { post: true }
+      })
+    : await prisma.zone.findFirst({
+        where: { page: { slug: '/' }, isActive: true },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          zonePosts: {
+            orderBy: { position: 'asc' },
+            take: 3,
+            include: { post: { select: { id: true, title: true, excerpt: true, imageUrl: true, createdAt: true, isAiGenerated: true, status: true } } }
+          }
         }
-      }
-    });
-  }
+      });
 
   const topPosts = topZone?.zonePosts.map(zp => zp.post) || [];
   const mainPost = topPosts.length > 0 ? topPosts[0] : null;

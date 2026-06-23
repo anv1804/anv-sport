@@ -16,21 +16,21 @@ export function HeaderNavBar({ navLinks, isMenuOpen, onMenuToggle }: HeaderNavBa
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
-  const [arrowDirection, setArrowDirection] = useState<'next' | 'prev' | 'none'>('none');
+  const [showLeftArrow, setShowLeftArrow] = useState(false);
+  const [showRightArrow, setShowRightArrow] = useState(false);
   const [activeMobileSubmenu, setActiveMobileSubmenu] = useState<string | null>(null);
 
   const checkScroll = () => {
     if (!scrollRef.current) return;
     const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
     if (scrollWidth <= clientWidth) {
-      setArrowDirection('none');
+      setShowLeftArrow(false);
+      setShowRightArrow(false);
       return;
     }
-    if (scrollLeft <= 0) {
-      setArrowDirection('next');
-    } else if (scrollLeft >= scrollWidth - clientWidth - 1) {
-      setArrowDirection('prev');
-    }
+    setShowLeftArrow(scrollLeft > 0);
+    // Use a tolerance of 1px to avoid rounding errors
+    setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 1);
   };
 
   useEffect(() => {
@@ -97,7 +97,7 @@ export function HeaderNavBar({ navLinks, isMenuOpen, onMenuToggle }: HeaderNavBa
                       href={link.url}
                       target={link.target}
                       draggable={false}
-                      className={`px-2 md:px-4 text-[14px] font-bold hover:text-[var(--color-accent-main)] transition-colors whitespace-nowrap flex items-center h-full ${isMenuOpen ? 'text-[#b5b5b5]' : 'text-[#222]'}`}
+                      className={`px-2 md:px-2.5 lg:px-4 text-[14px] font-bold hover:text-[var(--color-accent-main)] transition-colors whitespace-nowrap flex items-center h-full ${isMenuOpen ? 'text-[#b5b5b5]' : 'text-[#222]'}`}
                     >
                       {link.label}
                       {hasChildren && <ChevronDown className="hidden md:block w-4 h-4 ml-0.5 mt-0.5 opacity-50" />}
@@ -135,25 +135,25 @@ export function HeaderNavBar({ navLinks, isMenuOpen, onMenuToggle }: HeaderNavBa
 
         {/* Right Static Area */}
         <div className={`flex items-center flex-shrink-0 h-full z-10 relative pl-1 ${isMenuOpen ? 'bg-[#f7f7f7]' : 'bg-white'}`}>
-          {arrowDirection !== 'none' && (
+          {(showLeftArrow || showRightArrow) && (
             <div className="absolute left-[-2rem] top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent pointer-events-none"></div>
           )}
 
           <div className="flex items-center space-x-1 pl-1">
-            {arrowDirection === 'prev' && (
+            {showLeftArrow && (
               <button
                 onClick={() => scrollByAmount(-200)}
-                className="flex items-center justify-end w-6 h-[44px] text-gray-500 hover:text-[var(--color-accent-main)]"
+                className="flex items-center justify-end w-6 h-[44px] text-gray-500 hover:text-[var(--color-accent-main)] animate-in fade-in duration-200"
               >
                 <div className="w-6 h-6 flex items-center justify-center bg-white border border-gray-100 rounded-full shadow-sm">
                   <ChevronLeft className="w-4 h-4" />
                 </div>
               </button>
             )}
-            {arrowDirection === 'next' && (
+            {showRightArrow && (
               <button
                 onClick={() => scrollByAmount(200)}
-                className="flex items-center justify-end w-6 h-[44px] text-gray-500 hover:text-[var(--color-accent-main)]"
+                className="flex items-center justify-end w-6 h-[44px] text-gray-500 hover:text-[var(--color-accent-main)] animate-in fade-in duration-200"
               >
                 <div className="w-6 h-6 flex items-center justify-center bg-white border border-gray-100 rounded-full shadow-sm">
                   <ChevronRight className="w-4 h-4" />

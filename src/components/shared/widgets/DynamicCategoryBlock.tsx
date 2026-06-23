@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { CategoryBlock } from "./CategoryBlock";
 import { HorizontalPost } from "@/components/domain/article/HorizontalPost";
 import { VerticalPost } from "@/components/domain/article/VerticalPost";
+import { createArticleUrl } from "@/lib/helpers/url";
 
 export async function DynamicCategoryBlock({ zoneId, isSticky, index = 0 }: { zoneId: string, isSticky?: boolean, index?: number }) {
   if (!zoneId) return null;
@@ -24,17 +25,33 @@ export async function DynamicCategoryBlock({ zoneId, isSticky, index = 0 }: { zo
   };
 
   if (isCategory) {
-    const category = await prisma.category.findUnique({
-      where: { id: actualId },
-      include: {
-        children: {
-          where: { isActive: true },
-          take: 5
+    const postSelect = {
+      id: true, title: true, excerpt: true, imageUrl: true,
+      createdAt: true, status: true, isAiGenerated: true,
+      categories: { select: { id: true, name: true, slug: true } }
+    };
+
+    const [category, featuredPosts] = await Promise.all([
+      prisma.category.findUnique({
+        where: { id: actualId },
+        select: {
+          name: true,
+          children: {
+            where: { isActive: true },
+            take: 5,
+            select: { id: true, name: true, slug: true }
+          }
         }
-      }
-    });
+      }),
+      prisma.categoryPost.findMany({
+        where: { categoryId: actualId },
+        orderBy: { position: 'asc' },
+        include: { post: { select: postSelect } }
+      })
+    ]);
+
     if (!category) return null;
-    
+
     blockName = category.name;
     if (category.children && category.children.length > 0) {
       subcategories = category.children.map((c: any) => ({
@@ -42,13 +59,6 @@ export async function DynamicCategoryBlock({ zoneId, isSticky, index = 0 }: { zo
         href: `/${c.slug}`
       }));
     }
-    
-    // Ưu tiên lấy các bài được gắp thủ công
-    const featuredPosts = await prisma.categoryPost.findMany({
-      where: { categoryId: actualId },
-      orderBy: { position: 'asc' },
-      include: { post: { include: { categories: true } } }
-    });
 
     // Đưa bài ghim hợp lệ lên đầu
     const printedPosts = featuredPosts.filter(isPrintedValid);
@@ -67,17 +77,30 @@ export async function DynamicCategoryBlock({ zoneId, isSticky, index = 0 }: { zo
         },
         orderBy: { createdAt: 'desc' },
         take: 6 - posts.length,
-        include: { categories: true }
+        select: postSelect
       });
       posts = [...posts, ...recentPosts];
     }
   } else {
     const zone = await prisma.zone.findUnique({
       where: { id: actualId },
-      include: {
+      select: {
+        name: true,
         zonePosts: {
           orderBy: { position: 'asc' },
-          include: { post: { include: { categories: true } } }
+          take: 8,
+          select: {
+            isPrinted: true,
+            printStartTime: true,
+            printEndTime: true,
+            post: {
+              select: {
+                id: true, title: true, excerpt: true, imageUrl: true,
+                createdAt: true, status: true, isAiGenerated: true,
+                categories: { select: { id: true, name: true, slug: true } }
+              }
+            }
+          }
         }
       }
     });
@@ -110,7 +133,7 @@ export async function DynamicCategoryBlock({ zoneId, isSticky, index = 0 }: { zo
             {subPost && (
               <div className="md:col-span-1 md:border-r border-[#e5e5e5] md:pr-6 flex flex-col">
                   <VerticalPost 
-                    href={`/${subPost.slug}`}
+                    href={createArticleUrl(subPost.title, subPost.id)}
                     title={subPost.title}
                     excerpt={subPost.excerpt || ""}
                     hideExcerpt={false}
@@ -124,7 +147,7 @@ export async function DynamicCategoryBlock({ zoneId, isSticky, index = 0 }: { zo
             )}
             <div className={`md:col-span-2 ${!subPost ? 'md:col-span-3' : ''}`}>
                 <HorizontalPost 
-                  href={`/${mainPost.slug}`}
+                  href={createArticleUrl(mainPost.title, mainPost.id)}
                   title={mainPost.title}
                   excerpt={mainPost.excerpt || ""}
                   imageUrl={mainPost.imageUrl || undefined}
@@ -153,7 +176,7 @@ export async function DynamicCategoryBlock({ zoneId, isSticky, index = 0 }: { zo
             {topPosts.map((post, i) => (
               <div key={post.id} className={i < 2 ? "md:border-r border-[#e5e5e5] md:pr-6 flex flex-col" : "flex flex-col"}>
                  <VerticalPost 
-                    href={`/${post.slug}`}
+                    href={createArticleUrl(post.title, post.id)}
                     title={post.title}
                     imageUrl={post.imageUrl || undefined}
                     size="sm"
@@ -179,7 +202,7 @@ export async function DynamicCategoryBlock({ zoneId, isSticky, index = 0 }: { zo
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
           <div className="md:col-span-2 md:border-r border-[#e5e5e5] md:pr-6">
               <HorizontalPost 
-                href={`/${mainPost.slug}`}
+                href={createArticleUrl(mainPost.title, mainPost.id)}
                 title={mainPost.title}
                 excerpt={mainPost.excerpt || ""}
                 imageUrl={mainPost.imageUrl || undefined}
@@ -192,7 +215,7 @@ export async function DynamicCategoryBlock({ zoneId, isSticky, index = 0 }: { zo
           {subPost && (
             <div className="md:col-span-1 flex flex-col">
                 <VerticalPost 
-                  href={`/${subPost.slug}`}
+                  href={createArticleUrl(subPost.title, subPost.id)}
                   title={subPost.title}
                   excerpt={subPost.excerpt || ""}
                   hideExcerpt={false}
@@ -217,7 +240,7 @@ export async function DynamicCategoryBlock({ zoneId, isSticky, index = 0 }: { zo
         <ul className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
           {listPosts.map((post) => (
             <li key={post.id} className="relative pl-3 md:pl-4 before:content-[''] before:absolute before:left-0 before:top-[8px] before:w-[5px] before:h-[5px] before:bg-gray-400 before:rounded-full">
-              <a href={`/${post.slug}`} className="text-[14px] md:text-[15px] font-bold text-[#222222] hover:text-[var(--color-accent-main)] leading-snug line-clamp-3">
+              <a href={createArticleUrl(post.title, post.id)} className="text-[14px] md:text-[15px] font-bold text-[#222222] hover:text-[var(--color-accent-main)] leading-snug line-clamp-3">
                 {post.title}
               </a>
             </li>

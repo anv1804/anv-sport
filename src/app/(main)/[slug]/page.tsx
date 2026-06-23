@@ -8,6 +8,48 @@ import { ArticleView } from './ArticleView'
 import { createArticleUrl } from '@/lib/helpers/url'
 import { CategoryFeed } from '@/components/domain/category/CategoryFeed'
 
+export const revalidate = 30; // Cache category pages for 30 seconds (ISR) for instant load
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const resolvedParams = await params
+  const { slug } = resolvedParams
+
+  if (slug.endsWith('.html')) {
+    const match = slug.match(/-([^-]+)\.html$/)
+    if (match) {
+      const id = parseInt(match[1], 10)
+      if (!isNaN(id)) {
+        const post = await prisma.post.findUnique({
+          where: { id },
+          select: { title: true, excerpt: true }
+        })
+        if (post) {
+          return {
+            title: `${post.title} - ANV Sport`,
+            description: post.excerpt || `Đọc bài viết ${post.title} trên chuyên trang thông tin thể thao ANV Sport.`,
+          }
+        }
+      }
+    }
+  }
+
+  const category = await prisma.category.findUnique({
+    where: { slug },
+    select: { name: true, description: true }
+  })
+
+  if (category) {
+    return {
+      title: `${category.name} - Tin tức, Sự kiện mới nhất - ANV Sport`,
+      description: category.description || `Cập nhật tin tức mới nhất về ${category.name} trên chuyên trang thông tin thể thao ANV Sport.`,
+    }
+  }
+
+  return {
+    title: "ANV Sport | Tốc độ & Chuẩn xác",
+  }
+}
+
 export default async function SlugPage({ 
   params,
   searchParams
@@ -70,32 +112,33 @@ async function CategoryContent({ categorySlug, page }: { categorySlug: string, p
 
   const isFirstPage = page === 1
 
-  const totalPosts = await prisma.post.count({
-    where: {
-      status: 'PUBLISHED',
-      categories: {
-        some: {
-          id: { in: categoryIdsToFetch }
+  const [totalPosts, rawPosts] = await Promise.all([
+    prisma.post.count({
+      where: {
+        status: 'PUBLISHED',
+        categories: {
+          some: {
+            id: { in: categoryIdsToFetch }
+          }
         }
       }
-    }
-  })
-
-  const rawPosts = await prisma.post.findMany({
-    where: {
-      status: 'PUBLISHED',
-      categories: {
-        some: {
-          id: { in: categoryIdsToFetch }
+    }),
+    prisma.post.findMany({
+      where: {
+        status: 'PUBLISHED',
+        categories: {
+          some: {
+            id: { in: categoryIdsToFetch }
+          }
         }
-      }
-    },
-    orderBy: {
-      createdAt: 'desc'
-    },
-    skip: (page - 1) * 15,
-    take: 15
-  })
+      },
+      orderBy: {
+        createdAt: 'desc'
+      },
+      skip: (page - 1) * 15,
+      take: 15
+    })
+  ])
 
   const posts = rawPosts.map(post => ({
     ...post,

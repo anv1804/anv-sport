@@ -138,7 +138,10 @@ export function VerticalPost({
     return (
       <div className={`bg-[#e5e5e5] relative overflow-hidden aspect-[5/3] flex-shrink-0 w-full ${imageClass} ${extraClass}`}>
         {imageUrl ? (
-           <img src={imageUrl} alt={title} loading="lazy" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+           <>
+             <img src={imageUrl} alt={title} loading="lazy" className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+             <img src="/icons/anv-sport-icon.png" alt="" className="absolute bottom-2 right-2 w-5 h-5 object-contain opacity-50 transition-opacity duration-300 pointer-events-none z-10 select-none group-hover:opacity-80" />
+           </>
         ) : (
            <div className="absolute inset-0 bg-[#e5e5e5] transition-transform duration-500 group-hover:scale-105"></div>
         )}

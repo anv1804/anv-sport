@@ -1,7 +1,7 @@
 import { getAISettings, getAILogs, getAILogStats } from "./actions";
 import AIClientPage from "./AIClientPage";
 import AIHistoryTable from "./AIHistoryTable";
-import { Cpu, BarChart2 } from "lucide-react";
+import { Cpu, BarChart2, ShieldAlert } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -10,8 +10,28 @@ export default async function AISettingsPage() {
   const logs = await getAILogs(10, 0); // Limit 10, offset 0 for page 1
   const stats = await getAILogStats();
 
+  const hasQuotaError = logs.some(log => 
+    log.status === "ERROR" && 
+    (log.errorMessage?.toLowerCase().includes("quota") || 
+     log.errorMessage?.toLowerCase().includes("balance") || 
+     log.errorMessage?.toLowerCase().includes("hết tiền"))
+  );
+
   return (
-    <div className="w-full space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="w-full space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      {hasQuotaError && (
+        <div className="p-4 bg-amber-50/80 backdrop-blur-xl border border-amber-200/60 text-amber-900 rounded-[20px] flex items-start gap-3 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+          <ShieldAlert className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+          <div>
+            <h3 className="font-bold text-sm">Cảnh báo: Tài khoản AI Box hết tiền hoặc hết Quota!</h3>
+            <p className="text-xs text-amber-700/90 mt-1 font-medium leading-relaxed">
+              Hệ thống phát hiện một số yêu cầu AI gần đây bị từ chối với lỗi không đủ số dư. 
+              Vui lòng kiểm tra lại tài khoản và nạp thêm tiền tại <a href="https://api.ai-box.vn" target="_blank" rel="noopener noreferrer" className="underline font-bold text-amber-800 hover:text-amber-900">api.ai-box.vn</a> để khôi phục dịch vụ.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Header Controls */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 bg-white/70 backdrop-blur-xl border border-slate-200/60 rounded-[24px] shadow-sm">
         <div>
