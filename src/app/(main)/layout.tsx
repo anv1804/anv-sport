@@ -5,24 +5,42 @@ import MobileQuickMenu from "@/components/layout/MobileQuickMenu";
 import NavigationLoader from "@/components/layout/NavigationLoader";
 import { getSetting } from "@/app/admin/(dashboard)/settings/actions";
 import { DEFAULT_HEADER_SETTINGS, DEFAULT_MENU_SETTINGS, DEFAULT_FOOTER_SETTINGS, DEFAULT_HAMBURGER_SETTINGS } from "@/types/settings";
+import { unstable_cache } from "next/cache";
+
+const getCachedSettings = unstable_cache(
+  async () => {
+    const prisma = (await import("@/lib/prisma")).default;
+    return prisma.setting.findMany({
+      where: {
+        key: { in: ['SITE_HEADER', 'SITE_MENU', 'SITE_FOOTER', 'SITE_HAMBURGER'] }
+      }
+    });
+  },
+  ['layout-settings'],
+  { revalidate: 60, tags: ['settings'] }
+);
+
+const getCachedCategories = unstable_cache(
+  async () => {
+    const prisma = (await import("@/lib/prisma")).default;
+    return prisma.category.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, slug: true, parentId: true },
+      orderBy: { createdAt: 'asc' }
+    });
+  },
+  ['layout-categories'],
+  { revalidate: 60, tags: ['categories'] }
+);
 
 export default async function MainLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const prisma = (await import("@/lib/prisma")).default;
   const [settings, allCategories] = await Promise.all([
-    prisma.setting.findMany({
-      where: {
-        key: { in: ['SITE_HEADER', 'SITE_MENU', 'SITE_FOOTER', 'SITE_HAMBURGER'] }
-      }
-    }),
-    prisma.category.findMany({
-      where: { isActive: true },
-      select: { id: true, name: true, slug: true, parentId: true },
-      orderBy: { createdAt: 'asc' }
-    })
+    getCachedSettings(),
+    getCachedCategories()
   ]);
 
   const settingsMap = new Map(settings.map(s => [s.key, s.value]));

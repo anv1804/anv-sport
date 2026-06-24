@@ -436,7 +436,7 @@ export async function GET(request: Request) {
         const index = parseInt(matchId.split('-')[1]);
         const openRes = await fetch('https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json', { next: { revalidate: 3600 } });
         const openData = await openRes.json();
-        const openMatch = openData.matches?.filter((m: any) => m.group)?.[index];
+        const openMatch = openData.matches?.[index];
 
         if (openMatch) {
           const matchedId = await findEspnEventId(openMatch.team1, openMatch.team2, openMatch.date);
@@ -683,7 +683,7 @@ export async function GET(request: Request) {
           const elapsedStr = e.clock?.displayValue ? e.clock.displayValue.replace(/'/g, "") : "0";
           let elapsed = 0;
           if (elapsedStr.includes("+")) {
-            elapsed = elapsedStr.split("+").map(s => Number(s.trim())).reduce((a: number, b: number) => a + b, 0);
+            elapsed = elapsedStr.split("+").map((s: string) => Number(s.trim())).reduce((a: number, b: number) => a + b, 0);
           } else {
             elapsed = parseInt(elapsedStr) || 0;
           }
@@ -736,8 +736,8 @@ export async function GET(request: Request) {
       try {
         const res = await fetch('https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json', { next: { revalidate: 3600 } });
         const data = await res.json();
-        const groupStageMatches = data.matches.filter((m: any) => m.group);
-        worldCupFixtures = groupStageMatches.map((match: any, index: number) => {
+        const matchesList = data.matches || [];
+        worldCupFixtures = matchesList.map((match: any, index: number) => {
           const id = `wc2026-${index}`;
           let vnDate = match.date;
           let vnTime = match.time ? match.time.split(' ')[0] : '00:00';

@@ -18,39 +18,48 @@ import {
 } from "@/components/domain/homepage";
 import prisma from '@/lib/prisma';
 import { PageSettings } from '@/types/page';
+import { unstable_cache } from 'next/cache';
+
+const getCachedHomepageData = unstable_cache(
+  async () => {
+    const homePage = await prisma.page.findUnique({ where: { slug: '/' } });
+    let settings: PageSettings = {};
+    try { settings = JSON.parse(homePage?.settings || '{}'); } catch (e) {}
+
+    const topZoneId = settings.top_section;
+
+    const topZone = topZoneId
+      ? await prisma.zone.findUnique({
+          where: { id: topZoneId },
+          include: {
+            zonePosts: {
+              orderBy: { position: 'asc' },
+              take: 3,
+              include: { post: { select: { id: true, title: true, excerpt: true, imageUrl: true, createdAt: true, isAiGenerated: true, status: true } } }
+            }
+          }
+        })
+      : await prisma.zone.findFirst({
+          where: { page: { slug: '/' }, isActive: true },
+          orderBy: { createdAt: 'desc' },
+          include: {
+            zonePosts: {
+              orderBy: { position: 'asc' },
+              take: 3,
+              include: { post: { select: { id: true, title: true, excerpt: true, imageUrl: true, createdAt: true, isAiGenerated: true, status: true } } }
+            }
+          }
+        });
+
+    return { settings, topZone };
+  },
+  ['homepage-data-cache'],
+  { revalidate: 30, tags: ['homepage'] }
+);
 
 export default async function Home() {
-  // Fetch page config first (needed to know which zone to fetch)
-  const homePage = await prisma.page.findUnique({ where: { slug: '/' } });
-
-  let settings: PageSettings = {};
-  try { settings = JSON.parse(homePage?.settings || '{}'); } catch (e) {}
-
-  const topZoneId = settings.top_section;
-
-  // Fetch top zone based on config (single query)
-  const topZone = topZoneId
-    ? await prisma.zone.findUnique({
-        where: { id: topZoneId },
-        include: {
-          zonePosts: {
-            orderBy: { position: 'asc' },
-            take: 3,
-            include: { post: { select: { id: true, title: true, excerpt: true, imageUrl: true, createdAt: true, isAiGenerated: true, status: true } } }
-          }
-        }
-      })
-    : await prisma.zone.findFirst({
-        where: { page: { slug: '/' }, isActive: true },
-        orderBy: { createdAt: 'desc' },
-        include: {
-          zonePosts: {
-            orderBy: { position: 'asc' },
-            take: 3,
-            include: { post: { select: { id: true, title: true, excerpt: true, imageUrl: true, createdAt: true, isAiGenerated: true, status: true } } }
-          }
-        }
-      });
+  // Fetch cached settings and top zone
+  const { settings, topZone } = await getCachedHomepageData();
 
   const topPosts = topZone?.zonePosts.map(zp => zp.post) || [];
   const mainPost = topPosts.length > 0 ? topPosts[0] : null;

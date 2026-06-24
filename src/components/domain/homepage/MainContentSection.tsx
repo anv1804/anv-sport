@@ -1,7 +1,9 @@
-import { NewsFeed } from "@/components/shared/widgets/NewsFeed";
+import { NewsFeed, NewsFeedSkeleton } from "@/components/shared/widgets/NewsFeed";
 import { AdBanner } from "@/components/shared/ads/AdBanner";
 import { DynamicCategoryBlock } from "@/components/shared/widgets/DynamicCategoryBlock";
+import { DynamicCategoryBlockSkeleton } from "@/components/shared/widgets/DynamicCategoryBlockSkeleton";
 import { CategoryBlockConfig } from "@/types/page";
+import { Suspense } from "react";
 
 type MainContentSectionProps = {
   newsFeedZoneId?: string;
@@ -15,7 +17,9 @@ export function MainContentSection({ newsFeedZoneId, categoryBlocks = [], adInFe
 
       {/* CỘT TRÁI (Luồng tin chính) - 4 Cột */}
       <div className="lg:col-span-4 lg:border-r border-[#e5e5e5] md:pr-6">
-        <NewsFeed zoneId={newsFeedZoneId} />
+        <Suspense fallback={<NewsFeedSkeleton />}>
+          <NewsFeed zoneId={newsFeedZoneId} />
+        </Suspense>
         <div className="pb-4 md:pb-5 mb-4 md:mb-5 mt-4 md:mt-6">
           <AdBanner type="responsive" adSlot={adInFeedSlot || "In_Feed_Left"} className="h-[250px]" />
         </div>
@@ -41,7 +45,11 @@ export function MainContentSection({ newsFeedZoneId, categoryBlocks = [], adInFe
           const layoutType = typeof block === 'object' && (block as CategoryBlockConfig).layout !== undefined
             ? (block as CategoryBlockConfig).layout!
             : (idx % 3);
-          return <DynamicCategoryBlock key={idx} zoneId={zoneId} isSticky={isSticky} index={layoutType} />;
+          return (
+            <Suspense key={idx} fallback={<DynamicCategoryBlockSkeleton index={layoutType} />}>
+              <DynamicCategoryBlock zoneId={zoneId} isSticky={isSticky} index={layoutType} />
+            </Suspense>
+          );
         })}
 
       </div>

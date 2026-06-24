@@ -258,3 +258,5 @@ export async function DynamicCategoryBlock({ zoneId, isSticky, index = 0 }: { zo
     </div>
   );
 }
+
+export { DynamicCategoryBlockSkeleton } from "./DynamicCategoryBlockSkeleton";

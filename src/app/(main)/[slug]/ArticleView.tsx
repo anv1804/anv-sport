@@ -6,6 +6,57 @@ import { createArticleUrl } from '@/lib/helpers/url'
 import { ArticleHtmlContent } from './ArticleHtmlContent'
 import { Mail, Link as LinkIcon, Bookmark, MessageCircle, Smile, ThumbsUp, Flag } from 'lucide-react'
 import { PredictionView } from '@/components/domain/article/PredictionView'
+import { unstable_cache } from 'next/cache'
+
+const getCachedPost = unstable_cache(
+  async (id: number) => {
+    return prisma.post.findUnique({
+      where: { id },
+      include: { categories: true }
+    })
+  },
+  ['post-detail-view'],
+  { revalidate: 60, tags: ['posts'] }
+);
+
+const getCachedRelatedData = unstable_cache(
+  async (postId: number, manualRelatedIds: number[], categoryId: string | undefined, takeCount: number, excludeIds: number[]) => {
+    return Promise.all([
+      prisma.post.findMany({
+        where: { status: 'PUBLISHED', id: { not: postId } },
+        orderBy: { createdAt: 'desc' },
+        take: 5
+      }),
+      manualRelatedIds.length > 0
+        ? prisma.post.findMany({
+            where: { id: { in: manualRelatedIds } },
+            include: { categories: true }
+          })
+        : Promise.resolve([]),
+      categoryId && takeCount > 0
+        ? prisma.post.findMany({
+            where: { 
+              status: 'PUBLISHED', 
+              id: { notIn: excludeIds },
+              categories: { some: { id: categoryId } }
+            },
+            orderBy: { createdAt: 'desc' },
+            take: takeCount,
+            include: { categories: true }
+          })
+        : takeCount > 0
+        ? prisma.post.findMany({
+            where: { status: 'PUBLISHED', id: { notIn: excludeIds } },
+            orderBy: { createdAt: 'desc' },
+            take: takeCount,
+            include: { categories: true }
+          })
+        : Promise.resolve([])
+    ])
+  },
+  ['post-related-data'],
+  { revalidate: 60, tags: ['posts'] }
+);
 
 export function ArticleView({ id }: { id: string }) {
   const numericId = parseInt(id, 10);
@@ -16,10 +67,7 @@ export function ArticleView({ id }: { id: string }) {
 }
 
 async function ArticleContent({ id }: { id: number }) {
-  const post = await prisma.post.findUnique({
-    where: { id },
-    include: { categories: true }
-  })
+  const post = await getCachedPost(id)
 
   if (!post) {
     notFound()
@@ -43,38 +91,13 @@ async function ArticleContent({ id }: { id: number }) {
   const categoryId = post.categories?.[0]?.id;
 
   // Run all secondary queries in parallel to eliminate database waterfalls
-  const [latestPosts, manualPosts, autoRelatedPosts] = await Promise.all([
-    prisma.post.findMany({
-      where: { status: 'PUBLISHED', id: { not: post.id } },
-      orderBy: { createdAt: 'desc' },
-      take: 5
-    }),
-    manualRelatedIds.length > 0
-      ? prisma.post.findMany({
-          where: { id: { in: manualRelatedIds } },
-          include: { categories: true }
-        })
-      : Promise.resolve([]),
-    categoryId && takeCount > 0
-      ? prisma.post.findMany({
-          where: { 
-            status: 'PUBLISHED', 
-            id: { notIn: excludeIds },
-            categories: { some: { id: categoryId } }
-          },
-          orderBy: { createdAt: 'desc' },
-          take: takeCount,
-          include: { categories: true }
-        })
-      : takeCount > 0
-      ? prisma.post.findMany({
-          where: { status: 'PUBLISHED', id: { notIn: excludeIds } },
-          orderBy: { createdAt: 'desc' },
-          take: takeCount,
-          include: { categories: true }
-        })
-      : Promise.resolve([])
-  ]);
+  const [latestPosts, manualPosts, autoRelatedPosts] = await getCachedRelatedData(
+    post.id,
+    manualRelatedIds,
+    categoryId,
+    takeCount,
+    excludeIds
+  );
 
   // Keep manual order
   if (manualRelatedIds.length > 0 && manualPosts.length > 0) {

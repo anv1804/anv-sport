@@ -70,3 +70,26 @@ export async function NewsFeed({ zoneId }: { zoneId?: string }) {
     </>
   );
 }
+
+export function NewsFeedSkeleton() {
+  return (
+    <div className="animate-pulse">
+      <div className="flex items-center justify-between mb-4 border-b-[2px] border-[#e5e5e5]">
+        <h2 className="text-[16px] font-bold text-[var(--color-accent-main)] border-b-[2px] border-[var(--color-accent-main)] inline-block pb-2 -mb-[2px] uppercase tracking-wide">
+          TIN TỨC ANV SPORT
+        </h2>
+        <span className="text-[12px] text-gray-500 font-medium">Bản quyền thuộc ANV</span>
+      </div>
+      {[1, 2, 3, 4, 5].map((n, index) => (
+        <div key={n} className={`border-b border-[#e5e5e5] pb-5 mb-5 ${index === 4 ? 'border-0 pb-0 mb-0' : ''}`}>
+          <HorizontalPost 
+            isLoading={true}
+            titlePosition="top"
+            size="md"
+            className="border-0 pb-0 mb-0"
+          />
+        </div>
+      ))}
+    </div>
+  );
+}

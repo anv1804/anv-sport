@@ -92,6 +92,21 @@ export function CategoryFeed({
         ))}
       </div>
 
+      {loading && (
+        <div className="flex flex-col gap-6 mt-6">
+          {[1, 2, 3].map((n) => (
+            <div key={`skeleton-${n}`} className="flex flex-col sm:flex-row gap-5 border-b border-slate-100 pb-6 last:border-0 last:pb-0 animate-pulse">
+              <div className="w-full sm:w-[240px] md:w-[280px] aspect-[16/10] bg-slate-200 rounded-lg shrink-0"></div>
+              <div className="flex flex-col flex-1 py-1 space-y-3">
+                <div className="h-5 bg-slate-200 rounded w-5/6"></div>
+                <div className="h-4 bg-slate-200 rounded w-2/3"></div>
+                <div className="h-3 bg-slate-200 rounded w-1/4 mt-auto"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {posts.length === 0 && (
         <div className="text-center py-8 text-slate-500">
           Chưa có bài viết nào trong mục này.

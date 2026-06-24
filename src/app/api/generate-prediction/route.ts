@@ -3,6 +3,7 @@ import { generateWithFallback } from '@/lib/aiBox';
 import prisma from '@/lib/prisma';
 import fs from 'fs';
 import path from 'path';
+import { getWinProbability } from '@/lib/utils';
 
 // Helper function to generate deterministic Head-to-Head history based on team names (Fallback only)
 function getDeterministicH2H(team1: string, team2: string) {
@@ -507,6 +508,17 @@ export async function POST(req: Request) {
 
     // Apply real API data override if available, otherwise let the AI's knowledgeable response stand
     if (result.predictionData) {
+      if (!result.predictionData.header) {
+        result.predictionData.header = {};
+      }
+      result.predictionData.header.team1 = { name: t1, logo: matchData?.team1?.logo || '' };
+      result.predictionData.header.team2 = { name: t2, logo: matchData?.team2?.logo || '' };
+      result.predictionData.header.matchTime = `${matchData?.matchTime || ''}, ${matchData?.matchDate || ''}`;
+      result.predictionData.header.tournament = matchData?.category || result.predictionData.header.tournament;
+      
+      const prob = getWinProbability(matchId, t1, t2);
+      result.predictionData.header.probabilities = { team1: prob.w1, draw: prob.draw, team2: prob.w2 };
+
       if (!result.predictionData.formAndH2h) {
         result.predictionData.formAndH2h = {};
       }

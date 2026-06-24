@@ -1,8 +1,5 @@
 import { Metadata } from 'next';
-import { PrismaClient } from '@prisma/client';
 import PlayerDetailClient from '../../wiki/[slug]/PlayerDetailClient'; // Tạm thời dùng lại giao diện xịn sò đã làm ở cau-thu
-
-const prisma = new PrismaClient();
 
 export const metadata: Metadata = {
   title: 'Hồ Sơ | ANV Sport',

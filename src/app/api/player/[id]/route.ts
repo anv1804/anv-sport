@@ -1,7 +1,24 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { unstable_cache } from 'next/cache';
 
-export const dynamic = 'force-dynamic';
+const getCachedEntity = unstable_cache(
+  async (id: string) => {
+    return prisma.entity.findFirst({
+      where: {
+        OR: [
+          { slug: id },
+          { id },
+          // support URL pattern like "bukayo-saka" matching slug "bukayo-saka"
+          { slug: id.replace(/-[^-]+$/, '') },
+        ]
+      },
+      include: { club: true },
+    });
+  },
+  ['entity-by-id-or-slug'],
+  { revalidate: 60, tags: ['entities'] }
+);
 
 function parseJson(raw: any) {
   if (!raw) return null;
@@ -12,18 +29,8 @@ function parseJson(raw: any) {
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  // Try to find by slug first, then by ID
-  const entity = await prisma.entity.findFirst({
-    where: {
-      OR: [
-        { slug: id },
-        { id },
-        // support URL pattern like "bukayo-saka" matching slug "bukayo-saka"
-        { slug: id.replace(/-[^-]+$/, '') },
-      ]
-    },
-    include: { club: true },
-  });
+  // Try to find by slug first, then by ID using cached query
+  const entity = await getCachedEntity(id);
 
   if (!entity) {
     return NextResponse.json({ success: false, error: 'Player not found' }, { status: 404 });

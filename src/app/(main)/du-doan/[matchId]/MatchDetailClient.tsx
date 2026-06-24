@@ -5,6 +5,7 @@ import { PredictionView, PredictionData } from '@/components/domain/article/Pred
 import { Button } from '@/components/ui/Button';
 import { Bot, AlertTriangle, ArrowLeft, Calendar, ShieldAlert, PlayCircle, Info, X, Eye } from 'lucide-react';
 import Link from 'next/link';
+import { getWinProbability } from '@/lib/utils';
 
 const getPlayerEventsSummary = (player: any, events: any[] = []) => {
   const summary = {
@@ -794,8 +795,8 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
       const goalsStr = teamName === matchInfo.team1.name ? matchInfo.goals?.home : matchInfo.goals?.away;
       if (goalsStr) {
         const cleanStr = goalsStr.replace(/NaN'/g, "90+'");
-        const parts = cleanStr.split(';').map(s => s.trim()).filter(Boolean);
-        parts.forEach(part => {
+        const parts = cleanStr.split(';').map((s: string) => s.trim()).filter(Boolean);
+        parts.forEach((part: string) => {
           const lastSpaceIndex = part.lastIndexOf(' ');
           if (lastSpaceIndex !== -1) {
             const name = part.substring(0, lastSpaceIndex).trim();
@@ -1614,7 +1615,29 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
              {(() => {
                const histItem = predictionHistory.find(h => h.milestone === selectedMilestone);
                const showPreview = isDataPreview && selectedMilestone === 'LIVE';
-               const activePrediction = showPreview ? predictionData : (histItem?.prediction || null);
+               const basePrediction = showPreview ? predictionData : (histItem?.prediction || null);
+
+               let activePrediction = null;
+               if (basePrediction && matchInfo) {
+                 const prob = getWinProbability(matchInfo.id, matchInfo.team1.name, matchInfo.team2.name);
+                 activePrediction = {
+                   ...basePrediction,
+                   header: {
+                     ...basePrediction.header,
+                     team1: {
+                       name: matchInfo.team1.name,
+                       logo: matchInfo.team1.logo
+                     },
+                     team2: {
+                       name: matchInfo.team2.name,
+                       logo: matchInfo.team2.logo
+                     },
+                     matchTime: `${matchInfo.matchTime || ''}, ${matchInfo.matchDate || ''}`,
+                     tournament: matchInfo.category || basePrediction.header?.tournament,
+                     probabilities: { team1: prob.w1, draw: prob.draw, team2: prob.w2 }
+                   }
+                 };
+               }
 
                if (isGenerating) {
                  return (
