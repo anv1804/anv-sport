@@ -18,8 +18,14 @@
 }
 
 /* Typography for Client UI only */
-.font-client-ui {
-  font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+.font-client-ui,
+.font-sans,
+body,
+input,
+select,
+button,
+textarea {
+  font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
 }
 
 

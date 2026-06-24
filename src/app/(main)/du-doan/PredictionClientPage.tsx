@@ -109,7 +109,7 @@ function getCityName(ground: string): string {
   if (lower.includes('miami') || lower.includes('hard rock')) return 'Miami';
   if (lower.includes('philadelphia') || lower.includes('lincoln')) return 'Philadelphia';
   if (lower.includes('seattle') || lower.includes('lumen')) return 'Seattle';
-  if (lower.includes('san francisco') || lower.includes('levi')) return 'San Francisco';
+  if (lower.includes('san -francisco') || lower.includes('levi')) return 'San Francisco';
   if (lower.includes('boston') || lower.includes('gillette')) return 'Boston';
   if (lower.includes('houston') || lower.includes('nrg')) return 'Houston';
   return 'Vancouver';
@@ -222,7 +222,7 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
 
   // Grouping & Filtering State
   const [groupedFixtures, setGroupedFixtures] = useState<Record<string, any[]>>({});
-  const [filterType, setFilterType] = useState<'all' | 'upcoming' | 'finished'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'live' | 'finished' | 'upcoming'>('all');
   const [dateFilter, setDateFilter] = useState<'all' | 'yesterday' | 'today' | 'tomorrow'>('today');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -300,8 +300,8 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedFilterType = localStorage.getItem('pred_filterType');
-      if (savedFilterType === 'all' || savedFilterType === 'upcoming' || savedFilterType === 'finished') {
-        setFilterType(savedFilterType);
+      if (savedFilterType === 'all' || savedFilterType === 'live' || savedFilterType === 'upcoming' || savedFilterType === 'finished') {
+        setFilterType(savedFilterType as any);
       }
       
       const savedDateFilter = localStorage.getItem('pred_dateFilter');
@@ -442,6 +442,8 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
       setDateFilter('today');
     } else if (filterType === 'upcoming' && dateFilter === 'yesterday') {
       setDateFilter('today');
+    } else if (filterType === 'live' && (dateFilter === 'yesterday' || dateFilter === 'tomorrow')) {
+      setDateFilter('today');
     }
   }, [filterType, dateFilter]);
 
@@ -463,7 +465,9 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
     if (filterType === 'upcoming') {
       filtered = filtered.filter(f => !f.status || f.status.toLowerCase().includes('upcoming') || f.status === 'Chưa diễn ra' || f.status === 'Chưa đá');
     } else if (filterType === 'finished') {
-      filtered = filtered.filter(f => f.status && !f.status.toLowerCase().includes('upcoming') && f.status !== 'Chưa diễn ra' && f.status !== 'Chưa đá');
+      filtered = filtered.filter(f => f.status === 'Kết thúc' || (f.status && !f.status.toLowerCase().includes('upcoming') && f.status !== 'Chưa diễn ra' && f.status !== 'Chưa đá' && f.status !== 'Đang đá'));
+    } else if (filterType === 'live') {
+      filtered = filtered.filter(f => f.status === 'Đang đá');
     }
 
     // 3.1 Filter by Date Tabs
@@ -651,19 +655,19 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
         <div className="absolute top-0 right-1/4 w-96 h-96 bg-emerald-500/10 rounded-full blur-[120px] pointer-events-none"></div>
         <div className="absolute bottom-0 left-1/3 w-80 h-80 bg-blue-500/10 rounded-full blur-[100px] pointer-events-none"></div>
 
-        <div className="max-w-[1160px] mx-auto relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+        <div className="max-w-[1160px] mx-auto relative z-10 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6">
           <div className="text-center md:text-left flex flex-col items-center md:items-start w-full md:w-auto">
             <div className="flex flex-col sm:flex-row items-center gap-3 mb-5">
               <span className="bg-emerald-500/10 border border-emerald-500/35 text-emerald-400 font-extrabold px-3.5 py-1 rounded-full text-[10px] tracking-widest flex items-center gap-1.5 uppercase shadow-[0_2px_15px_rgba(16,185,129,0.15)] backdrop-blur-md">
                 <Cpu className="w-3.5 h-3.5 animate-spin-slow" /> ANV SUPERCOMPUTER V2.5
               </span>
               <span className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-widest mt-1.5 sm:mt-0 flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-amber-400" /> Giao diện dự đoán cao cấp toàn diện
+                <Sparkles className="w-3 h-3 text-amber-450" /> Giao diện dự đoán cao cấp toàn diện
               </span>
             </div>
             <h1 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight uppercase leading-none flex flex-col gap-2">
               <span>TRUNG TÂM</span>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 drop-shadow-sm font-extrabold">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-450 via-teal-300 to-cyan-400 drop-shadow-sm font-extrabold">
                 DỰ ĐOÁN & PHÂN TÍCH
               </span>
             </h1>
@@ -685,7 +689,7 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
       {/* HOT FEATURED MATCHES PANEL */}
       {featuredMatches.length > 0 && (
         <div className="max-w-[1160px] mx-auto px-4 mt-[-180px] md:mt-[-280px] relative z-20">
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-4 md:gap-6">
             {featuredMatches.map(match => {
               const { w1, draw, w2 } = getWinProbability(match.id, match.team1.name, match.team2.name);
               const info = getDeterministicGameInfo(match.ground, match.id);
@@ -700,11 +704,11 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
                   <div className="absolute inset-0 bg-gradient-to-b from-[#0c1829]/70 via-transparent to-[#0c1829]/55 pointer-events-none"></div>
 
                   {/* Content */}
-                  <div className="relative z-10 p-6 md:p-8 flex flex-col gap-5">
+                  <div className="relative z-10 p-4 md:p-6 flex flex-col gap-5">
 
                     {/* TOP ROW */}
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2.5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-center gap-2.5 flex-wrap">
                         <div className="flex items-center gap-1.5 bg-[#0d1f3d]/80 backdrop-blur-sm text-[#6b9de8] font-bold px-3 py-1.5 rounded-full border border-[#1e3a6e]/60 text-[10px] tracking-widest uppercase">
                           <span className="text-amber-400 text-[11px]">🏆</span>
                           {categoryInfo.main}
@@ -713,7 +717,7 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
                           • {categoryInfo.sub || 'GROUP B'}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <div className="bg-[#0d1f3d]/70 backdrop-blur-sm border border-[#1e3a6e]/50 text-[10px] font-medium text-[#6b9de8] px-3.5 py-1.5 rounded-full flex items-center gap-1.5">
                           <MapPin className="w-3 h-3" /> VANCOUVER, CANADA
                         </div>
@@ -725,7 +729,7 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
                         </Link>
                       </div>
                     </div>
-
+ 
                     {/* BIG TITLE */}
                     <div>
                       <h2 className="text-white text-[32px] md:text-[44px] font-black tracking-tight leading-none uppercase">
@@ -743,60 +747,60 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
                     <div className="bg-[#081426]/88 backdrop-blur-sm rounded-2xl border border-[#1a3558]/70 overflow-hidden">
 
                       {/* Teams + Time */}
-                      <div className="flex items-center">
+                      <div className="flex flex-row items-center justify-between w-full">
 
                         {/* Home Team */}
-                        <div className="flex items-center gap-4 flex-1 px-6 py-5">
+                        <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 flex-1 px-2.5 py-4 sm:px-6 sm:py-5 min-w-0 text-center sm:text-left">
                           <img
                             src={match.team1.logo}
                             alt={match.team1.name}
-                            className="w-[72px] h-[72px] md:w-[82px] md:h-[82px] object-cover rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.6)] shrink-0"
+                            className="w-12 h-12 sm:w-[72px] sm:h-[72px] md:w-[82px] md:h-[82px] object-cover rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.6)] shrink-0"
                           />
-                          <div>
-                            <div className="font-black text-xl md:text-2xl text-white tracking-tight leading-tight">
+                          <div className="min-w-0 flex flex-col items-center sm:items-start">
+                            <div className="font-black text-[11px] sm:text-xl md:text-2xl text-white tracking-tight leading-tight max-w-full sm:truncate">
                               {match.team1.name}
                             </div>
-                            <div className="mt-1.5 text-[9px] font-bold text-[#3d5c84] bg-[#0d1e38]/80 border border-[#1a3058]/70 px-2.5 py-0.5 rounded-full uppercase tracking-widest inline-block">
+                            <div className="mt-1 text-[8px] sm:text-[9px] font-bold text-[#3d5c84] bg-[#0d1e38]/80 border border-[#1a3058]/70 px-1.5 py-0.5 sm:px-2.5 sm:py-0.5 rounded-full uppercase tracking-widest inline-block">
                               {match.sportType === 'bongda' ? 'UEFA' : 'LEAGUE'}
                             </div>
                           </div>
                         </div>
 
                         {/* Center */}
-                        <div className="flex flex-col items-center gap-1.5 px-5 py-5 border-x border-[#1a3558]/50 shrink-0">
-                          <div className="flex items-center gap-1 bg-[#0c1829]/80 border border-[#1e3a6e]/50 text-[#4d88c0] rounded-full px-3 py-1 text-[9px] font-bold uppercase tracking-widest whitespace-nowrap">
-                            <Clock className="w-3 h-3" /> KICK-OFF
+                        <div className="flex flex-col items-center gap-1.5 px-2 py-4 sm:px-5 sm:py-5 border-x border-[#1a3558]/50 shrink-0 w-[85px] sm:w-auto">
+                          <div className="flex items-center gap-1 bg-[#0c1829]/80 border border-[#1e3a6e]/50 text-[#4d88c0] rounded-full px-2 py-0.5 sm:px-3 sm:py-1 text-[7px] sm:text-[9px] font-bold uppercase tracking-widest whitespace-nowrap">
+                            <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> KICK-OFF
                           </div>
                           {match.score1 !== null && match.score2 !== null ? (
-                            <div className="flex items-center text-white font-black text-3xl font-mono whitespace-nowrap">
+                            <div className="flex items-center text-white font-black text-lg sm:text-3xl font-mono whitespace-nowrap">
                               <span>{match.score1}</span>
-                              <span className="text-[#3b82f6] mx-2">:</span>
+                              <span className="text-[#3b82f6] mx-1 sm:mx-2">:</span>
                               <span>{match.score2}</span>
                             </div>
                           ) : (
-                            <div className="text-white font-black text-[40px] leading-none whitespace-nowrap font-mono tracking-tight">
+                            <div className="text-white font-black text-base sm:text-[40px] leading-none whitespace-nowrap font-mono tracking-tight">
                               {match.matchTime}
                             </div>
                           )}
-                          <div className="text-[9px] font-bold text-[#3d5c84] uppercase tracking-widest whitespace-nowrap">
+                          <div className="text-[8px] sm:text-[9px] font-bold text-[#3d5c84] uppercase tracking-widest whitespace-nowrap">
                             {match.matchDate}
                           </div>
                         </div>
 
                         {/* Away Team */}
-                        <div className="flex items-center justify-end gap-4 flex-1 px-6 py-5">
-                          <div className="text-right">
-                            <div className="font-black text-xl md:text-2xl text-white tracking-tight leading-tight">
+                        <div className="flex flex-col sm:flex-row items-center justify-end gap-2 sm:gap-4 flex-1 px-2.5 py-4 sm:px-6 sm:py-5 min-w-0 text-center sm:text-right">
+                          <div className="order-2 sm:order-1 min-w-0 flex flex-col items-center sm:items-end">
+                            <div className="font-black text-[11px] sm:text-xl md:text-2xl text-white tracking-tight leading-tight max-w-full sm:truncate">
                               {match.team2.name}
                             </div>
-                            <div className="mt-1.5 text-[9px] font-bold text-[#3d5c84] bg-[#0d1e38]/80 border border-[#1a3058]/70 px-2.5 py-0.5 rounded-full uppercase tracking-widest inline-block">
+                            <div className="mt-1 text-[8px] sm:text-[9px] font-bold text-[#3d5c84] bg-[#0d1e38]/80 border border-[#1a3058]/70 px-1.5 py-0.5 sm:px-2.5 sm:py-0.5 rounded-full uppercase tracking-widest inline-block">
                               {match.sportType === 'bongda' ? 'CONCACAF' : 'LEAGUE'}
                             </div>
                           </div>
                           <img
                             src={match.team2.logo}
                             alt={match.team2.name}
-                            className="w-[72px] h-[72px] md:w-[82px] md:h-[82px] object-cover rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.6)] shrink-0"
+                            className="order-1 sm:order-2 w-12 h-12 sm:w-[72px] sm:h-[72px] md:w-[82px] md:h-[82px] object-cover rounded-xl shadow-[0_4px_16px_rgba(0,0,0,0.6)] shrink-0"
                           />
                         </div>
 
@@ -805,7 +809,7 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
                       {/* Probability bar */}
                       <div className="px-6 pb-4 pt-3 border-t border-[#1a3558]/40">
                         <div className="w-full h-1.5 rounded-full overflow-hidden flex">
-                          <div className="h-full bg-emerald-400" style={{ width: `${w1}%` }}></div>
+                          <div className="h-full bg-emerald-450" style={{ width: `${w1}%` }}></div>
                           <div className="h-full bg-[#1e3050]" style={{ width: `${draw}%` }}></div>
                           <div className="h-full bg-[#3b82f6]" style={{ width: `${w2}%` }}></div>
                         </div>
@@ -817,33 +821,33 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
                       </div>
 
                       {/* BOTTOM METADATA ROW */}
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-0 px-6 py-4 border-t border-[#1a3558]/40 bg-[#061020]/30">
-                        <div className="flex items-center gap-2.5 sm:pr-5 sm:border-r border-[#1a3558]/30">
-                          <img src="/images/stadium_3d_icon.png" alt="Stadium" className="w-8 h-8 object-contain shrink-0" />
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-0 px-4 py-2.5 sm:px-6 sm:py-4 border-t border-[#1a3558]/40 bg-[#061020]/30">
+                        <div className="flex items-center gap-2 sm:pr-5 sm:border-r border-[#1a3558]/30">
+                          <img src="/images/stadium_3d_icon.png" alt="Stadium" className="w-6 h-6 sm:w-8 sm:h-8 object-contain shrink-0" />
                           <div>
-                            <div className="text-[12px] font-semibold text-white leading-tight">{info.stadium}</div>
-                            <div className="text-[10px] text-[#3d5c84] mt-0.5">Vancouver, Canada</div>
+                            <div className="text-[10px] sm:text-[12px] font-semibold text-white leading-tight">{info.stadium}</div>
+                            <div className="text-[8px] sm:text-[10px] text-[#3d5c84] mt-0.5">Vancouver, Canada</div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2.5 sm:px-5 sm:border-r border-[#1a3558]/30">
-                          <Users className="w-5 h-5 text-[#4d88c0] shrink-0" />
+                        <div className="flex items-center gap-2 sm:px-5 sm:border-r border-[#1a3558]/30">
+                          <Users className="w-4 h-4 sm:w-5 sm:h-5 text-[#4d88c0] shrink-0" />
                           <div>
-                            <div className="text-[12px] font-semibold text-white leading-tight">{info.capacity}</div>
-                            <div className="text-[10px] text-[#3d5c84] mt-0.5">Capacity</div>
+                            <div className="text-[10px] sm:text-[12px] font-semibold text-white leading-tight">{info.capacity}</div>
+                            <div className="text-[8px] sm:text-[10px] text-[#3d5c84] mt-0.5">Capacity</div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2.5 sm:px-5 sm:border-r border-[#1a3558]/30">
-                          <CloudSun className="w-5 h-5 text-[#f59e0b] shrink-0" />
+                        <div className="flex items-center gap-2 sm:px-5 sm:border-r border-[#1a3558]/30">
+                          <CloudSun className="w-4 h-4 sm:w-5 sm:h-5 text-[#f59e0b] shrink-0" />
                           <div>
-                            <div className="text-[12px] font-semibold text-white leading-tight">{info.temp}</div>
-                            <div className="text-[10px] text-[#3d5c84] mt-0.5">{info.condition}</div>
+                            <div className="text-[10px] sm:text-[12px] font-semibold text-white leading-tight">{info.temp}</div>
+                            <div className="text-[8px] sm:text-[10px] text-[#3d5c84] mt-0.5">{info.condition}</div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2.5 sm:pl-5">
-                          <Tv className="w-5 h-5 text-[#4d88c0] shrink-0" />
+                        <div className="flex items-center gap-2 sm:pl-5">
+                          <Tv className="w-4 h-4 sm:w-5 sm:h-5 text-[#4d88c0] shrink-0" />
                           <div>
-                            <div className="text-[12px] font-semibold text-white leading-tight">{info.broadcaster}</div>
-                            <div className="text-[10px] text-[#3d5c84] mt-0.5">Official Broadcaster</div>
+                            <div className="text-[10px] sm:text-[12px] font-semibold text-white leading-tight">{info.broadcaster}</div>
+                            <div className="text-[8px] sm:text-[10px] text-[#3d5c84] mt-0.5">Official Broadcaster</div>
                           </div>
                         </div>
                       </div>
@@ -860,10 +864,10 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
       {/* TOP ARTICLES FEED */}
       {initialAiPosts && initialAiPosts.length > 0 && (
         <div className="max-w-[1160px] mx-auto px-4 mt-10">
-          <div className="bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-[24px] p-6 md:p-8 shadow-[0_20px_50px_rgba(15,23,42,0.05)]">
+          <div className="bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-[24px] p-4 md:p-6 shadow-[0_20px_50px_rgba(15,23,42,0.05)]">
             
             {/* Header section */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 md:gap-6 md:mb-6">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/25 rounded-2xl flex items-center justify-center text-emerald-600 shadow-[0_4px_12px_rgba(16,185,129,0.1)] shrink-0">
                   <Bot className="w-6 h-6 animate-pulse" />
@@ -879,7 +883,7 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
               </div>
               <div className="bg-emerald-50 border border-emerald-150/60 text-emerald-600 text-[11px] font-black uppercase tracking-widest px-4 py-2 rounded-full flex items-center gap-2 self-start sm:self-auto shadow-sm">
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-440 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                 </span>
                 Cập nhật 5 phút trước
@@ -887,7 +891,7 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
             </div>
 
             {/* Articles Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
               {initialAiPosts.slice(0, 3).map((post, index) => {
                 const badges = [
                   { text: "PHÂN TÍCH AI", class: "bg-emerald-50/90 border-emerald-200/80 text-emerald-700", icon: "★" },
@@ -900,7 +904,7 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
                   <Link 
                     key={post.id}
                     href={createArticleUrl(post.title, post.id)}
-                    className="bg-white border border-slate-200/60 hover:border-emerald-400 rounded-2xl overflow-hidden flex flex-col transition-all duration-350 group shadow-[0_4px_16px_rgba(15,23,42,0.02)] hover:shadow-[0_15px_35px_rgba(16,185,129,0.06)]"
+                    className="bg-white border border-slate-200/60 hover:border-emerald-450 rounded-2xl overflow-hidden flex flex-col transition-all duration-350 group shadow-[0_4px_16px_rgba(15,23,42,0.02)] hover:shadow-[0_15px_35px_rgba(16,185,129,0.06)]"
                   >
                     {/* Image container */}
                     {post.imageUrl && (
@@ -921,7 +925,7 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
                         </div>
 
                         {/* Hexagon styled icon overlay bottom-right */}
-                        <div className="absolute bottom-3 right-3 w-10 h-10 bg-white/95 border border-slate-200/80 rounded-xl flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.06)] group-hover:border-emerald-400 transition-colors">
+                        <div className="absolute bottom-3 right-3 w-10 h-10 bg-white/95 border border-slate-200/80 rounded-xl flex items-center justify-center shadow-[0_4px_12px_rgba(0,0,0,0.06)] group-hover:border-emerald-450 transition-colors">
                           {index % 3 === 0 && <Bot className="w-5 h-5 text-emerald-500" />}
                           {index % 3 === 1 && <Activity className="w-5 h-5 text-purple-500" />}
                           {index % 3 === 2 && <Trophy className="w-5 h-5 text-blue-500" />}
@@ -930,7 +934,7 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
                     )}
 
                     {/* Text content */}
-                    <div className="p-5 flex-1 flex flex-col">
+                    <div className="p-4 md:p-6 flex-1 flex flex-col">
                       <h3 className="text-slate-900 font-extrabold text-base leading-snug line-clamp-2 group-hover:text-emerald-600 transition-colors duration-200">
                         {post.title}
                       </h3>
@@ -964,15 +968,15 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
       )}
 
       {/* MAIN CONTAINER */}
-      <div className="max-w-[1160px] mx-auto px-4 py-8 flex flex-col lg:flex-row gap-6 md:gap-8">
+      <div className="max-w-[1160px] mx-auto px-4 py-4 md:py-6 flex flex-col lg:flex-row gap-4 md:gap-6">
         
         {/* MAIN CONTENT AREA */}
         <div className="flex-1 min-w-0">
           
-          <div className="bg-white border border-slate-200/80 rounded-[24px] p-6 shadow-[0_20px_50px_rgba(15,23,42,0.05)]">
+          <div className="bg-white border border-slate-200/80 rounded-[24px] p-4 md:p-6 shadow-[0_20px_50px_rgba(15,23,42,0.05)]">
             
             {/* Header: Title & Filter Button */}
-            <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-200/60">
+            <div className="flex items-center justify-between mb-4 md:mb-6 pb-4 border-b border-slate-200/60">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-emerald-500/10 border border-emerald-500/25 rounded-xl flex items-center justify-center text-emerald-600">
                   <Trophy className="w-5 h-5" />
@@ -985,7 +989,7 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
             </div>
 
             {/* Filter Inputs (Always Visible) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 md:gap-6">
               <div className="relative w-full">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input 
@@ -1016,7 +1020,7 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
 
             {/* Category / Group Tabs */}
             {filterTabs.length > 1 && (
-              <div className="relative flex items-center mb-6 border-b border-slate-200/60 pb-4 group/scroll">
+              <div className="relative flex items-center mb-4 md:mb-6 border-b border-slate-200/60 pb-4 group/scroll">
                 
                 {/* Scroll Container */}
                 <div 
@@ -1030,7 +1034,7 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
                       <button
                         key={grp}
                         onClick={() => setSelectedGroup(grp === 'Tất cả' ? 'all' : grp)}
-                        className={`px-4.5 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider transition-all duration-200 whitespace-nowrap
+                        className={`px-4.5 py-1.5 rounded-full text-[12px] font-bold uppercase tracking-wide transition-all duration-200 whitespace-nowrap
                           ${isSelected
                             ? 'bg-emerald-500 text-white shadow-md'
                             : 'text-slate-500 hover:text-slate-800 bg-transparent'}`}
@@ -1070,12 +1074,12 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
             )}
 
             {/* Status & Date Filter Tabs */}
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4 md:mb-6">
               {/* Left Side: Status Tabs */}
-              <div className="flex bg-slate-100 p-0.5 rounded-full border border-slate-200/40 w-full sm:w-[280px] shadow-inner shrink-0">
+              <div className="flex bg-slate-100 p-0.5 rounded-full border border-slate-200/40 w-full sm:w-[360px] shadow-inner shrink-0">
                 <button
                   onClick={() => setFilterType('all')}
-                  className={`flex-1 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider transition-all duration-205
+                  className={`flex-1 py-1.5 rounded-full text-[12px] font-bold uppercase tracking-wide transition-all duration-205
                     ${filterType === 'all'
                       ? 'bg-emerald-500 text-white shadow-md'
                       : 'text-slate-500 hover:text-slate-800'}`}
@@ -1083,8 +1087,17 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
                   Tất cả
                 </button>
                 <button
+                  onClick={() => setFilterType('live')}
+                  className={`flex-1 py-1.5 rounded-full text-[12px] font-bold uppercase tracking-wide transition-all duration-205
+                    ${filterType === 'live'
+                      ? 'bg-emerald-500 text-white shadow-md'
+                      : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  Đang đá
+                </button>
+                <button
                   onClick={() => setFilterType('finished')}
-                  className={`flex-1 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider transition-all duration-205
+                  className={`flex-1 py-1.5 rounded-full text-[12px] font-bold uppercase tracking-wide transition-all duration-205
                     ${filterType === 'finished'
                       ? 'bg-emerald-500 text-white shadow-md'
                       : 'text-slate-500 hover:text-slate-800'}`}
@@ -1093,7 +1106,7 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
                 </button>
                 <button
                   onClick={() => setFilterType('upcoming')}
-                  className={`flex-1 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider transition-all duration-205
+                  className={`flex-1 py-1.5 rounded-full text-[12px] font-bold uppercase tracking-wide transition-all duration-205
                     ${filterType === 'upcoming'
                       ? 'bg-emerald-500 text-white shadow-md'
                       : 'text-slate-500 hover:text-slate-800'}`}
@@ -1103,10 +1116,10 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
               </div>
 
               {/* Right Side: Date Tabs */}
-              <div className="flex bg-slate-100 p-0.5 rounded-full border border-slate-200/40 w-full sm:w-[320px] shadow-inner shrink-0">
+              <div className="flex bg-slate-100 p-0.5 rounded-full border border-slate-200/40 w-full sm:w-[360px] shadow-inner shrink-0">
                 <button
                   onClick={() => setDateFilter('all')}
-                  className={`flex-1 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider transition-all duration-205
+                  className={`flex-1 py-1.5 rounded-full text-[12px] font-bold uppercase tracking-wide transition-all duration-205
                     ${dateFilter === 'all'
                       ? 'bg-emerald-500 text-white shadow-md'
                       : 'text-slate-500 hover:text-slate-800'}`}
@@ -1115,18 +1128,18 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
                 </button>
                 <button
                   onClick={() => setDateFilter('yesterday')}
-                  disabled={filterType === 'upcoming'}
-                  className={`flex-1 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider transition-all duration-205
+                  disabled={filterType === 'upcoming' || filterType === 'live'}
+                  className={`flex-1 py-1.5 rounded-full text-[12px] font-bold uppercase tracking-wide transition-all duration-205
                     ${dateFilter === 'yesterday'
                       ? 'bg-emerald-500 text-white shadow-md'
                       : 'text-slate-500 hover:text-slate-800'}
-                    ${filterType === 'upcoming' ? 'opacity-30 cursor-not-allowed pointer-events-none' : ''}`}
+                    ${(filterType === 'upcoming' || filterType === 'live') ? 'opacity-30 cursor-not-allowed pointer-events-none' : ''}`}
                 >
                   Hôm qua
                 </button>
                 <button
                   onClick={() => setDateFilter('today')}
-                  className={`flex-1 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider transition-all duration-205
+                  className={`flex-1 py-1.5 rounded-full text-[12px] font-bold uppercase tracking-wide transition-all duration-205
                     ${dateFilter === 'today'
                       ? 'bg-emerald-500 text-white shadow-md'
                       : 'text-slate-500 hover:text-slate-800'}`}
@@ -1135,12 +1148,12 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
                 </button>
                 <button
                   onClick={() => setDateFilter('tomorrow')}
-                  disabled={filterType === 'finished'}
-                  className={`flex-1 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider transition-all duration-205
+                  disabled={filterType === 'finished' || filterType === 'live'}
+                  className={`flex-1 py-1.5 rounded-full text-[12px] font-bold uppercase tracking-wide transition-all duration-205
                     ${dateFilter === 'tomorrow'
                       ? 'bg-emerald-500 text-white shadow-md'
                       : 'text-slate-500 hover:text-slate-800'}
-                    ${filterType === 'finished' ? 'opacity-30 cursor-not-allowed pointer-events-none' : ''}`}
+                    ${(filterType === 'finished' || filterType === 'live') ? 'opacity-30 cursor-not-allowed pointer-events-none' : ''}`}
                 >
                   Ngày mai
                 </button>
@@ -1157,11 +1170,11 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
             </div>
           ) : Object.keys(groupedFixtures).length === 0 ? (
              <div className="bg-white border border-slate-200 rounded-2xl p-16 flex flex-col items-center justify-center min-h-[400px] shadow-sm">
-               <Trophy className="w-12 h-12 text-slate-300 mb-4" />
-               <p className="text-slate-500 font-bold text-sm">Không tìm thấy trận đấu nào phù hợp với bộ lọc hiện tại.</p>
+                <Trophy className="w-12 h-12 text-slate-300 mb-4" />
+                <p className="text-slate-500 font-bold text-sm">Không tìm thấy trận đấu nào phù hợp với bộ lọc hiện tại.</p>
              </div>
           ) : (
-            <div className="space-y-8 md:space-y-10">
+            <div className="space-y-4 md:space-y-6">
               {Object.entries(groupedFixtures).map(([dateStr, matches]) => {
                 const dateObj = new Date(dateStr);
                 const formattedDate = isNaN(dateObj.getTime()) ? dateStr : dateObj.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -1178,7 +1191,7 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
                     </div>
 
                     {/* Grid of Match Cards styled exactly like Mockup */}
-              <div className="grid grid-cols-1 gap-6">
+                    <div className="grid grid-cols-1 gap-4 md:gap-6">
                       {matches.map((match: any) => {
                          const isFinished = match.status === 'Kết thúc';
                          const isLive = match.status === 'Đang đá';
@@ -1191,127 +1204,99 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
                           const categoryInfo = parseCategory(match.category);
                           const style1 = getTeamStyles(match.team1.name);
                           const style2 = getTeamStyles(match.team2.name);
-                          const group = categoryInfo.sub || extractGroup(match.category) || 'GROUP B';
-                          const groupColor = GROUP_COLORS[group] ?? '#10b981';
-
+                          const group = extractGroup(match.category || '');
+                          const groupColor = group ? (GROUP_COLORS[group] ?? '#64748b') : '#64748b';
                           const rank1 = getRank(match.team1.name);
                           const rank2 = getRank(match.team2.name);
-                          const aiPct = getAiPct(match.team1.name, match.team2.name);
-
+                          const aiPct = Math.max(w1, draw, w2) === w1 ? w1 : Math.max(w1, draw, w2) === w2 ? w2 : draw;
                           return (
                             <Link
                               key={match.id}
                               href={`/du-doan/${match.id}`}
-                              style={{
-                                display: 'block',
-                                background: '#ffffff',
-                                border: '1px solid rgba(15,23,42,0.08)',
-                                borderRadius: 10,
-                                overflow: 'hidden',
-                                textDecoration: 'none',
-                                boxShadow: '0 4px 16px rgba(15,23,42,0.02)',
-                              }}
-                              className="pred-match-card"
+                              className="pred-match-card block bg-white border border-slate-200/50 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200"
                             >
                               {/* META ROW */}
-                              <div style={{
-                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                padding: '8px 14px',
-                                background: 'rgba(15,23,42,0.02)',
-                                borderBottom: '1px solid rgba(15,23,42,0.05)',
-                                gap: 8,
-                              }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+                              <div className="flex items-center justify-between px-3 py-1.5 sm:px-4 sm:py-2 bg-slate-50/50 border-b border-slate-100 gap-2">
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
                                   {group && (
-                                    <div style={{
-                                      display: 'inline-flex', alignItems: 'center', gap: 4,
-                                      background: `${groupColor}18`,
-                                      border: `1px solid ${groupColor}40`,
-                                      borderRadius: 5, padding: '2px 8px', flexShrink: 0,
-                                    }}>
-                                      <Trophy style={{ width: 9, height: 9, color: groupColor }} />
-                                      <span style={{ fontSize: 9, fontWeight: 900, color: groupColor, letterSpacing: '0.08em' }}>{group}</span>
+                                    <div 
+                                      style={{
+                                        background: `${groupColor}18`,
+                                        border: `1px solid ${groupColor}40`,
+                                        color: groupColor,
+                                      }}
+                                      className="inline-flex items-center gap-1 rounded px-2 py-0.5 shrink-0"
+                                    >
+                                      <Trophy className="w-2.5 h-2.5" style={{ color: groupColor }} />
+                                      <span className="text-[9px] font-black uppercase tracking-wider">{group}</span>
                                     </div>
                                   )}
                                   {match.ground && match.ground !== 'Chưa xác định' && (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, minWidth: 0 }}>
-                                      <MapPin style={{ width: 10, height: 10, color: '#64748b', flexShrink: 0 }} />
-                                      <span style={{ fontSize: 10, color: '#475569', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    <div className="flex items-center gap-1 min-w-0">
+                                      <MapPin className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                                      <span className="text-[10px] text-slate-600 font-medium truncate">
                                         {match.ground}
                                       </span>
                                     </div>
                                   )}
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+                                <div className="flex items-center gap-1.5 shrink-0">
                                   {isLive ? (
-                                    <div style={{
-                                      display: 'flex', alignItems: 'center', gap: 4,
-                                      background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)',
-                                      borderRadius: 99, padding: '2px 8px',
-                                      fontSize: 10, fontWeight: 800, color: '#ef4444',
-                                    }}>
-                                      <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#ef4444', animation: 'predPulse 1s infinite', display: 'inline-block' }} />
+                                    <div className="flex items-center gap-1 bg-red-50 border border-red-200 rounded-full px-2 py-0.5 text-[9px] font-extrabold text-red-500">
+                                      <span className="w-1 h-1 rounded-full bg-red-500 animate-pulse" />
                                       LIVE
                                     </div>
                                   ) : (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                                      <Clock style={{ width: 10, height: 10, color: '#64748b' }} />
-                                      <span style={{ fontSize: 10, color: '#475569', fontWeight: 600 }}>
-                                        {matchTimeStr} • {shortDate(match.matchDate)}
-                                      </span>
+                                    <div className="flex items-center gap-1 text-[10px] text-slate-500 font-semibold">
+                                      <Clock className="w-2.5 h-2.5" />
+                                      <span>{matchTimeStr} • {shortDate(match.matchDate)}</span>
                                     </div>
                                   )}
                                 </div>
                               </div>
 
                               {/* BODY */}
-                              <div style={{ display: 'flex', alignItems: 'center', padding: '16px 14px 14px', gap: 8 }}>
+                              <div className="flex items-center p-3 sm:p-4 gap-2 sm:gap-3.5">
                                 {/* HOME */}
-                                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
+                                <div className="flex flex-col sm:flex-row items-center gap-1.5 sm:gap-3.5 flex-1 min-w-0 text-center sm:text-left">
                                   <img
                                     src={match.team1.logo}
                                     alt={match.team1.name}
-                                    style={{ width: 60, height: 60, objectFit: 'contain', borderRadius: 10, border: '2px solid rgba(15,23,42,0.08)', background: 'rgba(15,23,42,0.03)', flexShrink: 0, display: 'block' }}
+                                    className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 object-contain rounded-lg border border-slate-100 bg-slate-50 shrink-0"
                                   />
-                                  <div style={{ minWidth: 0, flex: 1 }}>
-                                    <div style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', lineHeight: 1.25, letterSpacing: '-0.01em' }}>
+                                  <div className="min-w-0 flex flex-col items-center sm:items-start">
+                                    <div className="font-black text-[11px] sm:text-sm md:text-base text-slate-900 leading-tight max-w-full truncate">
                                       {match.team1.name}
                                     </div>
-                                    <div style={{ fontSize: 9, color: '#64748b', fontWeight: 700, letterSpacing: '0.05em', marginTop: 4 }}>
-                                      {isPlaceholderTeam(match.team1.name) ? 'RANK: —' : `FIFA RANK #${rank1}`}
+                                    <div className="mt-0.5 text-[8px] sm:text-[9px] font-bold text-slate-500 uppercase tracking-wider">
+                                      {isPlaceholderTeam(match.team1.name) ? 'RANK: —' : `RANK #${rank1}`}
                                     </div>
                                   </div>
                                 </div>
 
                                 {/* CENTER */}
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 110, flexShrink: 0, gap: 2 }}>
+                                <div className="flex flex-col items-center justify-center w-[75px] sm:w-[95px] md:w-[110px] shrink-0 gap-0.5">
                                   {isFinished || isLive ? (
                                     <>
-                                      <span style={{ fontSize: 8, fontWeight: 700, color: '#64748b', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                                      <span className="text-[7px] sm:text-[8px] font-bold text-slate-400 tracking-wider uppercase">
                                         {isFinished ? 'KẾT THÚC' : '⚡ LIVE'}
                                       </span>
-                                      <div style={{ fontSize: 34, fontWeight: 900, color: '#0f172a', lineHeight: 1 }}>
-                                        {match.score1 ?? 0}<span style={{ color: '#cbd5e1', margin: '0 2px' }}>–</span>{match.score2 ?? 0}
+                                      <div className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 leading-none">
+                                        {match.score1 ?? 0}<span className="text-slate-300 mx-0.5">–</span>{match.score2 ?? 0}
                                       </div>
                                     </>
                                   ) : (
                                     <>
-                                      <span style={{ fontSize: 8, fontWeight: 700, color: '#64748b', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                                      <span className="text-[7px] sm:text-[8px] font-bold text-slate-400 tracking-wider uppercase">
                                         KICK-OFF
                                       </span>
-                                      <div style={{ fontSize: 34, fontWeight: 900, color: '#0f172a', lineHeight: 1, letterSpacing: '0.01em' }}>
+                                      <div className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 leading-none">
                                         {matchTimeStr}
                                       </div>
-                                      <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600, marginTop: 1 }}>
+                                      <div className="text-[8px] sm:text-[9px] text-slate-500 font-semibold">
                                         {shortDate(match.matchDate)}
                                       </div>
-                                      <div style={{
-                                        marginTop: 4, fontSize: 9, color: '#475569', fontWeight: 800,
-                                        padding: '2px 14px', borderRadius: 99,
-                                        border: '1px solid rgba(15,23,42,0.08)',
-                                        background: 'rgba(15,23,42,0.03)',
-                                        letterSpacing: '0.08em',
-                                      }}>
+                                      <div className="mt-1 text-[8px] font-bold text-slate-600 px-2 py-0.5 rounded-full border border-slate-100 bg-slate-50 tracking-wider">
                                         VS
                                       </div>
                                     </>
@@ -1319,75 +1304,58 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
                                 </div>
 
                                 {/* AWAY */}
-                                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 14, minWidth: 0 }}>
-                                  <div style={{ minWidth: 0, textAlign: 'right', flex: 1 }}>
-                                    <div style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', lineHeight: 1.25, letterSpacing: '-0.01em' }}>
+                                <div className="flex flex-col sm:flex-row items-center justify-end gap-1.5 sm:gap-3.5 flex-1 min-w-0 text-center sm:text-right">
+                                  <div className="min-w-0 flex flex-col items-center sm:items-end order-2 sm:order-1 flex-1">
+                                    <div className="font-black text-[11px] sm:text-sm md:text-base text-slate-900 leading-tight max-w-full truncate">
                                       {match.team2.name}
                                     </div>
-                                    <div style={{ fontSize: 9, color: '#64748b', fontWeight: 700, letterSpacing: '0.05em', marginTop: 4 }}>
-                                      {isPlaceholderTeam(match.team2.name) ? 'RANK: —' : `FIFA RANK #${rank2}`}
+                                    <div className="mt-0.5 text-[8px] sm:text-[9px] font-bold text-slate-500 uppercase tracking-wider">
+                                      {isPlaceholderTeam(match.team2.name) ? 'RANK: —' : `RANK #${rank2}`}
                                     </div>
                                   </div>
                                   <img
                                     src={match.team2.logo}
                                     alt={match.team2.name}
-                                    style={{ width: 60, height: 60, objectFit: 'contain', borderRadius: 10, border: '2px solid rgba(15,23,42,0.08)', background: 'rgba(15,23,42,0.03)', flexShrink: 0, display: 'block' }}
+                                    className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 object-contain rounded-lg border border-slate-100 bg-slate-50 shrink-0 order-1 sm:order-2"
                                   />
                                 </div>
 
                                 {/* AI BADGE */}
-                                <div style={{
-                                  flexShrink: 0, width: 72,
-                                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-                                  paddingLeft: 10,
-                                  borderLeft: '1px solid rgba(15,23,42,0.05)',
-                                }}>
-                                  <div style={{ position: 'relative' }}>
-                                    <div style={{
-                                      width: 38, height: 38, borderRadius: '50%',
-                                      border: '2px solid rgba(16,185,129,0.3)',
-                                      background: 'radial-gradient(circle at 38% 38%, rgba(16,185,129,0.1) 0%, rgba(16,185,129,0.02) 100%)',
-                                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    }}>
-                                      <Tv2 style={{ width: 18, height: 18, color: '#10b981' }} />
+                                <div className="flex-shrink-0 w-[56px] sm:w-[72px] flex flex-col items-center gap-1 pl-2 sm:pl-3 border-l border-slate-100">
+                                  <div className="relative">
+                                    <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-full border border-emerald-200 bg-emerald-50/30 flex items-center justify-center">
+                                      <Tv2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500" />
                                     </div>
-                                    <div style={{
-                                      position: 'absolute', top: -1, right: -2,
-                                      width: 9, height: 9, borderRadius: '50%',
-                                      background: 'linear-gradient(135deg, #34d399, #10b981)',
-                                      border: '1.5px solid #ffffff',
-                                      boxShadow: '0 0 6px rgba(16,185,129,0.6)',
-                                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    }}>
-                                      <span style={{ fontSize: 5, color: '#fff', fontWeight: 900, lineHeight: 1 }}>✦</span>
+                                    <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 border border-white flex items-center justify-center">
+                                      <span className="text-[4px] text-white font-black">✦</span>
                                     </div>
                                   </div>
-                                  <div style={{ fontSize: 8, color: '#475569', fontWeight: 700, letterSpacing: '0.04em', textAlign: 'center', lineHeight: 1.3 }}>
-                                    <span style={{ color: '#10b981' }}>AI</span> DỰ ĐOÁN
+                                  <div className="text-[7px] sm:text-[8px] text-slate-500 font-bold tracking-wider text-center leading-tight">
+                                    <span className="text-emerald-500">AI</span> DỰ ĐOÁN
                                   </div>
-                                  <div style={{ fontSize: 20, fontWeight: 900, color: '#10b981', lineHeight: 1 }}>
+                                  <div className="text-sm sm:text-base md:text-lg font-black text-emerald-500 leading-none">
                                     {isPlaceholderTeam(match.team1.name) || isPlaceholderTeam(match.team2.name) ? '—' : `${aiPct}%`}
                                   </div>
                                 </div>
                               </div>
 
                               {/* PROBABILITY */}
-                              <div style={{ borderTop: '1px solid rgba(15,23,42,0.04)' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 14px 4px' }}>
-                                  <span style={{ fontSize: 9, fontWeight: 900, color: '#10b981', letterSpacing: '0.04em' }}>
+                              <div className="border-t border-slate-100 bg-slate-50/20">
+                                <div className="flex items-center justify-between px-3 py-1 sm:px-4 sm:py-1.5">
+                                  <span className="text-[8px] sm:text-[9px] font-black text-emerald-600 tracking-wider">
                                     {w1}% {match.team1.name.toUpperCase()} WIN
                                   </span>
-                                  <span style={{ fontSize: 9, fontWeight: 700, color: '#64748b', letterSpacing: '0.04em' }}>
+                                  <span className="text-[8px] sm:text-[9px] font-bold text-slate-400 tracking-wider">
                                     {draw}% HÒA
                                   </span>
-                                  <span style={{ fontSize: 9, fontWeight: 900, color: groupColor, letterSpacing: '0.04em' }}>
+                                  <span className="text-[8px] sm:text-[9px] font-black tracking-wider" style={{ color: groupColor }}>
                                     {w2}% {match.team2.name.toUpperCase()} WIN
                                   </span>
                                 </div>
-                                <div style={{ display: 'flex', height: 4 }}>
-                                  <div style={{ width: `${w1}%`, background: 'linear-gradient(90deg,#059669,#10b981)' }} />
-                                  <div style={{ width: `${draw}%`, background: '#e2e8f0' }} />
-                                  <div style={{ width: `${w2}%`, background: `linear-gradient(90deg,${groupColor}88,${groupColor})` }} />
+                                <div className="flex h-1 bg-slate-100">
+                                  <div className="h-full bg-emerald-500" style={{ width: `${w1}%` }} />
+                                  <div className="h-full bg-slate-200" style={{ width: `${draw}%` }} />
+                                  <div className="h-full" style={{ width: `${w2}%`, backgroundColor: groupColor }} />
                                 </div>
                               </div>
                             </Link>

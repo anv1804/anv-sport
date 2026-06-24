@@ -143,11 +143,14 @@ export default function NavigationLoader() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
-  // Show overlay on any internal link mousedown
+  // Show overlay on any internal link click
   useEffect(() => {
-    const handleMousedown = (e: MouseEvent) => {
+    const handleClick = (e: MouseEvent) => {
       const anchor = (e.target as HTMLElement).closest("a");
       if (!anchor) return;
+
+      // Only handle left clicks without modifiers
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
 
       const href = anchor.getAttribute("href");
       if (!href) return;
@@ -172,16 +175,10 @@ export default function NavigationLoader() {
       showNavLoader();
     };
 
-    const handleTouchstart = (e: TouchEvent) => {
-      handleMousedown({ target: e.target } as unknown as MouseEvent);
-    };
-
-    document.addEventListener("mousedown", handleMousedown, { capture: true, passive: true });
-    document.addEventListener("touchstart", handleTouchstart, { capture: true, passive: true });
+    document.addEventListener("click", handleClick, { capture: true });
 
     return () => {
-      document.removeEventListener("mousedown", handleMousedown, { capture: true });
-      document.removeEventListener("touchstart", handleTouchstart, { capture: true });
+      document.removeEventListener("click", handleClick, { capture: true });
       clearSafety();
     };
   }, []);
