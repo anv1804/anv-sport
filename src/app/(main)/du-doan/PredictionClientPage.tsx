@@ -28,7 +28,7 @@ type DateFilter = 'all' | 'yesterday' | 'today' | 'tomorrow';
 
 const FILTER_TYPE_OPTIONS = [
   { value: 'all', label: 'Tất cả' },
-  { value: 'live', label: 'Đang đá' },
+  { value: 'live', label: 'Đang đấu' },
   { value: 'finished', label: 'Đã đấu' },
   { value: 'upcoming', label: 'Chưa đấu' },
 ] satisfies { value: FilterType; label: string }[];
@@ -41,26 +41,44 @@ const WORLD_CUP_TABS = [
 ];
 
 // SWR memory cache for instant 0ms back-navigation
+// Không cache khi có live match - luôn fetch fresh để lấy liveClock mới nhất
 let globalFixturesCache: Fixture[] = [];
 
 export default function PredictionClientPage({ initialAiPosts = [] }: PredictionClientPageProps) {
-  const [fixtures, setFixtures] = useState<Fixture[]>(() => globalFixturesCache);
-  const [loading, setLoading] = useState(() => globalFixturesCache.length === 0);
+  const [fixtures, setFixtures] = useState<Fixture[]>(() => {
+    // Bỏ qua cache nếu có live match — buộc re-fetch để lấy liveClock chính xác
+    if (globalFixturesCache.some(f => f.status === 'Đang đấu')) return [];
+    return globalFixturesCache;
+  });
+  const [loading, setLoading] = useState(() =>
+    globalFixturesCache.length === 0 || globalFixturesCache.some(f => f.status === 'Đang đấu')
+  );
   const [error, setError] = useState<string | null>(null);
 
-  const [filterType, setFilterType] = useState<FilterType>(() =>
-    readStored('pred_filterType', ['all', 'live', 'finished', 'upcoming'] as const, 'all')
-  );
-  const [dateFilter, setDateFilter] = useState<DateFilter>(() =>
-    readStored('pred_dateFilter', ['all', 'yesterday', 'today', 'tomorrow'] as const, 'today')
-  );
+  // Khởi tạo bằng giá trị mặc định để SSR và client lần đầu render giống nhau (tránh hydration mismatch)
+  const [filterType, setFilterType] = useState<FilterType>('all');
+  const [dateFilter, setDateFilter] = useState<DateFilter>('today');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState(() => readStoredString('pred_selectedCategory', 'all'));
-  const [selectedGroup, setSelectedGroup] = useState(() => readStoredString('pred_selectedGroup', 'all'));
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedGroup, setSelectedGroup] = useState('all');
+
+  // Sau khi hydration xong mới đọc localStorage và khôi phục giá trị đã lưu
+  useEffect(() => {
+    const savedFilterType = readStored('pred_filterType', ['all', 'live', 'finished', 'upcoming'] as const, 'all');
+    const savedDateFilter = readStored('pred_dateFilter', ['all', 'yesterday', 'today', 'tomorrow'] as const, 'today');
+    const savedCategory = readStoredString('pred_selectedCategory', 'all');
+    const savedGroup = readStoredString('pred_selectedGroup', 'all');
+    setFilterType(savedFilterType);
+    setDateFilter(savedDateFilter);
+    setSelectedCategory(savedCategory);
+    setSelectedGroup(savedGroup);
+  }, []);
 
   const activeSport = 'bongda';
 
   useEffect(() => {
+    const intervalRef = { current: null as ReturnType<typeof setInterval> | null };
+
     const fetchFixtures = async () => {
       try {
         const res = await fetch('/api/fixtures');
@@ -75,6 +93,7 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
           globalFixturesCache = worldCupOnly;
           setFixtures(worldCupOnly);
           setError(null);
+          return worldCupOnly;
         } else {
           setError(data.error ?? 'Unknown error');
         }
@@ -84,8 +103,23 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
       } finally {
         setLoading(false);
       }
+      return null;
     };
-    fetchFixtures();
+
+    fetchFixtures().then(data => {
+      if (!data?.some(f => f.status === 'Đang đấu')) return;
+      // Có trận live → polling mỗi 90s. Server cache 45s nên ESPN chỉ bị gọi 1 lần/45s
+      intervalRef.current = setInterval(async () => {
+        const updated = await fetchFixtures();
+        if (!updated?.some(f => f.status === 'Đang đấu')) {
+          if (intervalRef.current) clearInterval(intervalRef.current);
+        }
+      }, 90_000);
+    });
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, []);
 
   // Persist filters
@@ -120,9 +154,9 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
     if (filterType === 'upcoming') {
       filtered = filtered.filter(f => !f.status || f.status.toLowerCase().includes('upcoming') || f.status === 'Chưa diễn ra' || f.status === 'Chưa đá');
     } else if (filterType === 'finished') {
-      filtered = filtered.filter(f => f.status === 'Kết thúc' || (f.status && !f.status.toLowerCase().includes('upcoming') && f.status !== 'Chưa diễn ra' && f.status !== 'Chưa đá' && f.status !== 'Đang đá'));
+      filtered = filtered.filter(f => f.status === 'Kết thúc' || (f.status && !f.status.toLowerCase().includes('upcoming') && f.status !== 'Chưa diễn ra' && f.status !== 'Chưa đá' && f.status !== 'Đang đấu'));
     } else if (filterType === 'live') {
-      filtered = filtered.filter(f => f.status === 'Đang đá');
+      filtered = filtered.filter(f => f.status === 'Đang đấu');
     }
 
     if (dateFilter === 'today') filtered = filtered.filter(f => f.matchDate === getLocalDateString(0));
@@ -158,7 +192,7 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
       return acc;
     }, {});
 
-    const statusPrio = (s: string) => s === 'Đang đá' ? 1 : s === 'Kết thúc' ? 3 : 2;
+    const statusPrio = (s: string) => s === 'Đang đấu' ? 1 : s === 'Kết thúc' ? 3 : 2;
     Object.values(grouped).forEach(group => {
       group.sort((a, b) => {
         const diff = statusPrio(a.status) - statusPrio(b.status);
@@ -166,7 +200,7 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
       });
     });
 
-    const isUpcoming = (m: Fixture) => !m.status || m.status.toLowerCase().includes('upcoming') || m.status === 'Chưa diễn ra' || m.status === 'Chưa đá' || m.status === 'Đang đá';
+    const isUpcoming = (m: Fixture) => !m.status || m.status.toLowerCase().includes('upcoming') || m.status === 'Chưa diễn ra' || m.status === 'Chưa đá' || m.status === 'Đang đấu';
     const allDates = Object.keys(grouped).sort();
     const sorted: Record<string, Fixture[]> = {};
     [...allDates.filter(d => grouped[d].some(isUpcoming)), ...allDates.filter(d => !grouped[d].some(isUpcoming)).reverse()]
@@ -205,7 +239,7 @@ export default function PredictionClientPage({ initialAiPosts = [] }: Prediction
       if (pinned) return [pinned];
     }
 
-    return [sportMatches.find(f => f.status === 'Đang đá') ?? sportMatches.find(f => f.status === 'Chưa đá') ?? sportMatches[0]];
+    return [sportMatches.find(f => f.status === 'Đang đấu') ?? sportMatches.find(f => f.status === 'Chưa đá') ?? sportMatches[0]];
   }, [fixtures, activeSport]);
 
   const dateFilterOptions = useMemo(() => [

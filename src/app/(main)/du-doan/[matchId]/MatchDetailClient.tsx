@@ -169,7 +169,7 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
         if (data.success) {
           setMatchInfo(data.data);
           const { isLive } = parseMatchStatus(data.data);
-          if (isLive && !intervalId) intervalId = setInterval(fetchMatch, 10000);
+          if (isLive && !intervalId) intervalId = setInterval(fetchMatch, 60_000); // 60s — server cache 45s nên ESPN ít bị gọi
         } else {
           setMatchError(data.error || 'Không tìm thấy thông tin trận đấu này.');
         }

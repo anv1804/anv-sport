@@ -140,7 +140,7 @@ function MatchCard({ fixture }: { fixture: Fixture }) {
   const aiPct = getAiPct(fixture.team1.name, fixture.team2.name);
   const rank1 = getRank(fixture.team1.name);
   const rank2 = getRank(fixture.team2.name);
-  const isLive = fixture.status === 'Đang đá';
+  const isLive = fixture.status === 'Đang đấu';
   const isDone = fixture.status === 'Kết thúc';
   const groupColor = GROUP_COLORS[group] ?? '#10b981';
 

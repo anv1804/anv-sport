@@ -10,6 +10,8 @@ export interface Fixture {
   ground: string;
   team1: { name: string; logo: string };
   team2: { name: string; logo: string };
+  liveClock?: string | null;
+  livePeriod?: string | null;
 }
 
 export function readStored<T extends string>(key: string, valid: readonly T[], fallback: T): T {

@@ -11,6 +11,28 @@ export default function FeaturedMatchCard({ match }: Props) {
   const { w1, draw, w2 } = getWinProbability(match.id, match.team1.name, match.team2.name);
   const info = getDeterministicGameInfo(match.ground, match.id);
   const categoryInfo = parseCategory(match.category);
+  const isLive = match.status === 'Đang đấu';
+  const isFinished = match.status === 'Kết thúc';
+
+  // Tính số phút đã thi đấu — ưu tiên liveClock từ ESPN, fallback tự tính (tính cả ~15 phút nghỉ giữa hiệp)
+  let elapsedLabel: string | null = match.liveClock ?? null;
+  if (isLive && !elapsedLabel && match.matchDate && match.matchTime) {
+    try {
+      const [h, m] = match.matchTime.split(':').map(Number);
+      const [yr, mo, dy] = match.matchDate.split('-').map(Number);
+      const kickoff = new Date(yr, mo - 1, dy, h, m, 0, 0);
+      const realElapsed = Math.floor((Date.now() - kickoff.getTime()) / 60000);
+      let matchClock: number;
+      if (realElapsed <= 45) {
+        matchClock = realElapsed;
+      } else if (realElapsed <= 60) {
+        matchClock = 45;
+      } else {
+        matchClock = Math.min(45 + (realElapsed - 60), 90);
+      }
+      if (realElapsed >= 0 && realElapsed <= 130) elapsedLabel = `${matchClock}'`;
+    } catch {}
+  }
 
   return (
     <div className="relative rounded-[18px] overflow-hidden border border-[#1a3055] bg-[#0c1829] flex flex-col group shadow-[0_20px_60px_rgba(0,0,0,0.55)] transition-all duration-300 hover:border-[#3b82f6]/40 hover:shadow-[0_20px_60px_rgba(0,0,0,0.65),0_0_40px_rgba(59,130,246,0.18)]">
@@ -83,10 +105,23 @@ export default function FeaturedMatchCard({ match }: Props) {
 
             {/* Center */}
             <div className="flex flex-col items-center gap-1.5 px-2 py-4 sm:px-5 sm:py-5 border-x border-[#1a3558]/50 shrink-0 w-[85px] sm:w-auto">
-              <div className="flex items-center gap-1 bg-[#0c1829]/80 border border-[#1e3a6e]/50 text-[#4d88c0] rounded-full px-2 py-0.5 sm:px-3 sm:py-1 text-[7px] sm:text-[9px] font-bold uppercase tracking-widest whitespace-nowrap">
-                <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> KICK-OFF
-              </div>
-              {match.score1 !== null && match.score2 !== null ? (
+              {isLive ? (
+                <div className="flex items-center gap-1 bg-red-500/20 border border-red-500/50 text-red-400 rounded-full px-2 py-0.5 sm:px-3 sm:py-1 text-[7px] sm:text-[9px] font-bold uppercase tracking-widest whitespace-nowrap">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                  {elapsedLabel ? `LIVE ${elapsedLabel}` : 'LIVE'}
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 bg-[#0c1829]/80 border border-[#1e3a6e]/50 text-[#4d88c0] rounded-full px-2 py-0.5 sm:px-3 sm:py-1 text-[7px] sm:text-[9px] font-bold uppercase tracking-widest whitespace-nowrap">
+                  <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> {isFinished ? 'KẾT THÚC' : 'KICK-OFF'}
+                </div>
+              )}
+              {isLive || isFinished ? (
+                <div className="flex items-center text-white font-black text-lg sm:text-3xl font-mono whitespace-nowrap">
+                  <span>{match.score1 ?? 0}</span>
+                  <span className="text-[#3b82f6] mx-1 sm:mx-2">:</span>
+                  <span>{match.score2 ?? 0}</span>
+                </div>
+              ) : match.score1 !== null && match.score2 !== null ? (
                 <div className="flex items-center text-white font-black text-lg sm:text-3xl font-mono whitespace-nowrap">
                   <span>{match.score1}</span>
                   <span className="text-[#3b82f6] mx-1 sm:mx-2">:</span>
@@ -98,7 +133,9 @@ export default function FeaturedMatchCard({ match }: Props) {
                 </div>
               )}
               <div className="text-[8px] sm:text-[9px] font-bold text-[#3d5c84] uppercase tracking-widest whitespace-nowrap">
-                {match.matchDate}
+                {isLive && elapsedLabel
+                  ? match.livePeriod || 'Đang thi đấu'
+                  : match.matchDate}
               </div>
             </div>
 

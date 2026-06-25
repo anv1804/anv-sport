@@ -181,7 +181,7 @@ export async function POST(req: Request) {
             predictedAt: new Date(),
             scoreState: (matchData?.score1 !== null && matchData?.score2 !== null) ? `${matchData.score1}-${matchData.score2}` : "0-0",
             liveTime: matchData?.liveClock || null,
-            status: matchData?.status || "Đang đá"
+            status: matchData?.status || "Đang đấu"
           }
         });
       } else {
@@ -192,7 +192,7 @@ export async function POST(req: Request) {
             prediction: predictionData,
             scoreState: (matchData?.score1 !== null && matchData?.score2 !== null) ? `${matchData.score1}-${matchData.score2}` : "0-0",
             liveTime: matchData?.liveClock || null,
-            status: matchData?.status || "Đang đá"
+            status: matchData?.status || "Đang đấu"
           }
         });
       }
@@ -277,28 +277,8 @@ export async function POST(req: Request) {
     let additionalContextObj: any = {};
     
     // Load tactical reference database
-    let tacticsReference = null;
-    let playerTendenciesReference = null;
-    let matchDynamicsReference = null;
-    let externalFactorsReference = null;
     let aiTacticalTrainingGuide = "";
     try {
-      const tacticsPath = path.join(process.cwd(), 'src/lib/tactics/formations_and_playstyles.json');
-      if (fs.existsSync(tacticsPath)) {
-        tacticsReference = JSON.parse(fs.readFileSync(tacticsPath, 'utf-8'));
-      }
-      const tendenciesPath = path.join(process.cwd(), 'src/lib/tactics/player_roles_and_tendencies.json');
-      if (fs.existsSync(tendenciesPath)) {
-        playerTendenciesReference = JSON.parse(fs.readFileSync(tendenciesPath, 'utf-8'));
-      }
-      const dynamicsPath = path.join(process.cwd(), 'src/lib/tactics/match_dynamics_and_psychology.json');
-      if (fs.existsSync(dynamicsPath)) {
-        matchDynamicsReference = JSON.parse(fs.readFileSync(dynamicsPath, 'utf-8'));
-      }
-      const externalPath = path.join(process.cwd(), 'src/lib/tactics/external_factors_and_key_events.json');
-      if (fs.existsSync(externalPath)) {
-        externalFactorsReference = JSON.parse(fs.readFileSync(externalPath, 'utf-8'));
-      }
       const guidePath = path.join(process.cwd(), 'src/lib/tactics/AI_TACTICAL_TRAINING_GUIDE.md');
       if (fs.existsSync(guidePath)) {
         aiTacticalTrainingGuide = fs.readFileSync(guidePath, 'utf-8');
@@ -379,10 +359,6 @@ export async function POST(req: Request) {
     ${JSON.stringify({
       task: `Analyze the football match: "${title}" in extreme detail.`,
       ai_tactical_training_guide: aiTacticalTrainingGuide,
-      tactics_reference_database: tacticsReference,
-      player_roles_and_tendencies_database: playerTendenciesReference,
-      match_dynamics_and_psychology_database: matchDynamicsReference,
-      external_factors_and_key_events_database: externalFactorsReference,
       sources_to_synthesize: [
         "SofaScore detailed match stats and player ratings",
         "WhoScored tactical characteristics & player strengths/weaknesses",
@@ -570,7 +546,7 @@ export async function POST(req: Request) {
           const scoreState = (matchData?.score1 !== null && matchData?.score2 !== null)
             ? `${matchData.score1}-${matchData.score2}`
             : "0-0";
-          const liveTime = isLive ? (matchData?.liveClock || "Đang đá") : null;
+          const liveTime = isLive ? (matchData?.liveClock || "Đang đấu") : null;
           
           await prisma.predictionHistory.create({
             data: {

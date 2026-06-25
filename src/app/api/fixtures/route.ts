@@ -3,6 +3,33 @@ import prisma from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
+// ─── Server-side in-memory cache ──────────────────────────────────────────────
+// Cache ESPN WC scoreboard 45 giây — tất cả client poll trong cùng window
+// dùng chung 1 response, không gọi ESPN nhiều lần
+const LIVE_CACHE_TTL_MS = 45_000; // 45 giây
+let wcScoreboardCache: { data: any; expireAt: number } | null = null;
+
+async function fetchWcScoreboard(): Promise<any[] | null> {
+  const now = Date.now();
+  if (wcScoreboardCache && now < wcScoreboardCache.expireAt) {
+    return wcScoreboardCache.data; // Trả cache, không gọi ESPN
+  }
+  try {
+    const res = await fetch(
+      'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard',
+      { cache: 'no-store' } // bypass Next.js fetch cache, ta tự quản lý
+    );
+    if (!res.ok) return wcScoreboardCache?.data ?? null;
+    const json = await res.json();
+    const events = json.events ?? [];
+    wcScoreboardCache = { data: events, expireAt: now + LIVE_CACHE_TTL_MS };
+    return events;
+  } catch {
+    return wcScoreboardCache?.data ?? null;
+  }
+}
+// ──────────────────────────────────────────────────────────────────────────────
+
 // Bộ từ điển ánh xạ 100% 48 Đội tuyển Quốc Gia tham dự World Cup 2026
 const getFlagUrl = (teamName: string) => {
   const mapping: Record<string, string> = {
@@ -316,7 +343,7 @@ export async function GET(request: Request) {
         if (cachedFixture) {
           const diffMins = (new Date().getTime() - new Date(cachedFixture.lastUpdated).getTime()) / 60000;
           const isLive = cachedFixture.data && (
-            (cachedFixture.data as any).status === "Đang đá" ||
+            (cachedFixture.data as any).status === "Đang đấu" ||
             !["FT", "PEN", "AWD", "PST", "CANC"].includes(cachedFixture.status)
           );
           const cacheLimit = isLive ? (10 / 60) : 5;
@@ -355,7 +382,7 @@ export async function GET(request: Request) {
           category: `${match.league.name} - ${match.league.round}`,
           matchDate: new Date(match.fixture.date).toLocaleDateString('vi-VN'),
           matchTime: new Date(match.fixture.date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-          status: isFinished ? "Kết thúc" : (match.fixture.status.short === 'NS' ? "Chưa đá" : "Đang đá"),
+          status: isFinished ? "Kết thúc" : (match.fixture.status.short === 'NS' ? "Chưa đá" : "Đang đấu"),
           score1: match.goals.home,
           score2: match.goals.away,
           liveClock,
@@ -392,7 +419,7 @@ export async function GET(request: Request) {
             category: `${match.league.name} - ${match.league.round}`,
             matchDate: new Date(match.fixture.date).toLocaleDateString('vi-VN'),
             matchTime: new Date(match.fixture.date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-            status: isFinished ? "Kết thúc" : (match.fixture.status.short === 'NS' ? "Chưa đá" : "Đang đá"),
+            status: isFinished ? "Kết thúc" : (match.fixture.status.short === 'NS' ? "Chưa đá" : "Đang đấu"),
             score1: match.goals.home,
             score2: match.goals.away,
             ground: match.fixture.venue.name || "Chưa xác định",
@@ -422,7 +449,7 @@ export async function GET(request: Request) {
       if (cachedFixture) {
         const diffMins = (new Date().getTime() - new Date(cachedFixture.lastUpdated).getTime()) / 60000;
         const isLive = cachedFixture.data && (
-          (cachedFixture.data as any).status === "Đang đá" ||
+          (cachedFixture.data as any).status === "Đang đấu" ||
           !["FT", "PEN", "AWD", "post", "STATUS_FULL_TIME", "STATUS_FINAL", "STATUS_POSTPONED", "STATUS_CANCELED"].includes(cachedFixture.status)
         );
         const cacheLimit = isLive ? (1 / 60) : (10 / 60); // 1 second cache for live matches, 10 seconds for others
@@ -455,7 +482,7 @@ export async function GET(request: Request) {
       }
 
       const isFinished = espnData.header.competitions[0].status.type.state === 'post';
-      const statusText = isFinished ? "Kết thúc" : (espnData.header.competitions[0].status.type.state === 'pre' ? "Chưa đá" : "Đang đá");
+      const statusText = isFinished ? "Kết thúc" : (espnData.header.competitions[0].status.type.state === 'pre' ? "Chưa đá" : "Đang đấu");
 
       const leagueName = espnData.header.league?.name || "Giải đấu khác";
       const seasonYear = espnData.header.season?.year || new Date(espnData.header.competitions[0].date).getFullYear();
@@ -737,18 +764,33 @@ export async function GET(request: Request) {
         const res = await fetch('https://raw.githubusercontent.com/openfootball/worldcup.json/master/2026/worldcup.json', { next: { revalidate: 3600 } });
         const data = await res.json();
         const matchesList = data.matches || [];
+        const nowMs = Date.now();
         worldCupFixtures = matchesList.map((match: any, index: number) => {
           const id = `wc2026-${index}`;
           let vnDate = match.date;
           let vnTime = match.time ? match.time.split(' ')[0] : '00:00';
+          let kickoffMs: number | null = null;
           
           if (match.time && match.time.includes('UTC')) {
             const gmtTimeStr = match.time.replace('UTC', 'GMT');
             const parsedDate = new Date(`${match.date} ${gmtTimeStr}`);
             if (!isNaN(parsedDate.getTime())) {
+              kickoffMs = parsedDate.getTime();
               vnDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(parsedDate);
               vnTime = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit' }).format(parsedDate);
             }
+          }
+
+          // Xác định status: nếu có điểm FT -> Kết thúc
+          // Nếu chưa có điểm, kiểm tra thời gian để phát hiện trận đang đá
+          // (kick-off <= now <= kick-off + 115 phút)
+          let status: string;
+          if (match.score?.ft) {
+            status = "Kết thúc";
+          } else if (kickoffMs !== null && nowMs >= kickoffMs && nowMs <= kickoffMs + 115 * 60 * 1000) {
+            status = "Đang đấu";
+          } else {
+            status = "Chưa đá";
           }
 
           return {
@@ -758,7 +800,7 @@ export async function GET(request: Request) {
             category: `FIFA World Cup 2026 - ${match.group || match.round}`,
             matchDate: vnDate, 
             matchTime: vnTime,
-            status: match.score?.ft ? "Kết thúc" : "Chưa đá",
+            status,
             score1: match.score?.ft ? match.score.ft[0].toString() : null,
             score2: match.score?.ft ? match.score.ft[1].toString() : null,
             ground: match.ground || "Chưa xác định",
@@ -767,6 +809,76 @@ export async function GET(request: Request) {
         });
       } catch (err) {
         console.error("Lỗi khi load OpenFootball World Cup list:", err);
+      }
+
+      // B0. Fetch ESPN fifa.world scoreboard (với server-side cache 45s)
+      try {
+        const espnEvents: any[] | null = await fetchWcScoreboard();
+        if (espnEvents && espnEvents.length > 0) {
+
+          const cleanName = (n: string) => n.toLowerCase()
+            .replace(/[\s\-\.&]/g, '')
+            .replace('unitedstates', 'usa')
+            .replace('czechrepublic', 'czechia')
+            .replace('türkiye', 'turkey')
+            .replace('drcongo', 'congodr')
+            .replace('ivorycoast', 'cotedivoire')
+            .replace('bosniaherzegovina', 'bosnia');
+
+          worldCupFixtures = worldCupFixtures.map((fixture: any) => {
+            const t1 = cleanName(fixture.team1.name);
+            const t2 = cleanName(fixture.team2.name);
+
+            const espnEvent = espnEvents.find((ev: any) => {
+              const comps = ev.competitions?.[0]?.competitors || [];
+              const home = comps.find((c: any) => c.homeAway === 'home')?.team?.displayName || '';
+              const away = comps.find((c: any) => c.homeAway === 'away')?.team?.displayName || '';
+              const h = cleanName(home);
+              const a = cleanName(away);
+              return (h.includes(t1) || t1.includes(h)) && (a.includes(t2) || t2.includes(a))
+                  || (h.includes(t2) || t2.includes(h)) && (a.includes(t1) || t1.includes(a));
+            });
+
+            if (!espnEvent) return fixture;
+
+            const comp = espnEvent.competitions[0];
+            const homeComp = comp.competitors.find((c: any) => c.homeAway === 'home');
+            const awayComp = comp.competitors.find((c: any) => c.homeAway === 'away');
+            const espnStatus = espnEvent.status;
+            const state = espnStatus.type?.state;
+            const isFinished = state === 'post';
+            const isLive = state === 'in';
+
+            // Xác định score1/score2 theo đúng thứ tự team1/team2
+            const homeTeamClean = cleanName(homeComp?.team?.displayName || '');
+            const team1IsHome = homeTeamClean.includes(t1) || t1.includes(homeTeamClean);
+            const score1 = team1IsHome ? (homeComp?.score ?? null) : (awayComp?.score ?? null);
+            const score2 = team1IsHome ? (awayComp?.score ?? null) : (homeComp?.score ?? null);
+
+            const displayClock = espnStatus.displayClock || '';
+            const period = espnStatus.period;
+            let liveClock: string | null = null;
+            let livePeriod: string | null = null;
+            if (isLive) {
+              liveClock = displayClock || null;
+              if (espnStatus.type?.description?.toLowerCase().includes('halftime')) {
+                liveClock = 'HT'; livePeriod = 'Nghỉ giữa hiệp';
+              } else if (period === 1) livePeriod = 'Hiệp 1';
+              else if (period === 2) livePeriod = 'Hiệp 2';
+              else if (period === 3) livePeriod = 'Hiệp phụ';
+            }
+
+            return {
+              ...fixture,
+              status: isFinished ? 'Kết thúc' : (isLive ? 'Đang đấu' : 'Chưa đá'),
+              score1,
+              score2,
+              ...(isLive ? { liveClock, livePeriod } : {}),
+            };
+          });
+        }
+      } catch (err) {
+        console.error("Lỗi khi fetch ESPN WC scoreboard:", err);
       }
 
       // B. Kéo các giải đấu quốc tế & quốc gia khác từ ESPN Scoreboard (Trực tiếp ngày hôm nay)
@@ -789,7 +901,7 @@ export async function GET(request: Request) {
               category: `${espnData.leagues?.[0]?.name || league.name}`,
               matchDate: new Date(match.date).toLocaleDateString('vi-VN'),
               matchTime: new Date(match.date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-              status: isFinished ? "Kết thúc" : (match.status.type.state === 'pre' ? "Chưa đá" : "Đang đá"),
+              status: isFinished ? "Kết thúc" : (match.status.type.state === 'pre' ? "Chưa đá" : "Đang đấu"),
               score1: homeComp.score || "0",
               score2: awayComp.score || "0",
               ground: match.competitions[0].venue?.fullName || "Chưa xác định",

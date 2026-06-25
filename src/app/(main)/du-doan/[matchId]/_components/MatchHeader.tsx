@@ -14,7 +14,7 @@ export default function MatchHeader({ matchInfo, isFinished, isLive }: Props) {
     : isLive
       ? (matchInfo.livePeriod && matchInfo.liveClock
           ? `${matchInfo.livePeriod} - ${matchInfo.liveClock}`
-          : (matchInfo.status || 'Đang đá'))
+          : (matchInfo.status || 'Đang đấu'))
       : 'Chưa đá';
 
   const statusClass = isFinished

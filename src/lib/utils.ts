@@ -65,6 +65,121 @@ export function getWinProbability(id: string, name1: string, name2: string) {
   return { w1, draw, w2 };
 }
 
+/**
+ * Tính lại xác suất thắng/hòa/thua khi trận đang diễn ra.
+ * Dựa vào tỉ số hiện tại và số phút còn lại (mô hình xác suất Poisson đơn giản).
+ *
+ * @param score1 Bàn thắng đội 1 hiện tại
+ * @param score2 Bàn thắng đội 2 hiện tại
+ * @param minutesElapsed Số phút đã thi đấu (0-90)
+ * @param preMatchW1 Xác suất trận thắng đội 1 trước trận (0-100)
+ * @param preMatchDraw Xác suất hòa trước trận (0-100)
+ * @param preMatchW2 Xác suất trận thắng đội 2 trước trận (0-100)
+ */
+export function getLiveProbability(
+  score1: number,
+  score2: number,
+  minutesElapsed: number,
+  preMatchW1: number,
+  preMatchDraw: number,
+  preMatchW2: number
+): { w1: number; draw: number; w2: number } {
+  // Phút 90 từ ESPN thường là đang đá bù giờ, chưa kết thúc.
+  // Thêm 5 phút bù giờ mặc định để tránh nhảy về 0% sai.
+  const STOPPAGE_TIME = 5;
+  const effectiveMax = minutesElapsed >= 90 ? 90 + STOPPAGE_TIME : 90;
+  const minsRemaining = Math.max(0, effectiveMax - minutesElapsed);
+
+  // Tốc độ ghi bàn trung bình World Cup ~2.5 bàn/90 phút
+  const avgGoalsPerMin = 2.5 / 90;
+  const expectedGoalsLeft = avgGoalsPerMin * minsRemaining;
+
+  const diff = score1 - score2; // dương: đội 1 dẫn, âm: đội 2 dẫn
+
+  // Nếu trận kết thúc thật sự (hết cả bù giờ)
+  if (minsRemaining <= 0) {
+    if (diff > 0) return { w1: 96, draw: 3, w2: 1 };  // dẫn → thắng gần chắc; hòa > thua ngược (vô lý)
+    if (diff < 0) return { w1: 1, draw: 3, w2: 96 };
+    return { w1: 2, draw: 96, w2: 2 };                  // hòa cuối trận
+  }
+
+  // Xác suất đảo ngược bàn thắng dựa vào số bàn chênh lệch và expected goals còn lại
+  // Dùng xấp xỉ Poisson: P(scoring k+ goals) từ Poisson distribution
+  const poissonCdf = (k: number, lambda: number): number => {
+    if (lambda <= 0) return k >= 0 ? 1 : 0;
+    let p = 0;
+    let term = Math.exp(-lambda);
+    for (let i = 0; i <= k; i++) {
+      p += term;
+      term *= lambda / (i + 1);
+    }
+    return Math.min(1, p);
+  };
+
+  // Xác suất đội đang kém bàn ghi đủ để đảo ngược / bằng
+  let w1: number, draw: number, w2: number;
+
+  if (diff === 0) {
+    // Đang hòa — ai sẽ ghi bàn trước? Dùng pre-match ratio
+    const preRatio1 = preMatchW1 / Math.max(1, preMatchW1 + preMatchW2);
+    const pSomeoneScores = 1 - poissonCdf(0, expectedGoalsLeft);
+    const pStaysDrawn = poissonCdf(0, expectedGoalsLeft);
+
+    const pEqualized = pStaysDrawn + pSomeoneScores * 0.18;
+    draw = Math.round(pEqualized * 100);
+    const pGoal = (1 - pEqualized);
+    w1 = Math.round(pGoal * preRatio1 * 100);
+    w2 = 100 - draw - w1;
+  } else {
+    const absGap = Math.abs(diff);
+    const leadingIsTeam1 = diff > 0;
+
+    const lambdaTrailing = expectedGoalsLeft * 0.48;
+    const lambdaLeading  = expectedGoalsLeft * 0.52;
+
+    // P(trailing equalizes): ghi đúng absGap bàn, leading không ghi thêm
+    const pTrailingEqualizes = (poissonCdf(absGap, lambdaTrailing) - poissonCdf(absGap - 1, lambdaTrailing)) * poissonCdf(0, lambdaLeading * 0.5);
+    // P(trailing wins): ghi >= absGap+1 bàn
+    const pTrailingWins = (1 - poissonCdf(absGap, lambdaTrailing)) * (poissonCdf(0, lambdaLeading * 0.4));
+
+    // INVARIANT: draw >= trailing_win (để hòa cần ít bàn hơn để thắng)
+    const pDraw = Math.max(pTrailingEqualizes, pTrailingWins * 1.5);
+    const pLeadingWins = Math.max(0, 1 - pTrailingWins - pDraw);
+
+    if (leadingIsTeam1) {
+      w1   = Math.round(Math.min(98, pLeadingWins * 100));
+      draw = Math.round(Math.min(50, pDraw * 100));
+      w2   = Math.max(1, 100 - w1 - draw);
+      // Đảm bảo draw >= w2 (đội đang kém cần ít bàn hơn để hòa)
+      if (draw < w2) { const tmp = draw; draw = w2; w2 = tmp; }
+    } else {
+      w2   = Math.round(Math.min(98, pLeadingWins * 100));
+      draw = Math.round(Math.min(50, pDraw * 100));
+      w1   = Math.max(1, 100 - w2 - draw);
+      if (draw < w1) { const tmp = draw; draw = w1; w1 = tmp; }
+    }
+  }
+
+  // Blend nhẹ với pre-match (10% weight) để tránh cực đoan
+  const blend = (live: number, pre: number) => Math.round(live * 0.9 + pre * 0.1);
+  const result = {
+    w1:   Math.max(1, Math.min(98, blend(w1,   preMatchW1))),
+    draw: Math.max(1, Math.min(60, blend(draw, preMatchDraw))),
+    w2:   Math.max(1, Math.min(98, blend(w2,   preMatchW2))),
+  };
+
+  // Cuối cùng: normalize về 100
+  const total = result.w1 + result.draw + result.w2;
+  if (total !== 100) {
+    const diff100 = 100 - total;
+    result.w1 = Math.max(1, result.w1 + Math.round(diff100 / 2));
+    result.w2 = Math.max(1, result.w2 + (100 - result.w1 - result.draw));
+  }
+
+  return result;
+}
+
+
 export function getAiPct(t1: string, t2: string) {
   const key = (t1 + t2).toLowerCase();
   if (key.includes('switzerland') && key.includes('canada')) {
