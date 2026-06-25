@@ -1,5 +1,6 @@
 "use client";
 
+import Image from 'next/image';
 import { useState } from 'react';
 import { Info } from 'lucide-react';
 import { type MatchInfo } from './helpers';
@@ -85,11 +86,11 @@ export default function StatsTab({ matchInfo, isLive, isFinished }: Props) {
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100">
           <div className="w-12">
-            <img src={matchInfo.team1.logo} className="w-8 h-8 object-contain shadow-sm border border-slate-100 rounded-sm bg-white" alt="logo" />
+            <Image src={matchInfo.team1.logo} width={32} height={32} className="object-contain shadow-sm border border-slate-100 rounded-sm bg-white" alt="logo" />
           </div>
           <h3 className="text-[16px] font-bold text-slate-800 uppercase tracking-widest text-center flex-1">Thống kê trận đấu</h3>
           <div className="w-12 flex justify-end">
-            <img src={matchInfo.team2.logo} className="w-8 h-8 object-contain shadow-sm border border-slate-100 rounded-sm bg-white" alt="logo" />
+            <Image src={matchInfo.team2.logo} width={32} height={32} className="object-contain shadow-sm border border-slate-100 rounded-sm bg-white" alt="logo" />
           </div>
         </div>
 

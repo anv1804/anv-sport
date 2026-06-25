@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import { PlayCircle } from 'lucide-react';
 import { type MatchInfo } from './helpers';
 
@@ -6,7 +7,7 @@ interface Props { matchInfo: MatchInfo; }
 function VideoCard({ href, logoSrc, title, subtitle }: { href: string; logoSrc: string; title: string; subtitle: string }) {
   return (
     <a href={href} target="_blank" rel="noopener noreferrer" className="relative shrink-0 w-[240px] h-[135px] rounded border border-slate-200 overflow-hidden group shadow-sm">
-      <img src={logoSrc} className="absolute inset-0 w-full h-full object-cover opacity-20 blur-sm scale-110" alt="" />
+      <Image src={logoSrc} fill className="object-cover opacity-20 blur-sm scale-110" alt="" />
       <div className="absolute inset-0 bg-slate-900/60 group-hover:bg-slate-900/40 transition-colors" />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
         <PlayCircle className="w-12 h-12 text-white/90 group-hover:text-white transition-colors" />

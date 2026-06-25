@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { Plus, X, GripVertical, Trophy } from 'lucide-react';
 
 interface Props {
@@ -19,8 +19,6 @@ function parseDefault(raw: string): string[] {
 
 export function AchievementsEditor({ name, defaultValue = '' }: Props) {
   const [items, setItems] = useState<string[]>(parseDefault(defaultValue));
-  const newInputRef = useRef<HTMLInputElement>(null);
-
   const update = (idx: number, val: string) => {
     setItems(prev => prev.map((item, i) => i === idx ? val : item));
   };

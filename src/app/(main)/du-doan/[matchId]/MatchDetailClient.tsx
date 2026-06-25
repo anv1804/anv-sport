@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { type PredictionData } from '@/components/domain/article/PredictionView';
 import { ShieldAlert, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -18,7 +18,7 @@ import AiSection from './_components/AiSection';
 import PitchModal from './_components/PitchModal';
 import {
   type MatchInfo, type MilestoneKey, type PredictionHistoryItem,
-  parseMatchStatus, checkPastStartTime,
+  parseMatchStatus, checkPastStartTime, getMilestoneAvailability,
 } from './_components/helpers';
 
 const LOADING_MESSAGES = [
@@ -51,6 +51,66 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
   const [selectedMilestone, setSelectedMilestone] = useState<MilestoneKey>('PRE_MATCH');
   const [attemptedMilestones, setAttemptedMilestones] = useState<Record<string, boolean>>({});
 
+  const handleGenerateInternal = useCallback(async (previewOnly = false, milestone?: string) => {
+    if (!matchInfo) return;
+    setIsGenerating(true);
+    setGenerationError(null);
+    try {
+      const res = await fetch('/api/generate-prediction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: `${matchInfo.team1.name} vs ${matchInfo.team2.name}, ${matchInfo.category}`,
+          matchData: matchInfo, previewOnly, milestone,
+        }),
+      });
+      if (!res.ok) {
+        let msg = `Lỗi khi tạo nhận định (Mã lỗi: ${res.status})`;
+        try {
+          if (res.headers.get('content-type')?.includes('application/json')) {
+            msg = (await res.json()).error || msg;
+          }
+        } catch {}
+        throw new Error(msg);
+      }
+      if (!res.headers.get('content-type')?.includes('application/json')) {
+        throw new Error('Phản hồi từ máy chủ không hợp lệ (Không phải định dạng JSON)');
+      }
+      const data = await res.json();
+      if (!data.predictionData) throw new Error('Dữ liệu trả về từ AI không đúng định dạng mong đợi');
+      setPredictionData(data.predictionData);
+      setIsDataPreview(previewOnly);
+      if (data.history && !previewOnly) setPredictionHistory(data.history);
+    } catch (err: unknown) {
+      setGenerationError(err instanceof Error ? err.message : 'Đã có lỗi xảy ra, vui lòng thử lại sau.');
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [matchInfo]);
+
+  const handlePin = async () => {
+    if (!matchInfo || !predictionData || isPinning) return;
+    setIsPinning(true);
+    try {
+      const res = await fetch('/api/generate-prediction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'pin', matchId, predictionData, matchData: matchInfo }),
+      });
+      const data = await res.json();
+      if (data.success && data.history) setPredictionHistory(data.history);
+    } catch (err) {
+      console.error('Lỗi khi ghim nhận định:', err);
+    } finally {
+      setIsPinning(false);
+    }
+  };
+
+  const handleSelectMilestone = (key: MilestoneKey) => {
+    setSelectedMilestone(key);
+    if (key !== 'LIVE') setIsDataPreview(false);
+  };
+
   // Formations data
   useEffect(() => {
     fetch('/api/formations')
@@ -74,7 +134,6 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
         if (data.success && data.history) {
           setPredictionHistory(data.history);
           if (data.history.length > 0) {
-            setPredictionData(data.history[0].prediction);
             const m = data.history[0].milestone;
             if (['PRE_MATCH', 'START_MATCH', 'HALF_TIME'].includes(m)) {
               setSelectedMilestone(m as MilestoneKey);
@@ -124,24 +183,15 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
     return () => { if (intervalId) clearInterval(intervalId); };
   }, [matchId]);
 
-  // Validate selectedMilestone when match state changes
-  useEffect(() => {
-    if (!matchInfo) return;
+  // Derive a validated milestone — never triggers a re-render cascade
+  const activeMilestone = useMemo<MilestoneKey>(() => {
+    if (!matchInfo) return selectedMilestone;
     const { isFinished, isLive, isSecondHalf } = parseMatchStatus(matchInfo);
     const isPastStart = checkPastStartTime(matchInfo);
-
-    const available =
-      selectedMilestone === 'PRE_MATCH' ? true :
-      selectedMilestone === 'START_MATCH' ? isLive || isFinished || isPastStart :
-      selectedMilestone === 'HALF_TIME' ? isSecondHalf || isFinished :
-      isLive || isFinished || isPastStart;
-
-    if (!available) {
-      setSelectedMilestone('PRE_MATCH');
-      const preMatch = predictionHistory.find(h => h.milestone === 'PRE_MATCH');
-      setPredictionData(preMatch ? preMatch.prediction : null);
-    }
-  }, [matchInfo, selectedMilestone, predictionHistory]);
+    return getMilestoneAvailability(selectedMilestone, isFinished, isLive, isSecondHalf, isPastStart)
+      ? selectedMilestone
+      : 'PRE_MATCH';
+  }, [matchInfo, selectedMilestone]);
 
   // Auto-generation based on match state
   useEffect(() => {
@@ -176,7 +226,7 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
       }
     };
     run();
-  }, [matchInfo, predictionHistory, loadingMatch, historyLoaded, isGenerating]);
+  }, [matchInfo, predictionHistory, loadingMatch, historyLoaded, isGenerating, attemptedMilestones, handleGenerateInternal]);
 
   // Loading text rotation while generating
   useEffect(() => {
@@ -188,71 +238,6 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
     }, 2500);
     return () => clearInterval(id);
   }, [isGenerating]);
-
-  const handleGenerateInternal = async (previewOnly = false, milestone?: string) => {
-    if (!matchInfo) return;
-    setIsGenerating(true);
-    setGenerationError(null);
-    try {
-      const res = await fetch('/api/generate-prediction', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: `${matchInfo.team1.name} vs ${matchInfo.team2.name}, ${matchInfo.category}`,
-          matchData: matchInfo, previewOnly, milestone,
-        }),
-      });
-      if (!res.ok) {
-        let msg = `Lỗi khi tạo nhận định (Mã lỗi: ${res.status})`;
-        try {
-          if (res.headers.get('content-type')?.includes('application/json')) {
-            msg = (await res.json()).error || msg;
-          }
-        } catch {}
-        throw new Error(msg);
-      }
-      if (!res.headers.get('content-type')?.includes('application/json')) {
-        throw new Error('Phản hồi từ máy chủ không hợp lệ (Không phải định dạng JSON)');
-      }
-      const data = await res.json();
-      if (!data.predictionData) throw new Error('Dữ liệu trả về từ AI không đúng định dạng mong đợi');
-      setPredictionData(data.predictionData);
-      setIsDataPreview(previewOnly);
-      if (data.history && !previewOnly) setPredictionHistory(data.history);
-    } catch (err: any) {
-      setGenerationError(err.message || 'Đã có lỗi xảy ra, vui lòng thử lại sau.');
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const handlePin = async () => {
-    if (!matchInfo || !predictionData || isPinning) return;
-    setIsPinning(true);
-    try {
-      const res = await fetch('/api/generate-prediction', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'pin', matchId, predictionData, matchData: matchInfo }),
-      });
-      const data = await res.json();
-      if (data.success && data.history) setPredictionHistory(data.history);
-    } catch (err) {
-      console.error('Lỗi khi ghim nhận định:', err);
-    } finally {
-      setIsPinning(false);
-    }
-  };
-
-  const handleSelectMilestone = (key: MilestoneKey) => {
-    setSelectedMilestone(key);
-    if (key === 'LIVE' && isDataPreview && predictionData) return;
-    const item = predictionHistory.find(h => h.milestone === key);
-    if (item) {
-      setPredictionData(item.prediction);
-      setIsDataPreview(false);
-    }
-  };
 
   if (loadingMatch) {
     return (
@@ -315,7 +300,7 @@ export default function MatchDetailClient({ matchId }: { matchId: string }) {
           loadingText={loadingText}
           predictionData={predictionData}
           predictionHistory={predictionHistory}
-          selectedMilestone={selectedMilestone}
+          selectedMilestone={activeMilestone}
           isDataPreview={isDataPreview}
           isPinning={isPinning}
           generationError={generationError}

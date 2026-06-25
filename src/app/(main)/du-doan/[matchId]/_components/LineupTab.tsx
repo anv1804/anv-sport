@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import { Info, Eye } from 'lucide-react';
 import Link from 'next/link';
 import PlayerListIndicators from './PlayerListIndicators';
@@ -27,7 +28,7 @@ function PlayerRow({ playerObj, events, isRightAligned, isSubstitute = false }: 
       <div className={`flex items-center gap-3 ${isRightAligned ? 'flex-row-reverse' : ''}`}>
         {playerObj.player.avatar ? (
           <div className={`${avatarSize} rounded-full overflow-hidden shrink-0 border border-slate-200 shadow-sm relative group/avatar`}>
-            <img src={playerObj.player.avatar} alt={playerObj.player.name} className="w-full h-full object-cover" />
+            <Image src={playerObj.player.avatar} fill className="object-cover" alt={playerObj.player.name} />
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
               <span className="text-[8px] text-white font-black">{playerObj.player.number}</span>
             </div>
@@ -68,11 +69,11 @@ export default function LineupTab({ matchInfo, onOpenPitch }: Props) {
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100">
           <div className="w-12">
-            <img src={matchInfo.team1.logo} className="w-8 h-8 object-contain shadow-sm border border-slate-100 rounded-sm bg-white" alt="logo" />
+            <Image src={matchInfo.team1.logo} width={32} height={32} className="object-contain shadow-sm border border-slate-100 rounded-sm bg-white" alt="logo" />
           </div>
           <h3 className="text-[16px] font-bold text-slate-800 uppercase tracking-widest text-center flex-1">Đội hình ra sân</h3>
           <div className="w-12 flex justify-end">
-            <img src={matchInfo.team2.logo} className="w-8 h-8 object-contain shadow-sm border border-slate-100 rounded-sm bg-white" alt="logo" />
+            <Image src={matchInfo.team2.logo} width={32} height={32} className="object-contain shadow-sm border border-slate-100 rounded-sm bg-white" alt="logo" />
           </div>
         </div>
 

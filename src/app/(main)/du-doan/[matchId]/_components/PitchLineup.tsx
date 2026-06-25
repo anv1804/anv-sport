@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import PlayerIcon from './PlayerIcon';
 
 interface Props {
@@ -57,7 +58,7 @@ export default function PitchLineup({ team1, team2, formationsData, events }: Pr
     >
       <div className="absolute top-0 left-0 w-full p-2 sm:p-3 flex items-center justify-between z-20 pointer-events-none">
         <div className="flex items-center gap-2">
-          <img src={team2?.team?.logo} className="w-6 h-6 sm:w-8 sm:h-8 rounded-sm shadow-sm" alt="logo" />
+          <Image src={team2?.team?.logo} width={32} height={32} className="w-6 h-6 sm:w-8 sm:h-8 rounded-sm shadow-sm" alt="logo" />
           <span className="text-white font-bold text-[11px] sm:text-[13px]">{team2?.team?.name}</span>
         </div>
         <div className="bg-black/30 px-2 py-1 rounded text-white/80 font-bold text-[10px] sm:text-[11px]">{team2?.formation}</div>
@@ -65,7 +66,7 @@ export default function PitchLineup({ team1, team2, formationsData, events }: Pr
 
       <div className="absolute bottom-0 left-0 w-full p-2 sm:p-3 flex items-center justify-between z-20 pointer-events-none">
         <div className="flex items-center gap-2">
-          <img src={team1?.team?.logo} className="w-5 h-5 sm:w-7 sm:h-7 rounded-sm shadow-sm" alt="logo" />
+          <Image src={team1?.team?.logo} width={28} height={28} className="w-5 h-5 sm:w-7 sm:h-7 rounded-sm shadow-sm" alt="logo" />
           <span className="text-white font-bold text-[10px] sm:text-[12px]">{team1?.team?.name}</span>
         </div>
         <div className="bg-black/30 px-2 py-1 rounded text-white/80 font-bold text-[9px] sm:text-[10px]">{team1?.formation}</div>
