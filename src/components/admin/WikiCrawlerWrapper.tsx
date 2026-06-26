@@ -7,10 +7,12 @@ import { useRouter } from 'next/navigation';
 
 export function WikiCrawlerWrapper({ 
   clubs, 
-  countries 
+  countries,
+  leagues
 }: { 
-  clubs: { id: string; name: string; countryId: string | null }[];
+  clubs: { id: string; name: string; countryId: string | null; leagueId?: string | null }[];
   countries: { id: string; name: string }[];
+  leagues: { id: string; name: string; countryId: string | null }[];
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
@@ -31,6 +33,7 @@ export function WikiCrawlerWrapper({
         onRefresh={() => router.refresh()}
         clubs={clubs}
         countries={countries}
+        leagues={leagues}
       />
     </>
   );

@@ -7,17 +7,10 @@ import { ArticleHtmlContent } from './ArticleHtmlContent'
 import { Mail, Link as LinkIcon, Bookmark, MessageCircle, Smile, ThumbsUp, Flag } from 'lucide-react'
 import { PredictionView } from '@/components/domain/article/PredictionView'
 import { unstable_cache } from 'next/cache'
+import { ViewTracker } from './ViewTracker'
+import { getHotPostIds } from '@/lib/cms-redis'
 
-const getCachedPost = unstable_cache(
-  async (id: number) => {
-    return prisma.post.findUnique({
-      where: { id },
-      include: { categories: true }
-    })
-  },
-  ['post-detail-view'],
-  { revalidate: 60, tags: ['posts'] }
-);
+import { getCachedPost } from '@/lib/content-cache'
 
 const getCachedRelatedData = unstable_cache(
   async (postId: number, manualRelatedIds: number[], categoryId: string | undefined, takeCount: number, excludeIds: number[]) => {
@@ -67,7 +60,12 @@ export function ArticleView({ id }: { id: string }) {
 }
 
 async function ArticleContent({ id }: { id: number }) {
-  const post = await getCachedPost(id)
+  const post = await getCachedPost(id, () => 
+    prisma.post.findUnique({
+      where: { id },
+      include: { categories: true }
+    })
+  )
 
   if (!post) {
     notFound()
@@ -90,14 +88,44 @@ async function ArticleContent({ id }: { id: number }) {
   const takeCount = Math.max(0, 15 - manualRelatedIds.length);
   const categoryId = post.categories?.[0]?.id;
 
-  // Run all secondary queries in parallel to eliminate database waterfalls
-  const [latestPosts, manualPosts, autoRelatedPosts] = await getCachedRelatedData(
-    post.id,
-    manualRelatedIds,
-    categoryId,
-    takeCount,
-    excludeIds
-  );
+  const [latestPosts, manualPosts, autoRelatedPosts, hotIds] = await Promise.all([
+    getCachedRelatedData(
+      post.id,
+      manualRelatedIds,
+      categoryId,
+      takeCount,
+      excludeIds
+    ).then(r => r[0]),
+    getCachedRelatedData(
+      post.id,
+      manualRelatedIds,
+      categoryId,
+      takeCount,
+      excludeIds
+    ).then(r => r[1]),
+    getCachedRelatedData(
+      post.id,
+      manualRelatedIds,
+      categoryId,
+      takeCount,
+      excludeIds
+    ).then(r => r[2]),
+    getHotPostIds(5),
+  ]);
+
+  // Fetch hot posts data nếu có từ Redis
+  let hotPosts: any[] = [];
+  if (hotIds.length > 0) {
+    hotPosts = await prisma.post.findMany({
+      where: { id: { in: hotIds }, status: 'PUBLISHED' },
+      select: { id: true, title: true },
+    });
+    // Sort theo thứ tự hotIds
+    hotPosts.sort((a, b) => hotIds.indexOf(a.id) - hotIds.indexOf(b.id));
+  }
+  // Fallback về latestPosts nếu Redis chưa có data
+  const sidebarPosts = hotPosts.length > 0 ? hotPosts : latestPosts.slice(0, 5);
+  const sidebarTitle = hotPosts.length > 0 ? 'XEM NHIỀU' : 'MỚI NHẤT';
 
   // Keep manual order
   if (manualRelatedIds.length > 0 && manualPosts.length > 0) {
@@ -114,11 +142,14 @@ async function ArticleContent({ id }: { id: number }) {
   const formattedDate = new Date(post.publishedAt || post.createdAt).toLocaleDateString('vi-VN', dateOptions)
 
   if (parsedMeta.isPrediction && parsedMeta.predictionData) {
-    return <PredictionView post={post} predictionData={parsedMeta.predictionData} />
+    return <PredictionView post={post} predictionData={parsedMeta.predictionData} />;
   }
 
   return (
-    <main className="w-full max-w-[1160px] mx-auto px-4 pt-10 pb-6 md:px-6 md:py-8 font-sans bg-white min-h-screen shadow-[0_0_20px_rgba(0,0,0,0.15)] relative z-20">
+    <>
+      {/* Fire-and-forget view tracker: gọi sau 3s, không block render */}
+      <ViewTracker postId={post.id} />
+      <main className="w-full max-w-[1160px] mx-auto px-4 pt-10 pb-6 md:px-6 md:py-8 font-sans bg-white min-h-screen shadow-[0_0_20px_rgba(0,0,0,0.15)] relative z-20">
       {/* TOP AD BANNER */}
       <div className="mb-6">
         <AdBanner type="leaderboard" adSlot="Article_Top" className="w-full h-[90px] md:h-[120px] bg-slate-100 rounded-lg overflow-hidden" imageUrl="/ad-horizontal.png" />
@@ -381,37 +412,38 @@ async function ArticleContent({ id }: { id: number }) {
               <span className="text-[10px] text-slate-400 uppercase tracking-widest mb-1 block">Quảng cáo</span>
               <AdBanner type="rectangle" adSlot="Right_Sidebar_Top" className="h-[250px] w-full mx-auto" imageUrl="/ad-rectangle.png" />
             </div>
-            
-            {/* LATEST NEWS */}
-            <div>
-              <div className="flex items-center gap-2 mb-4 pb-2 border-b-2 border-slate-100">
-                 <div className="w-2 h-5 bg-emerald-500 rounded-full"></div>
-                 <h3 className="font-black text-lg text-slate-900 uppercase tracking-wide">
-                   XEM NHIỀU
-                 </h3>
-              </div>
-              <div className="space-y-4">
-                {latestPosts.map((p, idx) => (
-                  <div key={p.id} className="flex gap-4 items-start group">
-                    <span className="text-3xl font-black text-slate-200 group-hover:text-emerald-500 transition-colors leading-none mt-1">
-                      {idx + 1}
-                    </span>
-                    <Link href={createArticleUrl(p.title, p.id)} className="font-semibold text-[15px] text-slate-800 hover:text-emerald-600 line-clamp-3 leading-snug transition-colors">
-                      {p.title}
-                    </Link>
-                  </div>
-                ))}
-              </div>
+          
+          {/* SIDEBAR: XEM NHIỀU / MỚI NHẤT */}
+          <div>
+            <div className="flex items-center gap-2 mb-4 pb-2 border-b-2 border-slate-100">
+               <div className="w-2 h-5 bg-emerald-500 rounded-full"></div>
+               <h3 className="font-black text-lg text-slate-900 uppercase tracking-wide">
+                 {sidebarTitle}
+               </h3>
             </div>
-            
-            <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 text-center hidden lg:block">
-              <span className="text-[10px] text-slate-400 uppercase tracking-widest mb-1 block">Quảng cáo</span>
-              <AdBanner type="rectangle" adSlot="Right_Sidebar_Bottom" className="h-[600px] w-full mx-auto" imageUrl="/ad-rectangle.png" />
+            <div className="space-y-4">
+              {sidebarPosts.map((p, idx) => (
+                <div key={p.id} className="flex gap-4 items-start group">
+                  <span className="text-3xl font-black text-slate-200 group-hover:text-emerald-500 transition-colors leading-none mt-1">
+                    {idx + 1}
+                  </span>
+                  <Link href={createArticleUrl(p.title, p.id)} className="font-semibold text-[15px] text-slate-800 hover:text-emerald-600 line-clamp-3 leading-snug transition-colors">
+                    {p.title}
+                  </Link>
+                </div>
+              ))}
             </div>
           </div>
-        </aside>
-        
-      </div>
+          
+          <div className="bg-slate-50 p-2 rounded-xl border border-slate-100 text-center hidden lg:block">
+            <span className="text-[10px] text-slate-400 uppercase tracking-widest mb-1 block">Quảng cáo</span>
+            <AdBanner type="rectangle" adSlot="Right_Sidebar_Bottom" className="h-[600px] w-full mx-auto" imageUrl="/ad-rectangle.png" />
+          </div>
+        </div>
+      </aside>
+      
+    </div>
     </main>
-  )
+    </>
+  );
 }

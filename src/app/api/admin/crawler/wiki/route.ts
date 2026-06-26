@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { generateWithFallback } from '@/lib/aiBox';
 import { slugify } from '@/lib/helpers/url';
+import { searchESPNPlayer, getESPNPlayerDetails, getESPNRecentMatches } from '@/lib/espn-api';
+import { generateFallbackRatings } from '@/lib/sofascore-api';
+import { getTransfermarktValue } from '@/lib/transfermarkt-api';
+import { COUNTRIES } from '@/lib/constants';
 
 // Extend global type to persist crawl progress across hot reloads in dev
 declare global {
@@ -84,6 +88,9 @@ function cleanStringForComparison(str: string): string {
 
 function mapCountryToCode(country: string): string {
   if (!country) return 'VIE';
+  const trimmed = country.trim();
+  if (trimmed.length === 3) return trimmed.toUpperCase();
+  const lower = trimmed.toLowerCase();
   const map: Record<string, string> = {
     'vietnam': 'VIE', 'việt nam': 'VIE',
     'england': 'ENG', 'anh': 'ENG',
@@ -107,7 +114,25 @@ function mapCountryToCode(country: string): string {
     'japan': 'JPN', 'nhật bản': 'JPN', 'south korea': 'KOR', 'hàn quốc': 'KOR',
     'morocco': 'MAR', 'senegal': 'SEN', 'nigeria': 'NGA', 'egypt': 'EGY'
   };
-  return map[country.toLowerCase()] || 'VIE';
+  
+  if (map[lower]) return map[lower];
+
+  // Look up in our standard constants
+  const found = COUNTRIES.find(c => 
+    c.name.toLowerCase() === lower || 
+    c.code.toLowerCase() === lower ||
+    c.iso2.toLowerCase() === lower
+  );
+  if (found) return found.code;
+
+  // Fuzzy match
+  const fuzzy = COUNTRIES.find(c => 
+    c.name.toLowerCase().includes(lower) || 
+    lower.includes(c.name.toLowerCase())
+  );
+  if (fuzzy) return fuzzy.code;
+
+  return 'VIE';
 }
 
 function mapPositionToCode(pos: string): string {
@@ -126,6 +151,45 @@ function mapPositionToCode(pos: string): string {
   if (lower.includes('right winger') || lower.includes('tiền đạo cánh phải')) return 'RW';
   if (lower.includes('forward') || lower.includes('tiền đạo') || lower.includes('striker')) return 'CF';
   return 'CF';
+}
+
+/**
+ * Clamp each attribute into a position-appropriate range so AI doesn't give
+ * a goalkeeper ATT=75 or a striker DEF=80.
+ * ranges: [min, max] per position group.
+ */
+function normalizeAttributesByPosition(attrs: Record<string, number>, position: string): Record<string, number> {
+  // ATT, TEC, TAC, DEF, CRE, STA, PHY
+  type AttrRange = { ATT: [number,number]; TEC: [number,number]; TAC: [number,number]; DEF: [number,number]; CRE: [number,number]; STA: [number,number]; PHY: [number,number] };
+  const ranges: Record<string, AttrRange> = {
+    GK:  { ATT:[8,25],  TEC:[40,65], TAC:[50,70], DEF:[75,95], CRE:[20,45], STA:[65,85], PHY:[70,88] },
+    CB:  { ATT:[20,45], TEC:[45,65], TAC:[70,88], DEF:[78,95], CRE:[30,55], STA:[65,82], PHY:[72,90] },
+    LB:  { ATT:[40,65], TEC:[55,75], TAC:[65,82], DEF:[65,85], CRE:[45,68], STA:[70,88], PHY:[65,82] },
+    RB:  { ATT:[40,65], TEC:[55,75], TAC:[65,82], DEF:[65,85], CRE:[45,68], STA:[70,88], PHY:[65,82] },
+    LWB: { ATT:[50,72], TEC:[58,78], TAC:[60,78], DEF:[60,80], CRE:[50,72], STA:[72,90], PHY:[65,82] },
+    RWB: { ATT:[50,72], TEC:[58,78], TAC:[60,78], DEF:[60,80], CRE:[50,72], STA:[72,90], PHY:[65,82] },
+    DM:  { ATT:[35,58], TEC:[55,75], TAC:[72,88], DEF:[62,82], CRE:[45,68], STA:[72,90], PHY:[70,88] },
+    CM:  { ATT:[55,75], TEC:[65,82], TAC:[62,80], DEF:[45,65], CRE:[65,82], STA:[70,88], PHY:[65,80] },
+    AM:  { ATT:[65,85], TEC:[70,88], TAC:[45,65], DEF:[30,52], CRE:[72,90], STA:[65,82], PHY:[58,76] },
+    LM:  { ATT:[62,82], TEC:[65,82], TAC:[50,70], DEF:[38,58], CRE:[62,80], STA:[72,90], PHY:[62,78] },
+    RM:  { ATT:[62,82], TEC:[65,82], TAC:[50,70], DEF:[38,58], CRE:[62,80], STA:[72,90], PHY:[62,78] },
+    LW:  { ATT:[72,92], TEC:[68,88], TAC:[35,55], DEF:[20,40], CRE:[68,88], STA:[68,88], PHY:[58,78] },
+    RW:  { ATT:[72,92], TEC:[68,88], TAC:[35,55], DEF:[20,40], CRE:[68,88], STA:[68,88], PHY:[58,78] },
+    SS:  { ATT:[72,90], TEC:[68,86], TAC:[40,60], DEF:[25,45], CRE:[70,88], STA:[65,85], PHY:[62,80] },
+    CF:  { ATT:[78,95], TEC:[65,85], TAC:[30,52], DEF:[15,35], CRE:[65,85], STA:[68,86], PHY:[68,86] },
+    ST:  { ATT:[78,95], TEC:[62,82], TAC:[28,50], DEF:[12,32], CRE:[58,78], STA:[68,86], PHY:[72,90] },
+  };
+  const r = ranges[position] || ranges['CM']; // Default to CM if unknown
+  const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, Math.round(v)));
+  return {
+    ATT: clamp(attrs.ATT ?? 60, r.ATT[0], r.ATT[1]),
+    TEC: clamp(attrs.TEC ?? 60, r.TEC[0], r.TEC[1]),
+    TAC: clamp(attrs.TAC ?? 60, r.TAC[0], r.TAC[1]),
+    DEF: clamp(attrs.DEF ?? 60, r.DEF[0], r.DEF[1]),
+    CRE: clamp(attrs.CRE ?? 60, r.CRE[0], r.CRE[1]),
+    STA: clamp(attrs.STA ?? 70, r.STA[0], r.STA[1]),
+    PHY: clamp(attrs.PHY ?? 70, r.PHY[0], r.PHY[1]),
+  };
 }
 
 async function getOrCreateClub(teamName: string): Promise<string | null> {
@@ -278,7 +342,7 @@ async function getOrCreateClub(teamName: string): Promise<string | null> {
   }
 }
 
-async function runBackgroundCrawl(nameList: string[], lang: string, targetClubId?: string | null) {
+async function runBackgroundCrawl(nameList: string[], lang: string, targetClubId?: string | null, preloadedShirtNumbers?: Record<string, string>) {
   const progress = global.wikiCrawlProgress!;
   progress.status = 'running';
   progress.total = nameList.length;
@@ -390,6 +454,24 @@ async function runBackgroundCrawl(nameList: string[], lang: string, targetClubId
         continue;
       }
 
+      // Lookup ESPN player and team schedule
+      let espnPlayer: any = null;
+      let espnMatches: any[] = [];
+      try {
+        const espnSearch = await searchESPNPlayer(cleanedName, theSportsDbPlayer?.strTeam);
+        if (espnSearch) {
+          espnPlayer = await getESPNPlayerDetails(espnSearch.id, espnSearch.leagueSlug);
+          if (espnPlayer && espnPlayer.teamId) {
+            espnMatches = await getESPNRecentMatches(espnPlayer.teamId, espnSearch.leagueSlug);
+          }
+        }
+      } catch (err) {
+        console.error("ESPN Lookup error:", err);
+      }
+
+      if (!avatar && espnPlayer?.avatar) {
+        avatar = espnPlayer.avatar;
+      }
       if (!avatar && theSportsDbPlayer?.strThumb) {
         avatar = theSportsDbPlayer.strThumb;
       }
@@ -397,22 +479,24 @@ async function runBackgroundCrawl(nameList: string[], lang: string, targetClubId
         excerpt = theSportsDbPlayer.strDescriptionEN.substring(0, 300);
       }
 
-      // C. AI prompt leveraging TheSportsDB known facts
-      const knownFacts = theSportsDbPlayer ? `
-- Full Name: ${theSportsDbPlayer.strPlayerAlternate || theSportsDbPlayer.strPlayer}
-- Birth Date: ${theSportsDbPlayer.dateBorn || ''}
-- Nationality: ${theSportsDbPlayer.strNationality || ''}
-- Height: ${theSportsDbPlayer.strHeight || ''}
-- Position: ${theSportsDbPlayer.strPosition || ''}
-- Preferred Foot: ${theSportsDbPlayer.strSide || ''}
-- Shirt Number: ${theSportsDbPlayer.strNumber || ''}
-- Transfer Value: ${theSportsDbPlayer.strSigning || ''}
-- Current Club: ${theSportsDbPlayer.strTeam || ''}
-` : 'No TheSportsDB data.';
+      // C. AI prompt leveraging known facts
+      const knownFacts = `
+- Full Name: ${espnPlayer?.fullName || theSportsDbPlayer?.strPlayerAlternate || theSportsDbPlayer?.strPlayer || cleanedName}
+- Birth Date: ${espnPlayer?.birthDate || theSportsDbPlayer?.dateBorn || ''}
+- Nationality: ${espnPlayer?.nationality || theSportsDbPlayer?.strNationality || ''}
+- Height: ${espnPlayer?.height ? `${espnPlayer.height} cm` : theSportsDbPlayer?.strHeight || ''}
+- Position: ${espnPlayer?.position || theSportsDbPlayer?.strPosition || ''}
+- Preferred Foot: ${theSportsDbPlayer?.strSide || ''}
+- Shirt Number: ${espnPlayer?.jersey || theSportsDbPlayer?.strNumber || ''}
+- Current Club: ${espnPlayer?.teamName || theSportsDbPlayer?.strTeam || ''}
+- Appearances: ${espnPlayer?.stats?.appearances || ''}
+- Goals: ${espnPlayer?.stats?.goals || ''}
+- Assists: ${espnPlayer?.stats?.assists || ''}
+`;
 
       const systemPrompt = `Bạn là chuyên gia phân tích dữ liệu bóng đá và thống kê thể thao.
 Hãy phân tích nội dung Wikipedia sau về cầu thủ "${title}" kết hợp với các thông tin đã biết từ TheSportsDB để trích xuất thành định dạng JSON CHÍNH XÁC.
-LƯU Ý QUAN TRỌNG: Nếu Wikipedia không cung cấp đủ các thông số chi tiết (như Radar chart, điểm Sofascore, chân thuận, điểm mạnh/yếu, giá trị chuyển nhượng), BẠN ĐƯỢC PHÉP DÙNG KIẾN THỨC CỦA MÌNH ĐỂ ƯỚC LƯỢNG VÀ ĐIỀN VÀO (ví dụ cầu thủ nổi tiếng thì bạn tự biết các chỉ số này).
+LƯU Ý QUAN TRỌNG: Nếu Wikipedia không cung cấp đủ các thông số chi tiết (như Radar chart, điểm Sofascore, chân thuận, điểm mạnh/yếu, giá trị chuyển nhượng, biểu đồ phong độ monthlyForm, ratingHistory, matches), BẠN ĐƯỢC PHÉP DÙNG KIẾN THỨC CỦA MÌNH ĐỂ ƯỚC LƯỢNG VÀ ĐIỀN VÀO (ví dụ cầu thủ nổi tiếng thì bạn tự biết các chỉ số này).
 
 Thông tin đã biết từ TheSportsDB:
 """
@@ -457,20 +541,54 @@ Yêu cầu trả về đúng cấu trúc JSON sau (không chứa markdown \`\`\`
     "totalGoals": 50,
     "averageRating": "7.8"
   },
+  "ratingHistory": {
+    "average": "7.8",
+    "history": [
+      { "date": "Th1", "rating": 7.4 },
+      { "date": "Th2", "rating": 7.6 },
+      { "date": "Th3", "rating": 7.8 },
+      { "date": "Th4", "rating": 7.5 },
+      { "date": "Th5", "rating": 7.9 }
+    ]
+  },
+  "monthlyForm": [
+    { "month": "T1", "rating": 7.3 },
+    { "month": "T2", "rating": 7.5 },
+    { "month": "T3", "rating": 7.8 },
+    { "month": "T4", "rating": 8.0 },
+    { "month": "T5", "rating": 7.4 },
+    { "month": "T6", "rating": 7.9 }
+  ],
+  "matches": [
+    {
+      "id": "m1",
+      "tournament": "Premier League",
+      "date": "Vòng 38",
+      "status": "FT",
+      "team1": { "name": "Arsenal", "logo": "" },
+      "team2": { "name": "Chelsea", "logo": "" },
+      "score1": 2,
+      "score2": 1,
+      "playerRating": "7.8"
+    }
+  ],
   "clubName": "Tên câu lạc bộ hiện tại (nếu có, ví dụ: Arsenal)"
 }`;
 
+      const ENABLE_AI = false; // Set to true to use AI, false to run 100% deterministic (faster, no cost, highly reliable)
       let contentText = "{}";
       let isAiSuccess = false;
-      try {
-        contentText = await generateWithFallback(
-          systemPrompt,
-          'You are a highly capable JSON data generation assistant. Only return valid JSON without markdown wrapping.',
-          true
-        );
-        isAiSuccess = true;
-      } catch (err: any) {
-        console.error(`AI generation failed for ${cleanedName}, using fallback parser:`, err);
+      if (ENABLE_AI) {
+        try {
+          contentText = await generateWithFallback(
+            systemPrompt,
+            'You are a highly capable JSON data generation assistant. Only return valid JSON without markdown wrapping.',
+            true
+          );
+          isAiSuccess = true;
+        } catch (err: any) {
+          console.error(`AI generation failed for ${cleanedName}, using fallback parser:`, err);
+        }
       }
 
       let parsedData: any = {};
@@ -490,20 +608,92 @@ Yêu cầu trả về đúng cấu trúc JSON sau (không chứa markdown \`\`\`
       }
 
       if (!isAiSuccess) {
-        // Build fallback using TheSportsDB info and defaults
-        const pos = theSportsDbPlayer?.strPosition || 'Forward';
+        // Build fallback using TheSportsDB, ESPN and smart deterministic heuristics
+        const pos = espnPlayer?.position || theSportsDbPlayer?.strPosition || 'Forward';
         const positionAbbr = mapPositionToCode(pos);
         
+        // Match strengths and weaknesses based on position
+        const strengthsMap: Record<string, string[]> = {
+          GK: ["Phản xạ", "Cản phá xuất sắc", "Chỉ huy vòng cấm"],
+          CB: ["Tranh chấp tay đôi", "Không chiến", "Đọc tình huống"],
+          LB: ["Tốc độ", "Tạt bóng", "Bền bỉ"],
+          RB: ["Tốc độ", "Tạt bóng", "Bền bỉ"],
+          LWB: ["Chạy cánh", "Tạt bóng", "Thể lực"],
+          RWB: ["Chạy cánh", "Tạt bóng", "Thể lực"],
+          DM: ["Đánh chặn", "Thể lực", "Tranh chấp"],
+          CM: ["Chuyền bóng", "Kiểm soát bóng", "Nhãn quan"],
+          AM: ["Kiến tạo", "Rê bóng", "Nhãn quan chiến thuật"],
+          LM: ["Tốc độ", "Rê bóng", "Tạt bóng"],
+          RM: ["Tốc độ", "Rê bóng", "Tạt bóng"],
+          LW: ["Tốc độ", "Dứt điểm", "Rê bóng"],
+          RW: ["Tốc độ", "Dứt điểm", "Rê bóng"],
+          CF: ["Dứt điểm", "Chọn vị trí", "Sút xa"],
+          ST: ["Dứt điểm", "Chọn vị trí", "Đánh đầu"],
+          SS: ["Rê bóng", "Kiến tạo", "Sút xa"]
+        };
+        const weaknessesMap: Record<string, string[]> = {
+          GK: ["Chơi chân"],
+          CB: ["Tốc độ xoay sở"],
+          LB: ["Không chiến"],
+          RB: ["Không chiến"],
+          LWB: ["Khả năng phòng thủ"],
+          RWB: ["Khả năng phòng thủ"],
+          DM: ["Dứt điểm từ xa"],
+          CM: ["Tốc độ", "Tranh chấp tay đôi"],
+          AM: ["Hỗ trợ phòng ngự"],
+          LM: ["Không chiến"],
+          RM: ["Không chiến"],
+          LW: ["Hỗ trợ phòng ngự"],
+          RW: ["Hỗ trợ phòng ngự"],
+          CF: ["Hỗ trợ phòng ngự"],
+          ST: ["Hỗ trợ phòng ngự"],
+          SS: ["Thể chất"]
+        };
+
+        const strengths = strengthsMap[positionAbbr] || ["Tốc độ", "Thể lực"];
+        const weaknesses = weaknessesMap[positionAbbr] || ["Không chiến"];
+
+        // Parse trophies / achievements from Wikipedia text
+        const achievements: string[] = [];
+        const matchesAchievements = [
+          { name: "Premier League", keywords: ["Premier League", "Ngoại hạng Anh"] },
+          { name: "La Liga", keywords: ["La Liga", "Vô địch Tây Ban Nha"] },
+          { name: "Champions League", keywords: ["Champions League", "Cúp C1"] },
+          { name: "World Cup", keywords: ["World Cup", "Vô địch thế giới"] },
+          { name: "Serie A", keywords: ["Serie A", "Vô địch Ý"] },
+          { name: "Bundesliga", keywords: ["Bundesliga", "Vô địch Đức"] },
+          { name: "Ligue 1", keywords: ["Ligue 1", "Vô địch Pháp"] },
+          { name: "Copa America", keywords: ["Copa America"] },
+          { name: "Euro", keywords: ["Euro", "Vô địch châu Âu"] },
+          { name: "V.League", keywords: ["V.League", "V-League", "Vô địch quốc gia Việt Nam"] }
+        ];
+        for (const item of matchesAchievements) {
+          if (item.keywords.some(kw => fullText.includes(kw))) {
+            achievements.push(item.name);
+          }
+        }
+
+        // Determine preferred foot
+        let preferredFoot = theSportsDbPlayer?.strSide || 'Right';
+        if (!theSportsDbPlayer?.strSide) {
+          const lowerText = fullText.toLowerCase();
+          if (lowerText.includes("thuận chân trái") || lowerText.includes("chân thuận: trái")) {
+            preferredFoot = "Left";
+          } else if (lowerText.includes("thuận cả hai chân") || lowerText.includes("thuận hai chân")) {
+            preferredFoot = "Both";
+          }
+        }
+
         parsedData = {
           basicInfo: {
-            fullName: theSportsDbPlayer?.strPlayerAlternate || cleanedName,
-            birthDate: theSportsDbPlayer?.dateBorn || '1998-01-01',
-            nationality: [mapCountryToCode(theSportsDbPlayer?.strNationality || 'Vietnam')],
-            height: theSportsDbPlayer?.strHeight ? parseInt(theSportsDbPlayer.strHeight) || '180' : '180',
+            fullName: espnPlayer?.fullName || theSportsDbPlayer?.strPlayerAlternate || cleanedName,
+            birthDate: espnPlayer?.birthDate || theSportsDbPlayer?.dateBorn || '1998-01-01',
+            nationality: [mapCountryToCode(espnPlayer?.nationality || theSportsDbPlayer?.strNationality || 'Vietnam')],
+            height: espnPlayer?.height ? espnPlayer.height.toString() : (theSportsDbPlayer?.strHeight ? parseInt(theSportsDbPlayer.strHeight) || '180' : '180'),
             position: [positionAbbr],
-            preferredFoot: theSportsDbPlayer?.strSide || 'Right',
-            shirtNumber: theSportsDbPlayer?.strNumber || '10',
-            playerValue: theSportsDbPlayer?.strSigning || '1M €',
+            preferredFoot,
+            shirtNumber: espnPlayer?.jersey || theSportsDbPlayer?.strNumber || '10',
+            playerValue: '1M €',
             contractUntil: '2028-06-30',
             excerpt: excerpt
           },
@@ -517,23 +707,29 @@ Yêu cầu trả về đúng cấu trúc JSON sau (không chứa markdown \`\`\`
             PHY: 75
           },
           strengthsAndWeaknesses: {
-            strengths: ["Speed", "Work rate"],
-            weaknesses: ["Aerial duels"]
+            strengths,
+            weaknesses
           },
-          achievements: [],
+          achievements,
           stats: {
-            totalMatches: 60,
-            totalGoals: positionAbbr === 'CF' ? 22 : 4,
+            totalMatches: espnPlayer?.stats?.appearances || 60,
+            totalGoals: espnPlayer?.stats?.goals || (positionAbbr === 'CF' ? 22 : 4),
             averageRating: "7.1"
           },
-          clubName: theSportsDbPlayer?.strTeam || ''
+          ratingHistory: {
+            average: "7.1",
+            history: []
+          },
+          monthlyForm: [],
+          matches: [],
+          clubName: espnPlayer?.teamName || theSportsDbPlayer?.strTeam || ''
         };
       }
 
       // Find existing club in the system or fetch/create if missing
       let clubId = targetClubId || null;
       if (!clubId) {
-        const targetClubName = parsedData.clubName || theSportsDbPlayer?.strTeam;
+        const targetClubName = espnPlayer?.teamName || parsedData.clubName || theSportsDbPlayer?.strTeam;
         if (targetClubName && typeof targetClubName === 'string' && targetClubName.length > 2) {
           const resolvedClubId = await getOrCreateClub(targetClubName);
           if (resolvedClubId) {
@@ -542,25 +738,89 @@ Yêu cầu trả về đúng cấu trúc JSON sau (không chứa markdown \`\`\`
         }
       }
 
-      // Dynamically calculate averageRating from attributes to avoid static/hardcoded defaults (like 7.1)
+      // Normalize attributes to position-appropriate ranges
+      if (parsedData.attributes && parsedData.basicInfo?.position) {
+        const positions: string[] = Array.isArray(parsedData.basicInfo.position)
+          ? parsedData.basicInfo.position
+          : [parsedData.basicInfo.position];
+        const primaryPos = positions[0] || 'CM';
+        parsedData.attributes = normalizeAttributesByPosition(parsedData.attributes, primaryPos);
+      }
+
+      // Dynamically calculate averageRating & generate Sofascore rating history/monthly form
       if (parsedData.attributes) {
-        const sum = Object.values(parsedData.attributes).reduce((acc: number, val: any) => acc + (Number(val) || 0), 0);
-        const avg = sum / Object.keys(parsedData.attributes).length;
+        const goals = espnPlayer?.stats?.goals ?? parsedData.stats?.totalGoals ?? 0;
+        const assists = espnPlayer?.stats?.assists ?? 0;
+        const fallbackRatings = generateFallbackRatings(parsedData.attributes, goals, assists);
+
         if (!parsedData.stats) {
           parsedData.stats = {};
         }
-        parsedData.stats.averageRating = (avg / 10).toFixed(1);
+        parsedData.stats.averageRating = fallbackRatings.averageRating;
+        parsedData.ratingHistory = fallbackRatings.ratingHistory;
+        parsedData.monthlyForm = fallbackRatings.monthlyForm;
+      }
+
+      // Override stats goals, matches if ESPN data is available
+      if (espnPlayer?.stats) {
+        if (!parsedData.stats) parsedData.stats = {};
+        parsedData.stats.totalGoals = espnPlayer.stats.goals;
+        parsedData.stats.totalMatches = espnPlayer.stats.appearances;
+      }
+
+      // Use real ESPN matches with real logos and dynamic ratings
+      if (espnMatches && espnMatches.length > 0) {
+        const baseRating = parseFloat(parsedData.stats?.averageRating || '7.0');
+        parsedData.matches = espnMatches.map((m: any, idx: number) => {
+          const fluctuation = (Math.sin(idx * 2) * 0.4); // realistic variance
+          const rating = Math.min(Math.max(baseRating + fluctuation, 5.5), 9.8);
+          return {
+            ...m,
+            playerRating: rating.toFixed(1)
+          };
+        });
+      }
+
+      // Scrape/Calculate Transfermarkt value
+      if (parsedData.basicInfo) {
+        const baseRating = parseFloat(parsedData.stats?.averageRating || '7.0');
+        const birthYear = parsedData.basicInfo.birthDate ? new Date(parsedData.basicInfo.birthDate).getFullYear() : 2001;
+        const age = new Date().getFullYear() - birthYear;
+        parsedData.basicInfo.playerValue = await getTransfermarktValue(cleanedName, baseRating, age);
+      }
+
+      // Override shirtNumber from preloadedShirtNumbers if available
+      if (preloadedShirtNumbers && preloadedShirtNumbers[searchName] && parsedData.basicInfo) {
+        parsedData.basicInfo.shirtNumber = preloadedShirtNumbers[searchName];
+      } else if (espnPlayer?.jersey && parsedData.basicInfo) {
+        parsedData.basicInfo.shirtNumber = espnPlayer.jersey;
+      }
+
+      // Override basicInfo weight/height if ESPN has real data
+      if (parsedData.basicInfo) {
+        if (espnPlayer?.height) {
+          parsedData.basicInfo.height = espnPlayer.height.toString();
+        }
+        if (espnPlayer?.birthDate) {
+          parsedData.basicInfo.birthDate = espnPlayer.birthDate;
+        }
+        if (espnPlayer?.fullName) {
+          parsedData.basicInfo.fullName = espnPlayer.fullName;
+        }
       }
 
       const basicInfoWithClub = {
         ...(parsedData.basicInfo || {}),
-        currentClub: parsedData.clubName || theSportsDbPlayer?.strTeam || ''
+        currentClub: espnPlayer?.teamName || parsedData.clubName || theSportsDbPlayer?.strTeam || '',
+        monthlyForm: parsedData.monthlyForm || null,
+        ratingHistory: parsedData.ratingHistory || null
       };
 
       const combinedStats = {
         ...(parsedData.stats || {}),
         attributes: parsedData.attributes || null,
-        strengthsAndWeaknesses: parsedData.strengthsAndWeaknesses || null
+        strengthsAndWeaknesses: parsedData.strengthsAndWeaknesses || null,
+        matches: parsedData.matches || []
       };
 
       const entity = await prisma.entity.upsert({
@@ -632,6 +892,8 @@ export async function POST(request: Request) {
       let nameList = typeof names === 'string'
         ? names.split(/[\n,]/).map((n: string) => n.trim()).filter((n: string) => n.length > 0)
         : Array.isArray(names) ? names : [];
+      
+      let preloadedShirtNumbers: Record<string, string> | undefined = undefined;
 
       // If nameList is empty but clubId is provided, get squad from TheSportsDB
       if (nameList.length === 0 && clubId) {
@@ -647,6 +909,13 @@ export async function POST(request: Request) {
               const teamData = await teamRes.json();
               if (teamData.player && teamData.player.length > 0) {
                 nameList = teamData.player.map((p: any) => p.strPlayer);
+                // Build shirt number map from squad data
+                preloadedShirtNumbers = {};
+                for (const p of teamData.player) {
+                  if (p.strPlayer && p.strNumber) {
+                    preloadedShirtNumbers[p.strPlayer] = p.strNumber;
+                  }
+                }
               }
             }
           } catch (e) {
@@ -670,7 +939,7 @@ export async function POST(request: Request) {
       };
 
       // Run task asynchronously in the background
-      runBackgroundCrawl(nameList, lang, clubId);
+      runBackgroundCrawl(nameList, lang, clubId, preloadedShirtNumbers);
 
       return NextResponse.json({ success: true, progress: global.wikiCrawlProgress });
     }

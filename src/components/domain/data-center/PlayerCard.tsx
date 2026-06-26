@@ -33,7 +33,7 @@ export function PlayerCard({ player }: PlayerCardProps) {
   }
 
   return (
-    <Link href={`/wiki/${player.slug}-${player.id}`} className="group block bg-white rounded-xl shadow-sm border border-slate-200 hover:border-green-500 transition-colors overflow-hidden">
+    <Link href={`/wiki/${player.slug}`} className="group block bg-white rounded-xl shadow-sm border border-slate-200 hover:border-green-500 transition-colors overflow-hidden">
       <div className="p-4 flex gap-4">
         {/* Avatar */}
         <div className="w-16 h-16 rounded-full overflow-hidden bg-slate-100 border border-slate-200 shrink-0">

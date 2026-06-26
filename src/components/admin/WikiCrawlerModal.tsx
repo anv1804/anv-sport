@@ -9,29 +9,24 @@ export function WikiCrawlerModal({
   onClose, 
   onRefresh,
   clubs = [],
-  countries = []
+  countries = [],
+  leagues = []
 }: { 
   isOpen: boolean; 
   onClose: () => void; 
   onRefresh: () => void;
-  clubs?: { id: string; name: string; countryId: string | null }[];
+  clubs?: { id: string; name: string; countryId: string | null; leagueId?: string | null }[];
   countries?: { id: string; name: string }[];
+  leagues?: { id: string; name: string; countryId: string | null }[];
 }) {
   const [names, setNames] = useState('');
   const [lang, setLang] = useState('vi');
   const [selectedCountryId, setSelectedCountryId] = useState('');
+  const [selectedLeagueId, setSelectedLeagueId] = useState('');
   const [selectedClubId, setSelectedClubId] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Reset selected club if it doesn't belong to the newly selected country
-  useEffect(() => {
-    if (selectedCountryId) {
-      const isClubInCountry = clubs.some(c => c.id === selectedClubId && c.countryId === selectedCountryId);
-      if (!isClubInCountry) {
-        setSelectedClubId('');
-      }
-    }
-  }, [selectedCountryId, clubs, selectedClubId]);
+
   const [results, setResults] = useState<any[]>([]);
   const [progress, setProgress] = useState(0);
   const [currentName, setCurrentName] = useState('');
@@ -187,15 +182,15 @@ export function WikiCrawlerModal({
           <div className="space-y-4">
             {!loading && processedCount === 0 && (
               <>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-1">Ngôn ngữ Wikipedia</label>
                     <CustomSelect 
                       value={lang} 
                       onChange={setLang} 
                       options={[
-                        { value: 'vi', label: 'Tiếng Việt (vi.wikipedia.org)' },
-                        { value: 'en', label: 'Tiếng Anh (en.wikipedia.org) - Khuyên dùng' }
+                        { value: 'vi', label: 'Tiếng Việt' },
+                        { value: 'en', label: 'Tiếng Anh (Khuyên dùng)' }
                       ]} 
                       placeholder="-- Chọn ngôn ngữ --"
                     />
@@ -205,7 +200,11 @@ export function WikiCrawlerModal({
                     <label className="block text-sm font-semibold text-slate-700 mb-1">Lọc theo Quốc gia</label>
                     <CustomSelect 
                       value={selectedCountryId} 
-                      onChange={setSelectedCountryId} 
+                      onChange={(val) => {
+                        setSelectedCountryId(val);
+                        setSelectedLeagueId('');
+                        setSelectedClubId('');
+                      }} 
                       options={[
                         { value: '', label: '-- Tất cả quốc gia --' },
                         ...countries.map(c => ({ value: c.id, label: c.name }))
@@ -215,14 +214,36 @@ export function WikiCrawlerModal({
                   </div>
 
                   <div>
-                    <label className="block text-sm font-semibold text-slate-700 mb-1">Cào toàn bộ đội hình CLB</label>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">Lọc theo Giải đấu</label>
+                    <CustomSelect 
+                      value={selectedLeagueId} 
+                      onChange={(val) => {
+                        setSelectedLeagueId(val);
+                        setSelectedClubId('');
+                      }} 
+                      options={[
+                        { value: '', label: '-- Tất cả giải đấu --' },
+                        ...leagues
+                          .filter(l => !selectedCountryId || l.countryId === selectedCountryId)
+                          .map(l => ({ value: l.id, label: l.name }))
+                      ]} 
+                      placeholder="-- Chọn giải đấu --"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">Cào đội hình CLB</label>
                     <CustomSelect 
                       value={selectedClubId} 
                       onChange={setSelectedClubId} 
                       options={[
-                        { value: '', label: '-- Không chọn (Nhập thủ công) --' },
+                        { value: '', label: '-- Không chọn CLB --' },
                         ...clubs
-                          .filter(c => !selectedCountryId || c.countryId === selectedCountryId)
+                          .filter(c => {
+                            if (selectedLeagueId) return c.leagueId === selectedLeagueId;
+                            if (selectedCountryId) return c.countryId === selectedCountryId;
+                            return true;
+                          })
                           .map(c => ({ value: c.id, label: c.name }))
                       ]} 
                       placeholder="-- Chọn CLB --"

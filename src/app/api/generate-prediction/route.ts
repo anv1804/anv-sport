@@ -3,7 +3,8 @@ import { generateWithFallback } from '@/lib/aiBox';
 import prisma from '@/lib/prisma';
 import fs from 'fs';
 import path from 'path';
-import { getWinProbability } from '@/lib/utils';
+import { computePrediction } from '@/lib/matchEngine';
+import { checkRateLimit } from '@/lib/cms-redis';
 
 // Helper function to generate deterministic Head-to-Head history based on team names (Fallback only)
 function getDeterministicH2H(team1: string, team2: string) {
@@ -161,13 +162,25 @@ function parseRealForm(lastFiveGames: any, tName: string) {
 }
 
 export async function POST(req: Request) {
+  // ── Rate limiting: 10 req/phút/IP (ảnh hưởng API AI) ────────────────
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+           || req.headers.get('x-real-ip')
+           || 'unknown';
+  const rl = await checkRateLimit(ip, 'generate-prediction', 10);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: 'Quá nhiều yêu cầu. Vui lòng đợi giây lát.' },
+      { status: 429, headers: { 'Retry-After': String(rl.resetInSec) } }
+    );
+  }
+
   try {
     const body = await req.json();
-    const { title, matchData, historyOnly, previewOnly, action, predictionData } = body;
+    const { title, matchData, historyOnly, previewOnly, action, predictionData: bodyPredictionData } = body;
 
     const matchId = matchData?.id || body.matchId;
 
-    if (action === 'pin' && matchId && predictionData) {
+    if (action === 'pin' && matchId && bodyPredictionData) {
       const existingPinned = await prisma.predictionHistory.findFirst({
         where: { matchId, milestone: 'PINNED' }
       });
@@ -177,7 +190,7 @@ export async function POST(req: Request) {
         pinnedRecord = await prisma.predictionHistory.update({
           where: { id: existingPinned.id },
           data: {
-            prediction: predictionData,
+            prediction: bodyPredictionData,
             predictedAt: new Date(),
             scoreState: (matchData?.score1 !== null && matchData?.score2 !== null) ? `${matchData.score1}-${matchData.score2}` : "0-0",
             liveTime: matchData?.liveClock || null,
@@ -189,7 +202,7 @@ export async function POST(req: Request) {
           data: {
             matchId,
             milestone: 'PINNED',
-            prediction: predictionData,
+            prediction: bodyPredictionData,
             scoreState: (matchData?.score1 !== null && matchData?.score2 !== null) ? `${matchData.score1}-${matchData.score2}` : "0-0",
             liveTime: matchData?.liveClock || null,
             status: matchData?.status || "Đang đấu"
@@ -274,293 +287,174 @@ export async function POST(req: Request) {
       }
     }
 
-    let additionalContextObj: any = {};
-    
-    // Load tactical reference database
-    let aiTacticalTrainingGuide = "";
+    // ── Match Analytics Engine: tính toán tất cả số liệu KHÔNG dùng AI ──
+    const engineResult = await computePrediction({
+      matchId: matchId || '',
+      team1Name: t1,
+      team2Name: t2,
+      category: matchData?.category,
+      lastFiveGames: matchData?.lastFiveGames,
+      headToHeadGames: matchData?.headToHeadGames,
+      isKnockout: (matchData?.category || '').toLowerCase().includes('round of') ||
+                  (matchData?.category || '').toLowerCase().includes('knockout') ||
+                  (matchData?.category || '').toLowerCase().includes('tứ kết') ||
+                  (matchData?.category || '').toLowerCase().includes('bán kết') ||
+                  (matchData?.category || '').toLowerCase().includes('chung kết'),
+    });
+
+    // Load hướng dẫn phân tích chiến thuật
+    let aiTacticalTrainingGuide = '';
     try {
       const guidePath = path.join(process.cwd(), 'src/lib/tactics/AI_TACTICAL_TRAINING_GUIDE.md');
-      if (fs.existsSync(guidePath)) {
-        aiTacticalTrainingGuide = fs.readFileSync(guidePath, 'utf-8');
-      }
-    } catch (err) {
-      console.error("Lỗi khi đọc file chiến thuật tham khảo:", err);
-    }
+      if (fs.existsSync(guidePath)) aiTacticalTrainingGuide = fs.readFileSync(guidePath, 'utf-8');
+    } catch {}
 
-    if (matchData) {
-      const getEnglishStatus = (status: string) => {
-        const s = (status || '').toLowerCase();
-        if (s.includes('chưa đá') || s.includes('chưa diễn ra') || s.includes('chưa bắt đầu') || s.includes('upcoming') || s.includes('ns')) return 'Upcoming';
-        if (s.includes('đang đá') || s.includes('live') || s.includes('in-progress') || s.includes('trực tiếp')) return 'Live';
-        if (s.includes('kết thúc') || s.includes('đã kết thúc') || s === 'ft' || s === 'finished' || s === 'post') return 'Finished';
-        return status;
-      };
-
-      const getEnglishPeriod = (period: string) => {
-        const p = (period || '').toLowerCase();
-        if (p.includes('hiệp 1') || p.includes('1st')) return '1st Half';
-        if (p.includes('hiệp 2') || p.includes('2nd')) return '2nd Half';
-        if (p.includes('nghỉ giữa hiệp') || p.includes('halftime') || p === 'ht') return 'Halftime';
-        if (p.includes('hiệp phụ')) return 'Extra Time';
-        return period;
-      };
-
-      additionalContextObj = {
-        current_match_situation: {
-          status: getEnglishStatus(matchData.status),
-          live_period: matchData.livePeriod ? getEnglishPeriod(matchData.livePeriod) : null,
-          live_clock: matchData.liveClock,
-          current_score: `${t1} ${matchData.score1} - ${matchData.score2} ${t2}`,
-          live_statistics: matchData.statistics,
-          lineups: matchData.lineups,
-          events: matchData.events
-        }
-      };
-
-      if (hasRealForm || hasRealH2H) {
-        const realT1Form = parseRealForm(matchData.lastFiveGames, t1);
-        const realT2Form = parseRealForm(matchData.lastFiveGames, t2);
-        const realH2H = parseRealH2H(matchData.headToHeadGames, t1, t2);
-        
-        additionalContextObj.ground_truth_stats = {
-          team_1_form: realT1Form,
-          team_2_form: realT2Form,
-          historical_h2h: realH2H
-        };
-      }
-      
-      additionalContextObj.historical_accuracy_rules = [
-        "Use your real-world soccer database knowledge to accurately populate the 'formAndH2h' fields.",
-        "Spain has never lost to Saudi Arabia in real-world history, so Spain wins/draws distribution must align with this reality. No fake historical outcomes.",
-        "CRITICAL FOR H2H (HEAD-TO-HEAD): For national team matches, head-to-head history MUST include ALL historical matches at the senior national team level, across all tournaments (World Cup, Qualifiers, Continental Cups, Nations League, etc.) and friendlies. DO NOT include youth or U teams (e.g. U23, U21, Olympic teams). Rely on your database to return the correct historical results, dates, and scores.",
-        "If the two teams have never faced each other in history, set total: 0, team1Wins: 0, draws: 0, team2Wins: 0, and recentMatches: [] (empty array)."
-      ];
-    }
-
-    const systemPrompt = `You are a world-class football analyst, tactical editor, and mathematical modeler.
-    
-    CRITICAL INSTRUCTION:
-    You must strictly read and execute the 4-step tactical thinking process defined in the AI_TACTICAL_TRAINING_GUIDE:
-    - Step 1: Contextual Analysis (using external_factors_and_key_events).
-    - Step 2: Tactical Matchup (using formations_and_playstyles).
-    - Step 3: Player Roles & Matchups (using player_roles_and_tendencies).
-    - Step 4: Psychological & Live Scenarios (using match_dynamics_and_psychology).
-    
-    You must synthesize information from at least these 5 reputable football analytics sources:
-    1. SofaScore (detailed stats and player ratings)
-    2. WhoScored (tactical characteristics & player strengths/weaknesses)
-    3. ESPN / ESPN FC (match previews and team news)
-    4. The Athletic (tactical breakdowns and long-form analysis)
-    5. Foreign betting market odds (Asian Handicap movements, Over/Under lines, and market shifts)
-    
-    Deliver a highly professional, comprehensive sports editorial analysis.
-    
-    [TASK CONFIGURATION (JSON)]
-    ${JSON.stringify({
-      task: `Analyze the football match: "${title}" in extreme detail.`,
-      ai_tactical_training_guide: aiTacticalTrainingGuide,
-      sources_to_synthesize: [
-        "SofaScore detailed match stats and player ratings",
-        "WhoScored tactical characteristics & player strengths/weaknesses",
-        "ESPN ESPN FC match previews and team news",
-        "The Athletic tactical breakdowns and long-form analysis",
-        "Foreign betting market odds, Asian Handicap movements, and Over/Under line shifts"
-      ],
-      tactical_analysis_requirements: {
-        formation_counter_strategies: "Compare the two systems (e.g., 4-3-3 vs 4-2-3-1). Explain exactly how they counter each other. Who has the central numerical overload? Which spaces (flanks, half-spaces, behind the defensive line) are vulnerable? Explain how one team can bypass the other's pressing block (e.g., inverting fullbacks, dropping pivots, direct long balls).",
-        match_flow_dynamics: "Detail the transition phases (Defending to Attacking, Attacking to Defending), pressing block height (high press, mid-block, compact low block), and possession tempo (slow build-up vs rapid verticality).",
-        player_tendencies: "Highlight individual movements, key player roles (e.g., Carrilero, Regista, Mezzala, Raumdeuter, Inverted Wing-back), and player-to-player duels.",
-        live_match_tactics: "If the match is live, analyze how the current score and live statistics (shots on target, possession, cards, momentum) affect the tactical approach of both managers for the rest of the match."
+    // Context tối thiểu cho AI — chỉ đủ để viết phân tích chiến thuật
+    const matchContext = {
+      status: matchData?.status,
+      live_clock: matchData?.liveClock,
+      current_score: isLive ? `${matchData?.score1 ?? 0} - ${matchData?.score2 ?? 0}` : 'Chưa đá',
+      live_period: matchData?.livePeriod,
+      live_statistics: matchData?.statistics,
+      lineups: matchData?.lineups,
+      events: isLive ? (matchData?.events || []).slice(0, 10) : [],
+      // Số liệu đã tính sẵn bởi engine (AI không cần tính lại)
+      engine_metrics: {
+        probabilities: engineResult.probabilities,
+        xG: engineResult.xG,
+        expected_goals_ou: engineResult.xGoals,
+        elo: engineResult.elo,
+        team1_form: engineResult.team1Form,
+        team2_form: engineResult.team2Form,
+        h2h_summary: {
+          total: engineResult.h2hData.total,
+          team1Wins: engineResult.h2hData.team1Wins,
+          draws: engineResult.h2hData.draws,
+          team2Wins: engineResult.h2hData.team2Wins,
+        },
       },
-      probabilistic_modeling_rules: {
-        guidelines: [
-          "Compare relative squads' value, international rankings, FIFA ranking gap, and player quality.",
-          "Analyze continental playstyle differences (e.g., European tactical possession vs Asian low-block discipline).",
-          "If head-to-head matches are empty (0 games played), base probability distribution strictly on recent form trends against similar-tier opponents and overall tournament stakes."
-        ]
-      },
-      live_match_rules: {
-        is_live_match: isLive,
-        score_state: isLive ? `${matchData?.score1} - ${matchData?.score2}` : "N/A",
-        rules: [
-          "CRITICAL: Adapt predictions and tactical blocks to the live score state in real-time.",
-          "PROBABILITIES: Probabilities must reflect the live score. If a team leads by 3+ goals, win probability must be 95%-99%. Draw/loss probabilities must be 1%-5%. Never output pre-match probabilities for live matches.",
-          "IN-PLAY ANALYSIS: Address changes in tactics during half-time, player fatigue, manager adjustments, and risk-taking behaviors (e.g., committing more players forward if trailing)."
-        ]
-      },
-      analytical_factors: [
-        "Historical Head-to-Head (H2H) results and current tournament standings",
-        "Recent form (last 5 matches) and individual player fitness/morale",
-        "Squad market value differences and overall squad depth",
-        "Lineups & Formations (Prioritize official lineups if available in matchData.lineups, otherwise predict them using the tactics database)",
-        "Team morale, objectives (relegation battle, title race, local derby), and match significance"
-      ],
-      output_metrics_rules: {
-        expectedGoals: {
-          predicted: "Estimated number of goals, localized in Vietnamese (e.g., '1 bàn', '2 bàn', '3 bàn')",
-          ouLine: "Bookmaker Over/Under line (e.g., '0.75', '1.5', '2.5')",
-          ouPick: "Over/Under pick recommendation direction, must be either 'Tài' or 'Xỉu' in Vietnamese"
-        },
-        expectedCards_expectedCorners: "Provide logically consistent values for half1, half2, and fullMatch (e.g., half1 + half2 = fullMatch)."
-      },
-      language_requirements: {
-        analysisHtml: "Must be written in detailed Vietnamese, using highly professional sports terminology. Break the analysis into clear, structured HTML sections with headings, subheadings, and bold text. Deliver deep, professional tactical breakdowns comparable to elite journals like The Athletic. Avoid generic filler text.",
-        sources_titles: "Must be written in Vietnamese",
-        expectedGoals_predicted: "Must use 'bàn' unit in Vietnamese (e.g. '1 bàn')",
-        expectedGoals_ouPick: "Must use 'Tài' or 'Xỉu' in Vietnamese"
-      }
-    }, null, 2)}
-    
-    [ADDITIONAL DATA CONTEXT (JSON)]
-    ${JSON.stringify(additionalContextObj, null, 2)}
-    
-    [OUTPUT REQUIREMENT]
-    Provide a valid JSON matching EXACTLY the structure below. Do not wrap the JSON output in markdown formatting (no json wrappers):
+    };
 
-    {
-      "predictionData": {
-        "header": {
-          "team1": { "name": "${t1}", "logo": "${matchData?.team1?.logo || ''}" },
-          "team2": { "name": "${t2}", "logo": "${matchData?.team2?.logo || ''}" },
-          "matchTime": "Match time (e.g., ${matchData?.matchTime || '02:00'}, ${matchData?.matchDate || '18/06/2026'})",
-          "tournament": "${matchData?.category || 'Other Tournament'}",
-          "probabilities": { "team1": 45, "draw": 25, "team2": 30 }
-        },
-        "formAndH2h": {
-          "team1Form": ["W", "W", "D", "L", "W"],
-          "team2Form": ["W", "D", "W", "W", "W"],
-          "h2hData": {
-            "total": 5,
-            "team1Wins": 2,
-            "draws": 1,
-            "team2Wins": 2,
-            "recentMatches": [
-              { "date": "10/05/2024", "score": "2-1", "winner": 1 }
-            ]
-          }
-        },
-        "lineups": {
-          "team1Formation": "${matchData?.lineups?.[0]?.formation || '4-3-3'}",
-          "team2Formation": "${matchData?.lineups?.[1]?.formation || '4-2-3-1'}",
-          "missingPlayers": { "team1": [], "team2": [] }
-        },
-        "advancedMetrics": {
-          "expectedGoals": {
-            "half1": { "predicted": "1 bàn", "ouLine": "0.75", "ouPick": "Tài" },
-            "half2": { "predicted": "2 bàn", "ouLine": "1.5", "ouPick": "Tài" },
-            "fullMatch": { "predicted": "3 bàn", "ouLine": "2.25", "ouPick": "Tài" }
-          },
-          "expectedCards": {
-            "half1": { "team1": 0, "team2": 1, "total": 1 },
-            "half2": { "team1": 1, "team2": 1, "total": 2 },
-            "fullMatch": { "team1": 1, "team2": 2, "total": 3 }
-          },
-          "expectedCorners": {
-            "half1": { "team1": 2, "team2": 1, "total": 3 },
-            "half2": { "team1": 3, "team2": 2, "total": 5 },
-            "fullMatch": { "team1": 5, "team2": 3, "total": 8 }
-          }
-        },
-        "analysisHtml": "<h3>1. Tình hình lực lượng & Diễn biến</h3><p>Nội dung chi tiết...</p><h3>2. Chiến thuật & Nhận định</h3><p>Nội dung...</p>",
-        "sources": [
-          { "title": "Phân tích đội hình...", "url": "https://vnexpress.net/the-thao", "siteName": "VNExpress" }
-        ]
-      }
-    }`;
 
-    let contentText = "{}";
 
+    // ── Prompt tối giản: AI CHỈ viết analysisHtml + sources ──
+    const systemPrompt = `Bạn là chuyên gia bình luận bóng đá hàng đầu thế giới, viết cho tạp chí The Athletic.
+
+NHIỆM VỤ DUY NHẤT: Viết bài phân tích chiến thuật chuyên sâu bằng tiếng Việt cho trận đấu: "${title}".
+
+${aiTacticalTrainingGuide}
+
+THÔNG TIN TRẬN ĐẤU:
+${JSON.stringify(matchContext, null, 2)}
+
+QUY TẮC QUAN TRỌNG:
+- Tất cả số liệu (tỉ lệ %, xG, thẻ, phạt góc) đã được tính sẵn bởi hệ thống engine. KHÔNG ĐƯỢC thay đổi các con số này.
+- Chỉ viết phần analysisHtml (HTML tiếng Việt chuyên sâu) và sources.
+- analysisHtml phải có ít nhất 4 mục: (1) Nhận định tổng quan, (2) Chiến thuật & Đội hình, (3) Điểm mạnh/yếu từng đội, (4) Kịch bản diễn biến dự kiến.
+- Nếu trận đang live: phân tích thêm diễn biến hiệp 2, tác động của tỉ số hiện tại lên chiến thuật.
+- Văn phong: chuyên nghiệp, sâu sắc, có số liệu cụ thể, không nói chung chung.
+
+ĐẦU RA: JSON hợp lệ, KHÔNG có markdown wrapper:
+{
+  "analysisHtml": "<h3>1. Tổng quan</h3><p>...</p><h3>2. Chiến thuật...</h3><p>...</p>",
+  "sources": [
+    { "title": "Tiêu đề tiếng Việt", "url": "https://...", "siteName": "Tên nguồn" }
+  ]
+}`;
+
+    let contentText = '{}';
     try {
       contentText = await generateWithFallback(
         systemPrompt,
-        'You are a highly capable JSON data generation assistant.',
+        'You are a concise JSON generation assistant.',
         true
       );
     } catch (err: any) {
       return NextResponse.json({ error: `Có lỗi xảy ra khi tạo nhận định: ${err.message}` }, { status: 500 });
     }
 
-    const result = JSON.parse(contentText);
+    // Parse AI output (chỉ chứa analysisHtml + sources)
+    let aiOutput: { analysisHtml?: string; sources?: any[] } = {};
+    try {
+      const parsed = JSON.parse(contentText);
+      aiOutput = parsed.predictionData || parsed;
+    } catch { aiOutput = {}; }
 
-    // Apply real API data override if available, otherwise let the AI's knowledgeable response stand
-    if (result.predictionData) {
-      if (!result.predictionData.header) {
-        result.predictionData.header = {};
-      }
-      result.predictionData.header.team1 = { name: t1, logo: matchData?.team1?.logo || '' };
-      result.predictionData.header.team2 = { name: t2, logo: matchData?.team2?.logo || '' };
-      result.predictionData.header.matchTime = `${matchData?.matchTime || ''}, ${matchData?.matchDate || ''}`;
-      result.predictionData.header.tournament = matchData?.category || result.predictionData.header.tournament;
-      
-      const prob = getWinProbability(matchId, t1, t2);
-      result.predictionData.header.probabilities = { team1: prob.w1, draw: prob.draw, team2: prob.w2 };
+    // ── Ghép engine metrics + AI analysisHtml → computedPredictionData hoàn chỉnh ──
+    const computedPredictionData = {
+      header: {
+        team1: { name: t1, logo: matchData?.team1?.logo || '' },
+        team2: { name: t2, logo: matchData?.team2?.logo || '' },
+        matchTime: `${matchData?.matchTime || ''}, ${matchData?.matchDate || ''}`,
+        tournament: matchData?.category || '',
+        probabilities: {
+          team1: engineResult.probabilities.w1,
+          draw:  engineResult.probabilities.draw,
+          team2: engineResult.probabilities.w2,
+        },
+      },
+      formAndH2h: {
+        team1Form: engineResult.team1Form,
+        team2Form: engineResult.team2Form,
+        h2hData: engineResult.h2hData,
+      },
+      lineups: {
+        team1Formation: matchData?.lineups?.[0]?.formation || '4-3-3',
+        team2Formation: matchData?.lineups?.[1]?.formation || '4-2-3-1',
+        missingPlayers: { team1: [], team2: [] },
+      },
+      advancedMetrics: {
+        expectedGoals: {
+          half1:     engineResult.xGoals.half1,
+          half2:     engineResult.xGoals.half2,
+          fullMatch: engineResult.xGoals.fullMatch,
+        },
+        expectedCards:   engineResult.expectedCards,
+        expectedCorners: engineResult.expectedCorners,
+      },
+      analysisHtml: aiOutput.analysisHtml ||
+        `<h3>Đang cập nhật phân tích...</h3><p>Trận ${t1} vs ${t2}.</p>`,
+      sources: aiOutput.sources || [],
+    };
 
-      if (!result.predictionData.formAndH2h) {
-        result.predictionData.formAndH2h = {};
-      }
-      
-      if (hasRealForm) {
-        result.predictionData.formAndH2h.team1Form = parseRealForm(matchData.lastFiveGames, t1) || getDeterministicForm(t1);
-        result.predictionData.formAndH2h.team2Form = parseRealForm(matchData.lastFiveGames, t2) || getDeterministicForm(t2);
-      }
-      
-      const categoryLower = (matchData?.category || '').toLowerCase();
-      const isNationalTeamMatch = categoryLower.includes('world cup') || 
-                                  categoryLower.includes('euro') || 
-                                  categoryLower.includes('copa') || 
-                                  categoryLower.includes('nations league') || 
-                                  categoryLower.includes('friendly') ||
-                                  categoryLower.includes('fifa') ||
-                                  categoryLower.includes('concacaf') ||
-                                  categoryLower.includes('afcon') ||
-                                  categoryLower.includes('asian cup') ||
-                                  categoryLower.includes('vòng loại');
-      
-      if (hasRealH2H) {
-        const aiHasH2H = result.predictionData.formAndH2h?.h2hData && 
-                         Array.isArray(result.predictionData.formAndH2h.h2hData.recentMatches);
-        if (!isNationalTeamMatch || !aiHasH2H) {
-          result.predictionData.formAndH2h.h2hData = parseRealH2H(matchData.headToHeadGames, t1, t2) || getDeterministicH2H(t1, t2);
-        }
-      }
+    const result = { predictionData: computedPredictionData };
 
-      if (!previewOnly) {
-        // 3. Cache the generated prediction in the Database (Only for upcoming or finished matches)
-        if (matchId && !isLive) {
-          const cached = await prisma.fixtureCache.findUnique({ where: { id: matchId } });
-          if (cached) {
-            const updatedData = {
-              ...(cached.data as any),
-              prediction: result.predictionData
-            };
-            await prisma.fixtureCache.update({
-              where: { id: matchId },
-              data: { data: updatedData }
-            });
-          }
-        }
+    // Ghi đè lại nếu trận live: dùng engine live probability
+    if (isLive && matchData?.score1 != null) {
+      // engineResult đã dùng pre-match Elo; probabilities đã correct
+      // (live odds được tính real-time ở client, không cần ghi đè ở đây)
+    }
 
-        // 4. Save this checkpoint into PredictionHistory
-        if (matchId) {
-          const milestone = body.milestone || (isLive ? "LIVE" : "PRE_MATCH");
-          const scoreState = (matchData?.score1 !== null && matchData?.score2 !== null)
-            ? `${matchData.score1}-${matchData.score2}`
-            : "0-0";
-          const liveTime = isLive ? (matchData?.liveClock || "Đang đấu") : null;
-          
-          await prisma.predictionHistory.create({
-            data: {
-              matchId,
-              milestone,
-              prediction: result.predictionData,
-              scoreState,
-              liveTime,
-              status: matchData?.status || "Chưa diễn ra"
-            }
+
+    if (!previewOnly) {
+      // Cache vào DB (chỉ cho trận chưa đá hoặc đã kết thúc)
+      if (matchId && !isLive) {
+        const cached = await prisma.fixtureCache.findUnique({ where: { id: matchId } });
+        if (cached) {
+          await prisma.fixtureCache.update({
+            where: { id: matchId },
+            data: { data: { ...(cached.data as any), prediction: result.predictionData } },
           });
         }
       }
+
+      // Lưu milestone vào PredictionHistory
+      if (matchId) {
+        const milestone = body.milestone || (isLive ? 'LIVE' : 'PRE_MATCH');
+        const scoreState = (matchData?.score1 != null && matchData?.score2 != null)
+          ? `${matchData.score1}-${matchData.score2}` : '0-0';
+        await prisma.predictionHistory.create({
+          data: {
+            matchId, milestone,
+            prediction: result.predictionData as any,
+            scoreState,
+            liveTime: isLive ? (matchData?.liveClock || 'Đang đấu') : null,
+            status: matchData?.status || 'Chưa diễn ra',
+          },
+        });
+      }
     }
+
 
     const history = matchId ? await prisma.predictionHistory.findMany({
       where: { matchId },

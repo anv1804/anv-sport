@@ -13,9 +13,20 @@ interface DataCenterClientProps {
 export function DataCenterClient({ players, clubs }: DataCenterClientProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'players' | 'clubs'>('players');
+  const [visibleCount, setVisibleCount] = useState(20);
 
   const filteredPlayers = players.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
   const filteredClubs = clubs.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
+
+  const handleTabChange = (tab: 'players' | 'clubs') => {
+    setActiveTab(tab);
+    setVisibleCount(20);
+  };
+
+  const handleSearchChange = (val: string) => {
+    setSearchTerm(val);
+    setVisibleCount(20);
+  };
 
   return (
     <div className="w-full font-client-ui bg-[#f3f4f6] min-h-screen pb-12">
@@ -51,7 +62,7 @@ export function DataCenterClient({ players, clubs }: DataCenterClientProps) {
           {/* TABS (Premium Segmented Control Style) */}
           <div className="flex bg-slate-200/50 p-1 rounded-full w-full max-w-[340px] mb-4 md:mb-6 shadow-inner border border-slate-300/30 mx-auto md:mx-0">
             <button 
-              onClick={() => setActiveTab('players')}
+              onClick={() => handleTabChange('players')}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-full font-black uppercase tracking-wider text-[11px] transition-all duration-300
                 ${activeTab === 'players' 
                   ? 'bg-slate-900 text-white shadow-md scale-[1.01]' 
@@ -60,7 +71,7 @@ export function DataCenterClient({ players, clubs }: DataCenterClientProps) {
               <Users className="w-4 h-4" /> Cầu Thủ ({players.length})
             </button>
             <button 
-              onClick={() => setActiveTab('clubs')}
+              onClick={() => handleTabChange('clubs')}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-full font-black uppercase tracking-wider text-[11px] transition-all duration-300
                 ${activeTab === 'clubs' 
                   ? 'bg-slate-900 text-white shadow-md scale-[1.01]' 
@@ -79,7 +90,7 @@ export function DataCenterClient({ players, clubs }: DataCenterClientProps) {
                   type="text" 
                   placeholder={activeTab === 'players' ? "Tìm kiếm tên cầu thủ..." : "Tìm kiếm câu lạc bộ..."}
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-full text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500 transition-all font-medium bg-slate-50/50"
                 />
               </div>
@@ -100,11 +111,23 @@ export function DataCenterClient({ players, clubs }: DataCenterClientProps) {
           {activeTab === 'players' && (
             <div>
               {filteredPlayers.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {filteredPlayers.map(player => (
-                    <PlayerCard key={player.id} player={player} />
-                  ))}
-                </div>
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {filteredPlayers.slice(0, visibleCount).map(player => (
+                      <PlayerCard key={player.id} player={player} />
+                    ))}
+                  </div>
+                  {visibleCount < filteredPlayers.length && (
+                    <div className="mt-8 text-center">
+                      <button
+                        onClick={() => setVisibleCount(prev => prev + 20)}
+                        className="px-8 py-3 bg-white hover:bg-slate-50 text-slate-800 font-black uppercase tracking-wider text-[11px] rounded-full border border-slate-200 shadow-sm transition-all hover:border-green-500 hover:text-green-600"
+                      >
+                        Xem Thêm Cầu Thủ ({filteredPlayers.length - visibleCount} còn lại)
+                      </button>
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="bg-white border border-slate-200 rounded-xl p-16 flex flex-col items-center justify-center min-h-[400px]">
                   <Users className="w-12 h-12 text-slate-300 mb-4" />
@@ -117,24 +140,36 @@ export function DataCenterClient({ players, clubs }: DataCenterClientProps) {
           {activeTab === 'clubs' && (
             <div>
               {filteredClubs.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {filteredClubs.map(club => (
-                    <div key={club.id} className="bg-white p-4 md:p-6 rounded-xl border border-slate-200 shadow-sm hover:border-green-500 transition-colors flex items-center gap-4 group cursor-pointer">
-                      <div className="w-12 h-12 md:w-14 md:h-14 bg-slate-50 rounded-full flex items-center justify-center p-2 border border-slate-100 shrink-0">
-                        {club.logo ? (
-                          <img src={club.logo} alt={club.name} className="max-w-full max-h-full object-contain" />
-                        ) : (
-                          <Shield className="text-slate-300" size={24} />
-                        )}
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {filteredClubs.slice(0, visibleCount).map(club => (
+                      <div key={club.id} className="bg-white p-4 md:p-6 rounded-xl border border-slate-200 shadow-sm hover:border-green-500 transition-colors flex items-center gap-4 group cursor-pointer">
+                        <div className="w-12 h-12 md:w-14 md:h-14 bg-slate-50 rounded-full flex items-center justify-center p-2 border border-slate-100 shrink-0">
+                          {club.logo ? (
+                            <img src={club.logo} alt={club.name} className="max-w-full max-h-full object-contain" />
+                          ) : (
+                            <Shield className="text-slate-300" size={24} />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-black text-[14px] md:text-[15px] text-slate-800 group-hover:text-green-600 transition-colors truncate">{club.name}</h3>
+                          <p className="text-[9px] text-slate-400 mt-1 font-bold uppercase tracking-widest">{club.sportType}</p>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-green-500 transition-colors shrink-0" />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-black text-[14px] md:text-[15px] text-slate-800 group-hover:text-green-600 transition-colors truncate">{club.name}</h3>
-                        <p className="text-[9px] text-slate-400 mt-1 font-bold uppercase tracking-widest">{club.sportType}</p>
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-green-500 transition-colors shrink-0" />
+                    ))}
+                  </div>
+                  {visibleCount < filteredClubs.length && (
+                    <div className="mt-8 text-center">
+                      <button
+                        onClick={() => setVisibleCount(prev => prev + 20)}
+                        className="px-8 py-3 bg-white hover:bg-slate-50 text-slate-800 font-black uppercase tracking-wider text-[11px] rounded-full border border-slate-200 shadow-sm transition-all hover:border-green-500 hover:text-green-600"
+                      >
+                        Xem Thêm CLB ({filteredClubs.length - visibleCount} còn lại)
+                      </button>
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               ) : (
                 <div className="bg-white border border-slate-200 rounded-xl p-16 flex flex-col items-center justify-center min-h-[400px]">
                   <Shield className="w-12 h-12 text-slate-300 mb-4" />
@@ -161,7 +196,7 @@ export function DataCenterClient({ players, clubs }: DataCenterClientProps) {
               <p className="text-[12px] text-slate-300 font-medium leading-relaxed mb-6">
                 Xem trải nghiệm mẫu chuẩn báo chí Sofascore với đầy đủ biểu đồ Radar, dữ liệu phong độ, và bản đồ nhiệt.
               </p>
-              <Link href="/wiki/bukayo-saka animate-pulse" className="w-full block bg-green-600 hover:bg-green-500 text-white font-black text-[13px] uppercase tracking-widest py-3 rounded-lg shadow-sm transition-all duration-200 border border-green-400 active:scale-98">
+              <Link href="/wiki/bukayo-saka" className="w-full block bg-green-600 hover:bg-green-500 text-white font-black text-[13px] uppercase tracking-widest py-3 rounded-lg shadow-sm transition-all duration-200 border border-green-400 active:scale-98 animate-pulse">
                 Trải Nghiệm Thử Ngay
               </Link>
             </div>

@@ -203,23 +203,26 @@ export function initSupercomputerScheduler() {
     process.argv.includes('build') || 
     process.env.NEXT_PHASE === 'phase-production-build'
   );
-  if (isBuilding) {
-    return;
-  }
+  if (isBuilding) return;
 
-  if ((globalThis as any).supercomputerSchedulerInitialized) {
-    return;
-  }
+  if ((globalThis as any).supercomputerSchedulerInitialized) return;
   (globalThis as any).supercomputerSchedulerInitialized = true;
 
-  console.log("[Supercomputer Scheduler] Background scheduler initialized.");
+  console.log('[Supercomputer Scheduler] Background scheduler initialized.');
 
-  // Check every 4 hours
-  const intervalMs = 4 * 60 * 60 * 1000;
+  // Elo sync: ESPN standings → Redis HASH 'elo:FIFA' mỗi 24h
+  const syncElo = () => {
+    const base = process.env.NEXT_PUBLIC_APP_URL ||
+      `http://localhost:${process.env.PORT || 3000}`;
+    fetch(`${base}/api/sync-elo`, { method: 'POST' })
+      .then(r => r.json())
+      .then(d => console.log(`[EloSync] synced ${d.synced ?? 0} teams (${d.source})`)
+      ).catch(e => console.warn('[EloSync] error:', e.message));
+  };
+  setTimeout(syncElo, 20_000);                    // khởi động lần đầu sau 20s
+  setInterval(syncElo, 24 * 60 * 60 * 1000);      // lặp lại mỗi 24h
 
-  // Run initial tick after 15 seconds to ensure server is fully ready
-  setTimeout(executeSupercomputerLearn, 15000);
-
-  // Set periodic check
-  setInterval(executeSupercomputerLearn, intervalMs);
+  // Supercomputer learn: check every 4 hours
+  setTimeout(executeSupercomputerLearn, 15_000);
+  setInterval(executeSupercomputerLearn, 4 * 60 * 60 * 1000);
 }
