@@ -73,12 +73,44 @@ export async function getCategoryPosts(categoryId: string) {
 }
 
 // Thiết lập Print cho CategoryPost
-export async function setPrintCategoryPost(id: string, isPrinted: boolean, printStartTime: Date | null, printEndTime: Date | null) {
+export async function setPrintCategoryPost(id: string, isPrinted: boolean, printStartTime: Date | null, printEndTime: Date | null, targetId?: string) {
   try {
-    await prisma.categoryPost.update({
-      where: { id },
-      data: { isPrinted, printStartTime, printEndTime }
-    })
+    const start = printStartTime ? new Date(printStartTime) : null;
+    const end = printEndTime ? new Date(printEndTime) : null;
+
+    if (id.startsWith('temp-')) {
+      const postId = parseInt(id.replace('temp-', ''));
+      
+      let categoryId = targetId;
+      if (!categoryId) {
+        const post = await prisma.post.findUnique({
+          where: { id: postId },
+          include: { categories: { select: { id: true } } }
+        });
+        categoryId = post?.categories?.[0]?.id;
+      }
+      
+      if (!categoryId) {
+        return { success: false, error: 'Không tìm thấy danh mục cho bài viết này' };
+      }
+
+      await prisma.categoryPost.create({
+        data: {
+          categoryId,
+          postId,
+          position: 0,
+          isPrinted,
+          printStartTime: start,
+          printEndTime: end
+        }
+      });
+    } else {
+      await prisma.categoryPost.update({
+        where: { id },
+        data: { isPrinted, printStartTime: start, printEndTime: end }
+      });
+    }
+
     revalidatePath('/admin/zone-posts')
     return { success: true }
   } catch (error) {

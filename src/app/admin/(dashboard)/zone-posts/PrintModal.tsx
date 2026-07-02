@@ -11,12 +11,14 @@ export function PrintModal({
   onClose, 
   item, 
   mode,
+  targetId,
   onSaved
 }: { 
   isOpen: boolean;
   onClose: () => void;
   item: any;
   mode: 'ZONE' | 'CATEGORY';
+  targetId: string;
   onSaved: () => void;
 }) {
   const alert = useAlert()
@@ -87,16 +89,16 @@ export function PrintModal({
 
     let res;
     if (mode === 'ZONE') {
-      res = await setPrintZonePost(item.id, isPrinted, printStartTime, printEndTime);
+      res = await setPrintZonePost(item.id, isPrinted, printStartTime, printEndTime, targetId);
     } else {
-      res = await setPrintCategoryPost(item.id, isPrinted, printStartTime, printEndTime);
+      res = await setPrintCategoryPost(item.id, isPrinted, printStartTime, printEndTime, targetId);
     }
 
     if (res?.success) {
       onSaved();
       onClose();
     } else {
-      await alert('Lỗi khi lưu cấu hình Print');
+      await alert(res?.error || 'Lỗi khi lưu cấu hình Print');
     }
     setIsSaving(false)
   }

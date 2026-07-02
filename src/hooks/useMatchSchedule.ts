@@ -2,9 +2,9 @@ import { useState, useEffect } from "react";
 import { sportService } from "@/services/sportService";
 import { Match } from "@/types/sport";
 
-const CACHE_KEY = "anv_sport_matches_cache";
-const CACHE_TIME_KEY = "anv_sport_matches_cache_time";
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+const CACHE_KEY = "anv_sport_matches_cache_v2";
+const CACHE_TIME_KEY = "anv_sport_matches_cache_time_v2";
+const CACHE_DURATION = 15 * 1000; // 15 seconds in milliseconds
 
 export function useMatchSchedule() {
   const [matches, setMatches] = useState<Match[]>([]);

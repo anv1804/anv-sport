@@ -76,16 +76,29 @@ export function PageSystemDesigner({
     const bgClass = isAd ? 'bg-orange-50/50 border-orange-200' : 'bg-emerald-50/50 border-emerald-200';
     const titleClass = isAd ? 'text-orange-700' : 'text-emerald-700';
 
-    const options = isAd ? adOptions : zoneOptions;
+    if (isAd) {
+      return (
+        <div className={`p-3 rounded-xl border shadow-sm flex flex-col ${bgClass} ${colSpanClass}`}>
+          <label className={`block text-xs font-bold mb-2 truncate ${titleClass}`} title={label}>{label}</label>
+          <SearchableSelect 
+            options={adOptions}
+            value={currentConfig[key] || ''}
+            onChange={(val) => handleSlotChange(key, val)}
+            placeholder="-- Không gán Quảng Cáo --"
+          />
+        </div>
+      );
+    }
 
+    // ZONE slots: cho phép chọn Zone hoặc Category
     return (
       <div className={`p-3 rounded-xl border shadow-sm flex flex-col ${bgClass} ${colSpanClass}`}>
         <label className={`block text-xs font-bold mb-2 truncate ${titleClass}`} title={label}>{label}</label>
-        <SearchableSelect 
-          options={options}
+        <CategorySearchSelect
+          options={memoizedCategoryOptions}
           value={currentConfig[key] || ''}
           onChange={(val) => handleSlotChange(key, val)}
-          placeholder={`-- Không gán ${isAd ? 'Quảng Cáo' : 'Zone'} --`}
+          placeholder="-- Chọn Zone hoặc Danh mục --"
         />
       </div>
     );

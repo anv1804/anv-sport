@@ -776,7 +776,7 @@ export async function GET(request: Request) {
             const parsedDate = new Date(`${match.date} ${gmtTimeStr}`);
             if (!isNaN(parsedDate.getTime())) {
               kickoffMs = parsedDate.getTime();
-              vnDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(parsedDate);
+              vnDate = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(parsedDate);
               vnTime = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit' }).format(parsedDate);
             }
           }
@@ -899,8 +899,8 @@ export async function GET(request: Request) {
               team1: { name: homeComp.team.displayName, logo: homeComp.team.logo || getFlagUrl(homeComp.team.displayName) },
               team2: { name: awayComp.team.displayName, logo: awayComp.team.logo || getFlagUrl(awayComp.team.displayName) },
               category: `${espnData.leagues?.[0]?.name || league.name}`,
-              matchDate: new Date(match.date).toLocaleDateString('vi-VN'),
-              matchTime: new Date(match.date).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+              matchDate: new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(match.date)),
+              matchTime: new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(match.date)),
               status: isFinished ? "Kết thúc" : (match.status.type.state === 'pre' ? "Chưa đá" : "Đang đấu"),
               score1: homeComp.score || "0",
               score2: awayComp.score || "0",

@@ -41,12 +41,36 @@ export async function getZonePosts(zoneId: string) {
 }
 
 // Thiết lập Print cho ZonePost
-export async function setPrintZonePost(id: string, isPrinted: boolean, printStartTime: Date | null, printEndTime: Date | null) {
+export async function setPrintZonePost(id: string, isPrinted: boolean, printStartTime: Date | null, printEndTime: Date | null, targetId?: string) {
   try {
-    await prisma.zonePost.update({
-      where: { id },
-      data: { isPrinted, printStartTime, printEndTime }
-    })
+    const start = printStartTime ? new Date(printStartTime) : null;
+    const end = printEndTime ? new Date(printEndTime) : null;
+
+    if (id.startsWith('temp-')) {
+      const postId = parseInt(id.replace('temp-', ''));
+      const zoneId = targetId;
+
+      if (!zoneId) {
+        return { success: false, error: 'Không tìm thấy Zone để gán bài viết' };
+      }
+
+      await prisma.zonePost.create({
+        data: {
+          zoneId,
+          postId,
+          position: 0,
+          isPrinted,
+          printStartTime: start,
+          printEndTime: end
+        }
+      });
+    } else {
+      await prisma.zonePost.update({
+        where: { id },
+        data: { isPrinted, printStartTime: start, printEndTime: end }
+      });
+    }
+
     revalidatePath('/admin/zone-posts')
     return { success: true }
   } catch (error) {

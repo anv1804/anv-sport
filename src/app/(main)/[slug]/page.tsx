@@ -67,57 +67,92 @@ function CategoryPostsSkeleton({ isFirstPage = true }: { isFirstPage?: boolean }
   );
 }
 
-const getCachedCategoryBySlug = unstable_cache(
-  async (slug: string) => {
-    return prisma.category.findUnique({
-      where: { slug },
-      include: {
-        parent: {
-          include: {
-            children: true
-          }
-        },
-        children: true
-      }
-    })
-  },
-  ['category-by-slug'],
-  { revalidate: 60, tags: ['categories'] }
-);
+const getCachedCategoryBySlug = (slug: string) => {
+  return unstable_cache(
+    async () => {
+      return prisma.category.findUnique({
+        where: { slug },
+        include: {
+          parent: {
+            include: {
+              children: true
+            }
+          },
+          children: true
+        }
+      })
+    },
+    [`category-by-slug-${slug}`],
+    { revalidate: 60, tags: ['categories'] }
+  )();
+};
 
-const getCachedPostsForCategory = unstable_cache(
-  async (categoryIds: string[], page: number) => {
-    return Promise.all([
-      prisma.post.count({
+const getCachedPostsForCategory = (currentCategoryId: string, allCategoryIds: string[], page: number) => {
+  return unstable_cache(
+    async () => {
+      // 1. Lấy bài viết gắp thủ công & ghim (chỉ lấy riêng của danh mục hiện tại)
+      const categoryPosts = await prisma.categoryPost.findMany({
         where: {
-          status: 'PUBLISHED',
-          categories: {
-            some: {
-              id: { in: categoryIds }
+          categoryId: currentCategoryId,
+          post: { status: 'PUBLISHED' }
+        },
+        orderBy: { position: 'asc' },
+        include: {
+          post: {
+            select: {
+              id: true,
+              title: true,
+              excerpt: true,
+              imageUrl: true,
+              createdAt: true,
+              isAiGenerated: true,
+              status: true
             }
           }
         }
-      }),
-      prisma.post.findMany({
+      });
+
+      const now = new Date();
+      const isPrintedActive = (p: any) => 
+        p.isPrinted && 
+        (!p.printStartTime || new Date(p.printStartTime) <= now) && 
+        (!p.printEndTime || new Date(p.printEndTime) > now);
+
+      const printedPosts = categoryPosts.filter(isPrintedActive).map(cp => cp.post);
+      const normalManualPosts = categoryPosts.filter(p => !isPrintedActive(p)).map(cp => cp.post);
+      const manualPostIds = categoryPosts.map(cp => cp.postId);
+
+      // 2. Lấy bài viết tự động (lấy từ cả cha và con)
+      const autoPosts = await prisma.post.findMany({
         where: {
           status: 'PUBLISHED',
           categories: {
-            some: {
-              id: { in: categoryIds }
-            }
-          }
+            some: { id: { in: allCategoryIds } }
+          },
+          id: { notIn: manualPostIds }
         },
-        orderBy: {
-          createdAt: 'desc'
-        },
-        skip: (page - 1) * 15,
-        take: 15
-      })
-    ])
-  },
-  ['posts-for-category'],
-  { revalidate: 30, tags: ['posts'] }
-);
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          title: true,
+          excerpt: true,
+          imageUrl: true,
+          createdAt: true,
+          isAiGenerated: true,
+          status: true
+        }
+      });
+
+      const allMerged = [...printedPosts, ...normalManualPosts, ...autoPosts];
+      const totalCount = allMerged.length;
+      const paginated = allMerged.slice((page - 1) * 15, page * 15);
+
+      return [totalCount, paginated] as [number, typeof paginated];
+    },
+    [`posts-for-category-${currentCategoryId}-${allCategoryIds.sort().join('-')}-${page}`],
+    { revalidate: 30, tags: ['posts'] }
+  )();
+};
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const resolvedParams = await params
@@ -205,7 +240,10 @@ async function CategoryContent({ categorySlug, page }: { categorySlug: string, p
     })
   }
 
-  const categoryIdsToFetch = [category.id]
+  const categoryIdsToFetch = [
+    category.id,
+    ...(category.children?.map(c => c.id) || [])
+  ]
   const isFirstPage = page === 1
 
   return (
@@ -238,6 +276,7 @@ async function CategoryContent({ categorySlug, page }: { categorySlug: string, p
 
         <Suspense fallback={<CategoryPostsSkeleton isFirstPage={isFirstPage} />}>
           <CategoryPostsSection 
+            currentCategoryId={category.id}
             categoryIdsToFetch={categoryIdsToFetch} 
             page={page} 
             categorySlug={category.slug} 
@@ -251,17 +290,19 @@ async function CategoryContent({ categorySlug, page }: { categorySlug: string, p
 }
 
 async function CategoryPostsSection({ 
+  currentCategoryId,
   categoryIdsToFetch, 
   page, 
   categorySlug, 
   isFirstPage 
 }: { 
+  currentCategoryId: string
   categoryIdsToFetch: string[]
   page: number
   categorySlug: string
   isFirstPage: boolean
 }) {
-  const [totalPosts, rawPosts] = await getCachedPostsForCategory(categoryIdsToFetch, page)
+  const [totalPosts, rawPosts] = await getCachedPostsForCategory(currentCategoryId, categoryIdsToFetch, page)
 
   const posts = rawPosts.map(post => ({
     ...post,
@@ -290,16 +331,21 @@ async function CategoryPostsSection({
       {isFirstPage && (
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6 mb-4 md:mb-6">
           {/* Cột trái lớn (Hero Image Overlay) */}
-          <div className="lg:col-span-2 relative group cursor-pointer overflow-hidden rounded">
+          <div className="lg:col-span-2 relative group cursor-pointer overflow-hidden rounded min-h-[380px] h-full">
             {heroPost ? (
-              <Link href={createArticleUrl(heroPost.title, heroPost.id)} className="block h-full relative">
+              <Link href={createArticleUrl(heroPost.title, heroPost.id)} className="block w-full h-full relative overflow-hidden">
                 <img 
                   src={heroPost.imageUrl || 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?q=80&w=1200&auto=format&fit=crop'} 
                   alt={heroPost.title} 
-                  className="w-full h-[380px] object-cover group-hover:scale-105 transition-transform duration-500" 
+                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
-                <div className="absolute bottom-0 left-0 right-0 p-5">
+                <img 
+                  src="/icons/anv-sport-icon.png" 
+                  alt="" 
+                  className="absolute bottom-4 right-4 w-6 h-6 object-contain opacity-55 transition-opacity duration-300 pointer-events-none z-20 select-none group-hover:opacity-85" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent z-10"></div>
+                <div className="absolute bottom-0 left-0 right-0 p-5 z-20">
                   <h2 className="text-2xl font-bold text-white leading-tight mb-2 group-hover:text-[var(--color-accent-main)] transition-colors">
                     {heroPost.title}
                   </h2>
@@ -309,18 +355,29 @@ async function CategoryPostsSection({
                 </div>
               </Link>
             ) : (
-              <div className="w-full h-[380px] bg-gray-100 flex items-center justify-center text-gray-500">
+              <div className="w-full h-full min-h-[380px] bg-gray-100 flex items-center justify-center text-gray-500">
                 Chưa có bài viết
               </div>
             )}
           </div>
 
           {/* Cột phải (2 Bài viết) */}
-          <div className="lg:col-span-1 flex flex-col justify-between gap-4 md:gap-5">
+          <div className="lg:col-span-1 flex flex-col justify-start gap-4 md:gap-5">
             {topRightPosts.map((post, idx) => (
               <div key={idx} className="group cursor-pointer">
                 <Link href={createArticleUrl(post.title, post.id)}>
-                  <img src={post.imageUrl || 'https://images.unsplash.com/photo-1518605368461-1ee712cdfc5d?q=80&w=600&auto=format&fit=crop'} alt={post.title} className="w-full h-[140px] object-cover mb-2 rounded" />
+                  <div className="relative w-full h-[155px] overflow-hidden mb-2 rounded">
+                    <img 
+                      src={post.imageUrl || 'https://images.unsplash.com/photo-1518605368461-1ee712cdfc5d?q=80&w=600&auto=format&fit=crop'} 
+                      alt={post.title} 
+                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                    />
+                    <img 
+                      src="/icons/anv-sport-icon.png" 
+                      alt="" 
+                      className="absolute bottom-2 right-2 w-4 h-4 object-contain opacity-50 transition-opacity duration-300 pointer-events-none z-10 select-none group-hover:opacity-80" 
+                    />
+                  </div>
                   <h3 className="font-bold text-slate-800 text-base leading-tight group-hover:text-[var(--color-accent-main)] transition-colors mb-1">
                     {post.title}
                   </h3>
@@ -340,7 +397,18 @@ async function CategoryPostsSection({
           {middleRowPosts.map((post, idx) => (
             <div key={idx} className="group cursor-pointer">
               <Link href={createArticleUrl(post.title, post.id)}>
-                <img src={post.imageUrl || 'https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?q=80&w=400&auto=format&fit=crop'} alt={post.title} className="w-full h-[120px] object-cover mb-2 rounded" />
+                <div className="relative w-full h-[120px] overflow-hidden mb-2 rounded">
+                  <img 
+                    src={post.imageUrl || 'https://images.unsplash.com/photo-1431324155629-1a6deb1dec8d?q=80&w=400&auto=format&fit=crop'} 
+                    alt={post.title} 
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                  />
+                  <img 
+                    src="/icons/anv-sport-icon.png" 
+                    alt="" 
+                    className="absolute bottom-2 right-2 w-4 h-4 object-contain opacity-50 transition-opacity duration-300 pointer-events-none z-10 select-none group-hover:opacity-80" 
+                  />
+                </div>
                 <h3 className="font-bold text-slate-800 text-[15px] leading-snug group-hover:text-[var(--color-accent-main)] transition-colors">
                   {post.title}
                 </h3>

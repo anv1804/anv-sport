@@ -142,7 +142,7 @@ export async function bulkDeletePosts(ids: number[]) {
   return { success: true };
 }
 
-export async function generateArticleWithAI(title: string, url: string, isForeign: boolean = false) {
+export async function generateArticleWithAI(title: string, url: string, isForeign: boolean = false, categorySlug?: string) {
   try {
     // ─── BƯỚC 1: Crawl nội dung từ URL ───
     let sourceContent = "";
@@ -337,14 +337,23 @@ export async function generateArticleWithAI(title: string, url: string, isForeig
       return { id: shortId, description: img.description };
     });
 
-    // ─── BƯỚC 2: Tạo prompt (Sử dụng Tiếng Anh để tiết kiệm Token) ───
+    const categoryText = categorySlug ? `Category Target (Chuyên mục đích): "${categorySlug.toUpperCase()}"` : "";
+
+    // ─── BƯỚC 2: Tạo prompt ───
     const prompt = `
       You are a Senior Sports Editor and a world-class SEO Expert.
       Below is a raw sports article. Your task is to rewrite it into an engaging, natural, insightful, and unique SEO article.
       
+      ${categoryText}
+
+      CONTENT TOPICAL RELEVANCE RULES (VERY IMPORTANT):
+      - The targeted sport topic/category for this article is: ${categorySlug || "Sports"}.
+      - YOU MUST ENSURE THAT THE ENTIRE ARTICLE REMAINS 100% RELEVANT TO THIS MAIN TOPIC.
+      - REMOVE/DISCARD any paragraphs, sentences, or photos that mention other unrelated sports (for example, if the topic is MMA/Martial Arts, DO NOT write about Volleyball, Football, or Golf, and DO NOT use photos showing volleyball players or golf courses even if they were present in the raw source content).
+      
       CONTENT REQUIREMENTS:
       YOU MUST WRITE THE FINAL ARTICLE ENTIRELY IN VIETNAMESE (Tiếng Việt).
-      Your task is to read the source content and additional info, synthesize it, and write a COMPLETE, UNIQUE, and IN-DEPTH football article.
+      Your task is to read the source content and additional info, synthesize it, and write a COMPLETE, UNIQUE, and IN-DEPTH article.
 
       PROCESSING LAYER:
       1. Write smoothly, naturally, and with deep analysis (avoid dry bullet points).
@@ -378,7 +387,7 @@ export async function generateArticleWithAI(title: string, url: string, isForeig
          - Outbound Link: Include at least 1 external citation (e.g., <a href="https://en.wikipedia.org" rel="nofollow">Wikipedia</a>).
          - Related Info Section: ALWAYS add a concluding section at the bottom (e.g., "Góc nhìn thú vị", "Tin liên quan", or "Có thể bạn chưa biết") using the provided ADDITIONAL REFERENCE INFO or your own sports knowledge to connect the main topic with relevant fun facts, historical context, or related events.
        5. IMAGES & ALT TEXT: 
-          - STRICT IMAGE FILTERING: Only select images from the provided list that are truly relevant.
+          - STRICT IMAGE FILTERING: Only select images from the provided list that are TRULY and DIRECTLY relevant to the main sport topic (${categorySlug || "Sports"}). Discard any unrelated images (e.g., no volleyball images in an MMA article).
           - IGNORE junk images. Each image URL can be used MAXIMUM 1 TIME.
           - ALL <img> tags MUST have an alt attribute.
           - Use EXACTLY the "id" field (e.g. IMG_0, IMG_1) as the src value. Example:
@@ -415,6 +424,7 @@ export async function generateArticleWithAI(title: string, url: string, isForeig
     const systemInstruction = 'You are a highly capable AI assistant that outputs structured JSON data for sports news articles. CRITICAL INSTRUCTION: You MUST wrap all content inside valid HTML and you MUST INCLUDE AT LEAST 2 <img> tags (from the provided image list) in the "content" field if the list has at least 2 images. If you fail to include enough <img> tags, your output will be rejected.';
     
     let resultText = await generateWithFallback(prompt, systemInstruction, true);
+
 
     // ─── BƯỚC 4: Parse và trả về kết quả ───
     let result: any = {};
@@ -621,7 +631,7 @@ export async function bulkCrawlAndSavePost(url: string, status: string = "DRAFT"
       return { success: false, error: "Link này đã được Crawl trước đó" };
     }
 
-    const aiResult = await generateArticleWithAI("", url, isForeign);
+    const aiResult = await generateArticleWithAI("", url, isForeign, categorySlug);
     if (!aiResult.success || !aiResult.data) {
       throw new Error(aiResult.error || "Lỗi sinh nội dung AI");
     }

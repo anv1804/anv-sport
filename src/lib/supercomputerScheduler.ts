@@ -4,6 +4,15 @@ import fs from 'fs';
 import path from 'path';
 
 let isSupercomputerInProgress = false;
+let stopRequested = false;
+
+export function requestSupercomputerStop() {
+  stopRequested = true;
+}
+
+export function isSupercomputerRunning() {
+  return isSupercomputerInProgress;
+}
 
 // List of football categories and national leagues to learn about
 const TARGETS_TO_LEARN = [
@@ -21,6 +30,7 @@ export async function executeSupercomputerLearn() {
   }
 
   isSupercomputerInProgress = true;
+  stopRequested = false;
   console.log("[Supercomputer Scheduler] Starting deep football knowledge ingestion & prediction pre-generation...");
 
   try {
@@ -82,6 +92,10 @@ export async function executeSupercomputerLearn() {
 
     // Phase 2: Ingest League, Country & Team playstyles
     for (const target of TARGETS_TO_LEARN) {
+      if (stopRequested) {
+        await addLog("[BACKGROUND DEEMON] Đã nhận lệnh dừng. Hủy chu trình học hiện tại.", "error");
+        break;
+      }
       try {
         await addLog(`Đang học hỏi xu hướng chiến thuật & triết lý bóng đá của giải đấu: ${target.league} (${target.country})...`, "info");
         
@@ -195,6 +209,7 @@ Return a structured JSON output with the fields:
     } catch (e) {}
   } finally {
     isSupercomputerInProgress = false;
+    stopRequested = false;
   }
 }
 

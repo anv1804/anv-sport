@@ -309,6 +309,39 @@ export async function POST(req: Request) {
       if (fs.existsSync(guidePath)) aiTacticalTrainingGuide = fs.readFileSync(guidePath, 'utf-8');
     } catch {}
 
+    // ── Load kiến thức giải đấu từ DB (do Siêu Máy Tính đã học) ──────────
+    let leagueKnowledgeBlock = '';
+    try {
+      const category = matchData?.category || '';
+      // Tìm key phù hợp nhất với giải đấu của trận này
+      const allKnowledge = await prisma.setting.findMany({
+        where: { key: { startsWith: 'KNOWLEDGE_LEAGUE_' } },
+        select: { key: true, value: true }
+      });
+      // Score từng key theo mức độ liên quan
+      const scored = allKnowledge.map(row => {
+        const leagueName = row.key.replace('KNOWLEDGE_LEAGUE_', '').replace(/_/g, ' ').toLowerCase();
+        const cat = category.toLowerCase();
+        let score = 0;
+        leagueName.split(' ').forEach(word => { if (word.length > 2 && cat.includes(word)) score++; });
+        return { ...row, score };
+      }).filter(r => r.score > 0).sort((a, b) => b.score - a.score);
+
+      if (scored.length > 0) {
+        const best = scored[0];
+        const knowledge = JSON.parse(best.value);
+        leagueKnowledgeBlock = `
+## KIẾN THỨC GIẢI ĐẤU (Siêu Máy Tính đã học & tổng hợp):
+- **Bản sắc chiến thuật**: ${knowledge.leagueIdentity || ''}
+- **Nhịp độ trung bình**: ${knowledge.averageTempo || ''}
+- **Xu hướng chiến thuật nổi bật**:
+${(knowledge.tacticalTrends || []).map((t: string) => `  • ${t}`).join('\n')}
+- **Kiểu cầu thủ đặc trưng**: ${knowledge.archetypalPlayers || ''}
+
+Hãy sử dụng kiến thức trên để làm sâu sắc thêm phân tích của bạn về trận đấu này.`;
+      }
+    } catch {}
+
     // Context tối thiểu cho AI — chỉ đủ để viết phân tích chiến thuật
     const matchContext = {
       status: matchData?.status,
@@ -343,6 +376,7 @@ export async function POST(req: Request) {
 NHIỆM VỤ DUY NHẤT: Viết bài phân tích chiến thuật chuyên sâu bằng tiếng Việt cho trận đấu: "${title}".
 
 ${aiTacticalTrainingGuide}
+${leagueKnowledgeBlock}
 
 THÔNG TIN TRẬN ĐẤU:
 ${JSON.stringify(matchContext, null, 2)}

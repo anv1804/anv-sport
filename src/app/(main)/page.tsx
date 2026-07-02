@@ -26,32 +26,60 @@ const getCachedHomepageData = unstable_cache(
     let settings: PageSettings = {};
     try { settings = JSON.parse(homePage?.settings || '{}'); } catch (e) {}
 
-    const topZoneId = settings.top_section;
+    const topValue = settings.top_section;
 
-    const topZone = topZoneId
-      ? await prisma.zone.findUnique({
-          where: { id: topZoneId },
-          include: {
-            zonePosts: {
-              orderBy: { position: 'asc' },
-              take: 3,
-              include: { post: { select: { id: true, title: true, excerpt: true, imageUrl: true, createdAt: true, isAiGenerated: true, status: true } } }
+    // Phân biệt: category:<id> → lấy bài từ chuyên mục; còn lại → tìm Zone
+    const isCategory = topValue?.startsWith('category:');
+
+    let topZone: any = null;
+    let topPostsFromCategory: any[] = [];
+
+    if (isCategory) {
+      // Lấy bài mới nhất từ Category (hoặc con của nó)
+      const categoryId = topValue!.replace('category:', '');
+      const posts = await prisma.post.findMany({
+        where: {
+          status: 'PUBLISHED',
+          categories: {
+            some: {
+              OR: [
+                { id: categoryId },
+                { parentId: categoryId }
+              ]
             }
           }
-        })
-      : await prisma.zone.findFirst({
-          where: { page: { slug: '/' }, isActive: true },
-          orderBy: { createdAt: 'desc' },
-          include: {
-            zonePosts: {
-              orderBy: { position: 'asc' },
-              take: 3,
-              include: { post: { select: { id: true, title: true, excerpt: true, imageUrl: true, createdAt: true, isAiGenerated: true, status: true } } }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 3,
+        select: { id: true, title: true, excerpt: true, imageUrl: true, createdAt: true, isAiGenerated: true, status: true }
+      });
+      topPostsFromCategory = posts;
+    } else {
+      topZone = topValue
+        ? await prisma.zone.findUnique({
+            where: { id: topValue },
+            include: {
+              zonePosts: {
+                orderBy: { position: 'asc' },
+                take: 3,
+                include: { post: { select: { id: true, title: true, excerpt: true, imageUrl: true, createdAt: true, isAiGenerated: true, status: true } } }
+              }
             }
-          }
-        });
+          })
+        : await prisma.zone.findFirst({
+            where: { page: { slug: '/' }, isActive: true },
+            orderBy: { createdAt: 'desc' },
+            include: {
+              zonePosts: {
+                orderBy: { position: 'asc' },
+                take: 3,
+                include: { post: { select: { id: true, title: true, excerpt: true, imageUrl: true, createdAt: true, isAiGenerated: true, status: true } } }
+              }
+            }
+          });
+    }
 
-    return { settings, topZone };
+    return { settings, topZone, topPostsFromCategory };
   },
   ['homepage-data-cache'],
   { revalidate: 30, tags: ['homepage'] }
@@ -59,9 +87,11 @@ const getCachedHomepageData = unstable_cache(
 
 export default async function Home() {
   // Fetch cached settings and top zone
-  const { settings, topZone } = await getCachedHomepageData();
+  const { settings, topZone, topPostsFromCategory } = await getCachedHomepageData();
 
-  const topPosts = topZone?.zonePosts.map(zp => zp.post) || [];
+  const topPosts = topPostsFromCategory.length > 0
+    ? topPostsFromCategory
+    : (topZone?.zonePosts.map((zp: any) => zp.post) || []);
   const mainPost = topPosts.length > 0 ? topPosts[0] : null;
   const subPosts = topPosts.length > 1 ? topPosts.slice(1, 3) : [];
 

@@ -414,6 +414,7 @@ export function ZonePostClient({ zones, categories }: { zones: any[], categories
         onClose={() => setIsPrintModalOpen(false)}
         item={printItem}
         mode={activeTab}
+        targetId={selectedId}
         onSaved={() => loadPosts(selectedId, activeTab)}
       />
 

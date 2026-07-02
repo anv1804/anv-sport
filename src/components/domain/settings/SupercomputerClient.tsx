@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Cpu, Play, RefreshCw, Calendar, CheckCircle2, AlertTriangle, BookOpen, Clock, Activity, ScrollText } from 'lucide-react';
+import { Cpu, Play, RefreshCw, Calendar, CheckCircle2, AlertTriangle, BookOpen, Clock, Activity, ScrollText, StopCircle } from 'lucide-react';
 
 interface Stats {
   status: string;
@@ -89,6 +89,22 @@ export default function SupercomputerClient() {
     }
   };
 
+  const handleStop = async () => {
+    try {
+      const res = await fetch('/api/admin/supercomputer/stop', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setMessage({ text: 'Đã gửi lệnh dừng. Tiến trình sẽ dừng sau bước hiện tại.', type: 'success' });
+        setIsLearning(false);
+        setTimeout(fetchData, 1500);
+      } else {
+        setMessage({ text: data.message || 'Không thể dừng tiến trình.', type: 'error' });
+      }
+    } catch {
+      setMessage({ text: 'Lỗi kết nối máy chủ.', type: 'error' });
+    }
+  };
+
   return (
     <div className="space-y-8 p-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -102,27 +118,38 @@ export default function SupercomputerClient() {
             <p className="text-sm text-slate-500 font-medium">Bảng điều khiển hệ thống phân tích chiến thuật & tự động học hỏi bóng đá</p>
           </div>
         </div>
-        <button
-          onClick={handleStartLearn}
-          disabled={isLearning}
-          className={`flex items-center gap-2 px-6 py-3.5 rounded-2xl font-bold transition-all shadow-md ${
-            isLearning
-              ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
-              : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98]'
-          }`}
-        >
-          {isLearning ? (
-            <>
-              <RefreshCw className="w-5 h-5 animate-spin" />
-              <span>Đang Tự Học...</span>
-            </>
-          ) : (
-            <>
-              <Play className="w-5 h-5 fill-current" />
-              <span>Học Hỏi Ngay</span>
-            </>
+        <div className="flex items-center gap-3">
+          {isLearning && (
+            <button
+              onClick={handleStop}
+              className="flex items-center gap-2 px-5 py-3.5 rounded-2xl font-bold transition-all shadow-md bg-red-500 hover:bg-red-600 text-white shadow-red-500/20 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <StopCircle className="w-5 h-5" />
+              <span>Dừng</span>
+            </button>
           )}
-        </button>
+          <button
+            onClick={handleStartLearn}
+            disabled={isLearning}
+            className={`flex items-center gap-2 px-6 py-3.5 rounded-2xl font-bold transition-all shadow-md ${
+              isLearning
+                ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
+                : 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-emerald-500/20 hover:scale-[1.02] active:scale-[0.98]'
+            }`}
+          >
+            {isLearning ? (
+              <>
+                <RefreshCw className="w-5 h-5 animate-spin" />
+                <span>Đang Tự Học...</span>
+              </>
+            ) : (
+              <>
+                <Play className="w-5 h-5 fill-current" />
+                <span>Học Hỏi Ngay</span>
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {message && (

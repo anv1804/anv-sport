@@ -27,6 +27,7 @@ export function HeroSection({ mainPost, subPosts, adTopRightSlot }: HeroSectionP
             className="flex-col md:flex-row"
             imageClass="w-full md:w-[66%] md:mr-6 mb-4 md:mb-0"
             eager={true}
+            excerptLines={4}
           />
         ) : (
           <HorizontalPost
@@ -38,6 +39,7 @@ export function HeroSection({ mainPost, subPosts, adTopRightSlot }: HeroSectionP
             className="flex-col md:flex-row"
             imageClass="w-full md:w-[66%] md:mr-6 mb-4 md:mb-0"
             eager={true}
+            excerptLines={4}
           />
         )}
 
@@ -78,20 +80,27 @@ export function HeroSection({ mainPost, subPosts, adTopRightSlot }: HeroSectionP
         {/* Desktop & Tablet: vertical cards grid */}
         <div className="hidden md:grid md:grid-cols-3 gap-4 md:gap-6">
           {subPosts.length > 0 ? (
-            subPosts.map((post) => (
-              <VerticalPost
-                key={post.id}
-                href={createArticleUrl(post.title, post.id)}
-                title={post.title}
-                imageUrl={post.imageUrl || undefined}
-                titlePosition="top"
-                size="md"
-              />
-            ))
+            subPosts.map((post) => {
+              const catName = post.categories && post.categories.length > 0 ? post.categories[0].name : undefined;
+              return (
+                <VerticalPost
+                  key={post.id}
+                  href={createArticleUrl(post.title, post.id)}
+                  title={post.title}
+                  imageUrl={post.imageUrl || undefined}
+                  category={catName}
+                  author={catName === "Góc nhìn" || post.author ? { name: post.author || "Tác giả" } : undefined}
+                  commentsCount={catName === "Góc nhìn" ? 12 : undefined}
+                  titlePosition="top"
+                  size="md"
+                  hideExcerpt={true}
+                />
+              );
+            })
           ) : (
             <>
               <VerticalPost href="/mma/ufc-300-alex-pereira" title="Quét radar tìm ba rãnh mộ tập thể ở công viên Lê Thị Riêng" titlePosition="top" size="md" />
-              <VerticalPost href="/football/thuy-dien-tunisia" title="Thụy Điển 3-1 Tunisia (H2): Isak kiến tạo cho Gyokeres ghi bàn" isLive={true} titlePosition="top" size="md" />
+              <VerticalPost href="/football/thuy-dien-tunisia" title="Thuyện Điển 3-1 Tunisia (H2): Isak kiến tạo cho Gyokeres ghi bàn" isLive={true} titlePosition="top" size="md" />
               <VerticalPost href="/opinion/cai-tao-ho-tay" title="Cải tạo Hồ Tây cho ai?" excerpt="Hồ Tây hiện đại hơn, hay sẽ mất đi điều quý giá nhất của mình sau cải tạo?" category="Góc nhìn" author={{ name: "Tô Kiên" }} commentsCount={52} titlePosition="top" size="md" />
             </>
           )}

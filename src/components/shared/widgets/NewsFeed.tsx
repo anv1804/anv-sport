@@ -12,7 +12,26 @@ export async function NewsFeed({ zoneId }: { zoneId?: string }) {
   };
   let posts: any[] = [];
 
-  if (zoneId) {
+  if (zoneId?.startsWith('category:')) {
+    // Lấy bài từ Category (hoặc Category con) qua many-to-many
+    const categoryId = zoneId.replace('category:', '');
+    posts = await prisma.post.findMany({
+      where: {
+        status: 'PUBLISHED',
+        categories: {
+          some: {
+            OR: [
+              { id: categoryId },
+              { parentId: categoryId }
+            ]
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+      select: postSelect
+    });
+  } else if (zoneId) {
     const zonePosts = await prisma.zonePost.findMany({
       where: { zoneId },
       orderBy: { position: 'asc' },

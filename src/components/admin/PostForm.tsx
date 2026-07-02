@@ -219,7 +219,7 @@ export function PostForm({ initialData, categories = [] }: { initialData?: any, 
             res = { success: false, error: predData.error || 'Lỗi server' };
           }
         } else {
-          res = await generateArticleWithAI(aiTitle, aiUrl);
+          res = await generateArticleWithAI(aiTitle, aiUrl, false, metadata.mainCategory);
         }
         
         if (res.success && res.data) {
